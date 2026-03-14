@@ -64,7 +64,7 @@ export default function QuickActions({ onToast }: QuickActionsProps) {
   };
 
   return (
-    <div className="px-3 py-3 space-y-2 border-b border-[var(--color-border)]">
+    <div className="px-3 py-3 space-y-2 border-t border-[var(--color-border)]">
       <Button
         icon={Save}
         fullWidth
