@@ -28,11 +28,14 @@ export const useSidePanelStore = create<SidePanelState>((set) => ({
   sortDirection: 'desc',
 
   navigateTo: (view, sessionId) =>
-    set((state) => ({
-      currentView: view,
-      navigationStack: [...state.navigationStack, view],
-      selectedSessionId: sessionId ?? state.selectedSessionId,
-    })),
+    set((state) => {
+      if (state.currentView === view && !sessionId) return state;
+      return {
+        currentView: view,
+        navigationStack: [...state.navigationStack, view],
+        selectedSessionId: sessionId ?? state.selectedSessionId,
+      };
+    }),
 
   goBack: () =>
     set((state) => {

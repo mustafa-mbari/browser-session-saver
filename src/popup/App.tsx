@@ -84,8 +84,9 @@ export default function App() {
       {/* Footer Links */}
       <div className="px-4 py-2 border-t border-[var(--color-border)] flex justify-between">
         <button
-          onClick={() => {
-            chrome.sidePanel.open({ windowId: tabInfo?.windowId ?? 0 });
+          onClick={async () => {
+            const wid = tabInfo?.windowId ?? (await chrome.windows.getCurrent()).id;
+            if (wid) chrome.sidePanel.open({ windowId: wid });
             window.close();
           }}
           className="flex items-center gap-1 text-xs text-primary hover:underline"

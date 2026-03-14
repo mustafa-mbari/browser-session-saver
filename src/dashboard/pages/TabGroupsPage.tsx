@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Layers, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 import { useSession } from '@shared/hooks/useSession';
-import type { TabGroup, Tab } from '@core/types/session.types';
-import Badge from '@shared/components/Badge';
+import type { Tab } from '@core/types/session.types';
 import EmptyState from '@shared/components/EmptyState';
 import LoadingSpinner from '@shared/components/LoadingSpinner';
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Search, RotateCcw, Trash2 } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useSession } from '@shared/hooks/useSession';
+import { useMessaging } from '@shared/hooks/useMessaging';
 import { useSearch } from '@shared/hooks/useSearch';
 import { useDashboardStore } from '../stores/dashboard.store';
 import StatsWidget from '../components/StatsWidget';
@@ -11,9 +12,10 @@ import Badge from '@shared/components/Badge';
 import LoadingSpinner from '@shared/components/LoadingSpinner';
 
 export default function SessionsPage() {
-  const { sessions, loading, restoreSession, deleteSession, updateSession } = useSession();
+  const { sessions, loading, restoreSession, deleteSession } = useSession();
+  const { sendMessage } = useMessaging();
   const { filteredSessions, setQuery } = useSearch(sessions);
-  const { selectedSessionIds, toggleSelection, isSelectionMode } = useDashboardStore();
+  const { selectedSessionIds, toggleSelection } = useDashboardStore();
   const [detailId, setDetailId] = useState<string | null>(null);
 
   const detailSession = sessions.find((s) => s.id === detailId);
@@ -87,7 +89,18 @@ export default function SessionsPage() {
                 await deleteSession(detailSession.id);
                 setDetailId(null);
               }}
-              onDuplicate={() => {}}
+              onDuplicate={async () => {
+                const exportRes = await sendMessage<string>({
+                  action: 'EXPORT_SESSIONS',
+                  payload: { sessionIds: [detailSession.id], format: 'json' },
+                });
+                if (exportRes.success && exportRes.data) {
+                  await sendMessage({
+                    action: 'IMPORT_SESSIONS',
+                    payload: { data: exportRes.data as string, source: 'json' },
+                  });
+                }
+              }}
             />
           </div>
         )}
@@ -97,7 +110,21 @@ export default function SessionsPage() {
         onDelete={async (ids) => {
           for (const id of ids) await deleteSession(id);
         }}
-        onExport={() => {}}
+        onExport={async (ids) => {
+          const response = await sendMessage<string>({
+            action: 'EXPORT_SESSIONS',
+            payload: { sessionIds: ids, format: 'json' },
+          });
+          if (response.success && response.data) {
+            const blob = new Blob([response.data as string], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'session-saver-export.json';
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+        }}
       />
     </div>
   );

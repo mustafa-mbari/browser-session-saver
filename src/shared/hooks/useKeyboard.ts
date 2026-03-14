@@ -1,6 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export function useKeyboard(shortcuts: Record<string, () => void>) {
+  const shortcutsRef = useRef(shortcuts);
+  shortcutsRef.current = shortcuts;
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const parts: string[] = [];
@@ -10,7 +13,7 @@ export function useKeyboard(shortcuts: Record<string, () => void>) {
       parts.push(e.key.toUpperCase());
 
       const combo = parts.join('+');
-      const action = shortcuts[combo];
+      const action = shortcutsRef.current[combo];
       if (action) {
         e.preventDefault();
         action();
@@ -19,5 +22,5 @@ export function useKeyboard(shortcuts: Record<string, () => void>) {
 
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [shortcuts]);
+  }, []);
 }

@@ -5,6 +5,7 @@ import type { Session } from '@core/types/session.types';
 import EmptyState from '@shared/components/EmptyState';
 import LoadingSpinner from '@shared/components/LoadingSpinner';
 import Button from '@shared/components/Button';
+import { useSession } from '@shared/hooks/useSession';
 import SessionCard from './SessionCard';
 
 interface SessionListProps {
@@ -14,6 +15,7 @@ interface SessionListProps {
 }
 
 export default function SessionList({ sessions, loading, onToast }: SessionListProps) {
+  const { saveSession } = useSession();
   const parentRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
@@ -40,7 +42,7 @@ export default function SessionList({ sessions, loading, onToast }: SessionListP
         icon={Inbox}
         title="No sessions saved"
         description="Save your current tabs to get started. Sessions will appear here."
-        action={<Button size="sm">Save Session</Button>}
+        action={<Button size="sm" onClick={() => saveSession()}>Save Session</Button>}
       />
     );
   }

@@ -12,7 +12,7 @@ export default function SettingsPage() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   useEffect(() => {
-    sendMessage<Settings>({ action: 'UPDATE_SETTINGS', payload: {} }).then((r) => {
+    sendMessage<Settings>({ action: 'GET_SETTINGS', payload: {} }).then((r) => {
       if (r.success && r.data) setSettings(r.data as Settings);
     });
   }, [sendMessage]);
@@ -93,7 +93,16 @@ export default function SettingsPage() {
             <Button variant="secondary" size="sm" onClick={() => setShowClearConfirm(false)}>
               Cancel
             </Button>
-            <Button variant="danger" size="sm" onClick={() => { setShowClearConfirm(false); }}>
+            <Button variant="danger" size="sm" onClick={async () => {
+              const storage = await import('@core/storage/storage-factory');
+              const sessionStorage = storage.getSessionStorage();
+              const settingsStorage = storage.getSettingsStorage();
+              await sessionStorage.clear();
+              await settingsStorage.clear();
+              setSettings(DEFAULT_SETTINGS);
+              setShowClearConfirm(false);
+              window.location.reload();
+            }}>
               Delete Everything
             </Button>
           </>
@@ -165,7 +174,7 @@ function NumberField({ label, value, min, max, onChange }: {
       <span className="text-sm">{label}</span>
       <input
         type="number" min={min} max={max} value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={(e) => onChange(Math.min(max, Math.max(min, Number(e.target.value))))}
         className="w-20 px-2 py-1 text-sm rounded border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] text-center focus:outline-none focus:ring-1 focus:ring-primary"
       />
     </div>

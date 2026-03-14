@@ -37,11 +37,12 @@ export function highlightMatches(text: string, query: string): HighlightSegment[
   const regex = new RegExp(`(${escapeRegex(query)})`, 'gi');
   const parts = text.split(regex);
 
+  const lowerQuery = query.toLowerCase();
   return parts
     .filter((part) => part.length > 0)
     .map((part) => ({
       text: part,
-      highlighted: regex.test(part),
+      highlighted: part.toLowerCase() === lowerQuery,
     }));
 }
 

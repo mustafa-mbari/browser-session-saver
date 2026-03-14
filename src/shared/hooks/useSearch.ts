@@ -6,7 +6,7 @@ import { debounce } from '@core/utils/debounce';
 export function useSearch(sessions: Session[]) {
   const [query, setQuery] = useState('');
 
-  const debouncedSetQuery = useMemo(() => debounce((q: unknown) => setQuery(q as string), 300), []);
+  const debouncedSetQuery = useMemo(() => debounce((...args: unknown[]) => setQuery(String(args[0] ?? '')), 300), []);
 
   const filteredSessions = useMemo(() => {
     return searchSessions(sessions, query);

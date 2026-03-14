@@ -13,7 +13,7 @@ export default function SettingsView() {
     // Load current settings
     const loadSettings = async () => {
       const response = await sendMessage<Settings>({
-        action: 'UPDATE_SETTINGS',
+        action: 'GET_SETTINGS',
         payload: {},
       });
       if (response.success && response.data) {
@@ -224,7 +224,7 @@ function NumberInput({
         min={min}
         max={max}
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={(e) => onChange(Math.min(max, Math.max(min, Number(e.target.value))))}
         className="w-16 px-2 py-1 text-sm rounded border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] text-center focus:outline-none focus:ring-1 focus:ring-primary"
       />
     </div>

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Download, Upload, FileJson, FileText, FileSpreadsheet, FileCode, File } from 'lucide-react';
 import Button from '@shared/components/Button';
 import { useSession } from '@shared/hooks/useSession';
@@ -60,10 +60,7 @@ export default function ImportExportPage() {
     }
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processImportFile = useCallback(async (file: File) => {
     setImporting(true);
     setImportResult(null);
 
@@ -92,6 +89,12 @@ export default function ImportExportPage() {
 
     setImporting(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [sendMessage, refreshSessions]);
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processImportFile(file);
   };
 
   return (
@@ -154,12 +157,7 @@ export default function ImportExportPage() {
             onDrop={(e) => {
               e.preventDefault();
               const file = e.dataTransfer.files[0];
-              if (file && fileInputRef.current) {
-                const dt = new DataTransfer();
-                dt.items.add(file);
-                fileInputRef.current.files = dt.files;
-                fileInputRef.current.dispatchEvent(new Event('change', { bubbles: true }));
-              }
+              if (file) processImportFile(file);
             }}
           >
             <Upload size={36} className="mx-auto mb-3 text-[var(--color-text-secondary)]" />

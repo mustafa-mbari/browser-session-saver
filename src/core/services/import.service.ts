@@ -18,10 +18,36 @@ export function importFromJSON(jsonString: string): ImportResult {
     const data = parsed.sessions ?? (Array.isArray(parsed) ? parsed : [parsed]);
 
     for (let i = 0; i < data.length; i++) {
-      if (isValidSession(data[i])) {
+      const raw = data[i];
+      if (isValidSession(raw)) {
+        const now = nowISO();
         sessions.push({
-          ...data[i],
-          id: generateId(), // assign new ID to avoid conflicts
+          id: generateId(),
+          name: String(raw.name ?? 'Imported Session'),
+          createdAt: String(raw.createdAt ?? now),
+          updatedAt: now,
+          tabs: Array.isArray(raw.tabs) ? raw.tabs.map((t: Tab) => ({
+            id: generateId(),
+            url: String(t.url),
+            title: String(t.title ?? t.url),
+            favIconUrl: String(t.favIconUrl ?? ''),
+            index: Number(t.index ?? 0),
+            pinned: Boolean(t.pinned),
+            groupId: Number(t.groupId ?? -1),
+            active: false,
+            scrollPosition: { x: 0, y: 0 },
+          })) : [],
+          tabGroups: Array.isArray(raw.tabGroups) ? raw.tabGroups : [],
+          windowId: Number(raw.windowId ?? -1),
+          tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+          isPinned: Boolean(raw.isPinned),
+          isStarred: Boolean(raw.isStarred),
+          isLocked: false,
+          isAutoSave: Boolean(raw.isAutoSave),
+          autoSaveTrigger: raw.autoSaveTrigger ?? 'manual',
+          notes: String(raw.notes ?? ''),
+          tabCount: Array.isArray(raw.tabs) ? raw.tabs.length : 0,
+          version: CURRENT_SCHEMA_VERSION,
         });
       } else {
         errors.push(`Item ${i + 1}: Invalid session format`);

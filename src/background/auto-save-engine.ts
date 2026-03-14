@@ -6,9 +6,14 @@ import { setupAlarms, clearAlarms, onAlarm, updateAlarmInterval } from './alarms
 
 let _isSaving = false;
 let _settings: Settings | null = null;
+let _initialized = false;
+let _pendingCriticalTrigger: AutoSaveTrigger | null = null;
 
 // Cache of tab state per window for window-close auto-save
 const windowTabCache = new Map<number, { tabs: Tab[]; tabGroups: TabGroup[] }>();
+
+// Debounce timer for updateTabCache
+let _tabCacheTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function initAutoSaveEngine(settings: Settings): void {
   _settings = settings;
@@ -18,34 +23,37 @@ export function initAutoSaveEngine(settings: Settings): void {
     return;
   }
 
+  // Guard against duplicate listener registration on service worker restart
+  if (_initialized) return;
+  _initialized = true;
+
   // Periodic timer
   setupAlarms(settings.saveInterval);
   onAlarm(() => performAutoSave('timer'));
 
   // Browser close
-  if (settings.saveOnBrowserClose) {
-    chrome.runtime.onSuspend.addListener(() => {
+  chrome.runtime.onSuspend.addListener(() => {
+    if (_settings?.saveOnBrowserClose) {
+      // onSuspend gives limited time; save synchronously to storage.session as best-effort
       performAutoSave('shutdown');
-    });
-  }
+    }
+  });
 
   // System sleep/idle
-  if (settings.saveOnSleep) {
-    chrome.idle.setDetectionInterval(60);
-    chrome.idle.onStateChanged.addListener((state) => {
-      if (state === 'locked' || state === 'idle') {
-        performAutoSave('sleep');
-      }
-    });
-  }
+  chrome.idle.setDetectionInterval(60);
+  chrome.idle.onStateChanged.addListener((state) => {
+    if (_settings?.saveOnSleep && (state === 'locked' || state === 'idle')) {
+      performAutoSave('sleep');
+    }
+  });
 
   // Low battery
   if (settings.saveOnLowBattery) {
     initBatteryMonitor(settings.lowBatteryThreshold);
   }
 
-  // Window close - maintain tab cache
-  chrome.tabs.onUpdated.addListener(updateTabCache);
+  // Window close - maintain tab cache with debounced updates
+  chrome.tabs.onUpdated.addListener(debouncedUpdateTabCache);
   chrome.tabs.onRemoved.addListener((_tabId, removeInfo) => {
     if (!removeInfo.isWindowClosing) {
       updateTabCacheForWindow(removeInfo.windowId);
@@ -54,18 +62,17 @@ export function initAutoSaveEngine(settings: Settings): void {
   chrome.windows.onRemoved.addListener((windowId) => {
     const cached = windowTabCache.get(windowId);
     if (cached && cached.tabs.length > 0) {
-      performAutoSave('window_close');
+      saveClosedWindowFromCache(cached, windowId);
     }
     windowTabCache.delete(windowId);
   });
 
   // Network disconnect
-  if (settings.saveOnNetworkDisconnect) {
-    // Note: navigator.onLine events work in service worker context
-    self.addEventListener('offline', () => {
+  self.addEventListener('offline', () => {
+    if (_settings?.saveOnNetworkDisconnect) {
       performAutoSave('network');
-    });
-  }
+    }
+  });
 }
 
 export function updateSettings(settings: Settings): void {
@@ -77,9 +84,35 @@ export function updateSettings(settings: Settings): void {
   }
 }
 
-async function performAutoSave(trigger: AutoSaveTrigger): Promise<void> {
-  if (_isSaving) return;
+async function saveClosedWindowFromCache(
+  cached: { tabs: Tab[]; tabGroups: TabGroup[] },
+  windowId: number,
+): Promise<void> {
   if (!_settings?.enableAutoSave) return;
+
+  try {
+    if (await isDuplicate(cached.tabs)) return;
+
+    await SessionService.saveSession(cached.tabs, cached.tabGroups, {
+      windowId,
+      isAutoSave: true,
+      autoSaveTrigger: 'window_close',
+    });
+  } catch (error) {
+    console.error('Window close auto-save failed:', error);
+  }
+}
+
+async function performAutoSave(trigger: AutoSaveTrigger): Promise<void> {
+  if (!_settings?.enableAutoSave) return;
+
+  // If already saving, queue critical triggers (shutdown, window_close) for retry
+  if (_isSaving) {
+    if (trigger === 'shutdown' || trigger === 'window_close') {
+      _pendingCriticalTrigger = trigger;
+    }
+    return;
+  }
 
   _isSaving = true;
 
@@ -108,6 +141,13 @@ async function performAutoSave(trigger: AutoSaveTrigger): Promise<void> {
     console.error('Auto-save failed:', error);
   } finally {
     _isSaving = false;
+
+    // Process queued critical trigger
+    if (_pendingCriticalTrigger) {
+      const pending = _pendingCriticalTrigger;
+      _pendingCriticalTrigger = null;
+      performAutoSave(pending);
+    }
   }
 }
 
@@ -154,6 +194,13 @@ interface BatteryManager extends EventTarget {
   charging: boolean;
   level: number;
   addEventListener(type: string, listener: EventListener): void;
+}
+
+function debouncedUpdateTabCache(): void {
+  if (_tabCacheTimer) clearTimeout(_tabCacheTimer);
+  _tabCacheTimer = setTimeout(() => {
+    updateTabCache();
+  }, 2000);
 }
 
 async function updateTabCache(): Promise<void> {

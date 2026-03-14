@@ -1,9 +1,10 @@
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useMemo } from 'react';
 import { MoreVertical, RotateCcw, Trash2, Edit, Pin, Star, Download, Lock } from 'lucide-react';
 import type { Session } from '@core/types/session.types';
 import { formatRelative } from '@core/utils/date';
 import { useSidePanelStore } from '../stores/sidepanel.store';
 import { useSession } from '@shared/hooks/useSession';
+import { useMessaging } from '@shared/hooks/useMessaging';
 import ContextMenu from '@shared/components/ContextMenu';
 import TabGroupPreview from './TabGroupPreview';
 
@@ -15,6 +16,7 @@ interface SessionCardProps {
 export default memo(function SessionCard({ session, onToast }: SessionCardProps) {
   const { navigateTo } = useSidePanelStore();
   const { restoreSession, deleteSession, updateSession } = useSession();
+  const { sendMessage } = useMessaging();
   const [restoring, setRestoring] = useState(false);
 
   const handleRestore = useCallback(
@@ -41,7 +43,7 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
     }
   }, [deleteSession, session.id, onToast]);
 
-  const menuItems = [
+  const menuItems = useMemo(() => [
     {
       label: session.isPinned ? 'Unpin' : 'Pin',
       icon: Pin,
@@ -60,7 +62,21 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
     {
       label: 'Export',
       icon: Download,
-      onClick: () => {},
+      onClick: async () => {
+        const res = await sendMessage<string>({
+          action: 'EXPORT_SESSIONS',
+          payload: { sessionIds: [session.id], format: 'json' },
+        });
+        if (res.success && res.data) {
+          const blob = new Blob([res.data as string], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${session.name.replace(/[^a-zA-Z0-9]/g, '_')}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      },
     },
     {
       label: session.isLocked ? 'Unlock' : 'Lock',
@@ -73,7 +89,7 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
       onClick: handleDelete,
       danger: true,
     },
-  ];
+  ], [session, updateSession, navigateTo, sendMessage, handleDelete]);
 
   return (
     <div

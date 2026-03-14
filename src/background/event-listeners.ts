@@ -33,6 +33,8 @@ async function handleMessage(message: Message): Promise<MessageResponse> {
       return handleGetCurrentTabs();
     case 'UPDATE_SETTINGS':
       return handleUpdateSettings(message.payload);
+    case 'GET_SETTINGS':
+      return handleGetSettings();
     case 'AUTO_SAVE_STATUS':
       return handleAutoSaveStatus();
     case 'UPDATE_SESSION':
@@ -50,7 +52,27 @@ async function handleSaveSession(payload: {
   windowId?: number;
   name?: string;
   closeAfter?: boolean;
-}): Promise<MessageResponse<Session>> {
+  allWindows?: boolean;
+}): Promise<MessageResponse<Session | Session[]>> {
+  if (payload.allWindows) {
+    // Save all open windows as separate sessions
+    const windows = await chrome.windows.getAll({ populate: false });
+    const sessions: Session[] = [];
+    for (const win of windows) {
+      if (!win.id) continue;
+      const chromeTabs = await chrome.tabs.query({ windowId: win.id });
+      if (chromeTabs.length === 0) continue;
+      const chromeGroups = await chrome.tabGroups.query({ windowId: win.id });
+      const { tabs, tabGroups } = captureTabGroups(chromeTabs, chromeGroups);
+      const session = await SessionService.saveSession(tabs, tabGroups, {
+        name: payload.name,
+        windowId: win.id,
+      });
+      sessions.push(session);
+    }
+    return { success: true, data: sessions };
+  }
+
   const windowId = payload.windowId ?? (await getCurrentWindowId());
   const chromeTabs = await chrome.tabs.query({ windowId });
   const chromeGroups = await chrome.tabGroups.query({ windowId });
@@ -142,7 +164,7 @@ async function handleDeleteSession(payload: {
 }
 
 async function handleGetSessions(
-  payload: Message extends { action: 'GET_SESSIONS'; payload: infer P } ? P : never,
+  payload: { filter?: Parameters<typeof SessionService.getAllSessions>[0]; sort?: Parameters<typeof SessionService.getAllSessions>[1] },
 ): Promise<MessageResponse<Session[]>> {
   const sessions = await SessionService.getAllSessions(payload.filter, payload.sort);
   return { success: true, data: sessions };
@@ -160,6 +182,12 @@ async function handleGetCurrentTabs(): Promise<MessageResponse> {
       windowId,
     },
   };
+}
+
+async function handleGetSettings(): Promise<MessageResponse> {
+  const storage = getSettingsStorage();
+  const settings = (await storage.get<Settings>(STORAGE_KEYS.SETTINGS)) ?? { ...DEFAULT_SETTINGS };
+  return { success: true, data: settings };
 }
 
 async function handleUpdateSettings(

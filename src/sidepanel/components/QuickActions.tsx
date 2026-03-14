@@ -6,7 +6,11 @@ import { useSession } from '@shared/hooks/useSession';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import type { CurrentTabsResponse } from '@core/types/messages.types';
 
-export default function QuickActions() {
+interface QuickActionsProps {
+  onToast?: (message: string, type: 'success' | 'error') => void;
+}
+
+export default function QuickActions({ onToast }: QuickActionsProps) {
   const { saveSession } = useSession();
   const { sendMessage } = useMessaging();
   const [saving, setSaving] = useState(false);
@@ -24,15 +28,33 @@ export default function QuickActions() {
     };
     fetchTabInfo();
 
-    // Refresh tab info periodically
     const interval = setInterval(fetchTabInfo, 5000);
     return () => clearInterval(interval);
   }, [sendMessage]);
 
   const handleSave = async (closeAfter = false) => {
     setSaving(true);
-    await saveSession({ closeAfter });
+    const result = await saveSession({ closeAfter });
     setSaving(false);
+    if (result.success) {
+      onToast?.('Session saved successfully', 'success');
+    } else {
+      onToast?.(result.error ?? 'Failed to save session', 'error');
+    }
+  };
+
+  const handleSaveAllWindows = async () => {
+    setSaving(true);
+    const result = await sendMessage({
+      action: 'SAVE_SESSION',
+      payload: { allWindows: true },
+    });
+    setSaving(false);
+    if (result.success) {
+      onToast?.('All windows saved', 'success');
+    } else {
+      onToast?.(result.error ?? 'Failed to save', 'error');
+    }
   };
 
   return (
@@ -60,7 +82,7 @@ export default function QuickActions() {
           size="sm"
           icon={Monitor}
           className="flex-1"
-          onClick={() => handleSave(false)}
+          onClick={handleSaveAllWindows}
         >
           All Windows
         </Button>

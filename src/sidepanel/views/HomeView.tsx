@@ -8,7 +8,7 @@ import SearchBar from '../components/SearchBar';
 import SessionList from '../components/SessionList';
 import Toast, { type ToastData } from '@shared/components/Toast';
 import { generateId } from '@core/utils/uuid';
-import type { SessionFilter, SessionSort } from '@core/types/messages.types';
+import type { SessionFilter } from '@core/types/messages.types';
 
 export default function HomeView() {
   const { sessions, loading } = useSession();
@@ -64,7 +64,7 @@ export default function HomeView() {
 
   return (
     <div className="flex flex-col h-full">
-      <QuickActions />
+      <QuickActions onToast={addToast} />
       <SearchBar onSearch={setQuery} />
       <SessionList sessions={sortedSessions} loading={loading} onToast={addToast} />
 

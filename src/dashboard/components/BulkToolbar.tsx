@@ -1,4 +1,4 @@
-import { Trash2, Download, X, Tag } from 'lucide-react';
+import { Trash2, Download, X } from 'lucide-react';
 import { useDashboardStore } from '../stores/dashboard.store';
 import Button from '@shared/components/Button';
 

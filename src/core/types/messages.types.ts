@@ -20,7 +20,7 @@ export interface SessionSort {
 }
 
 export type Message =
-  | { action: 'SAVE_SESSION'; payload: { windowId?: number; name?: string; closeAfter?: boolean } }
+  | { action: 'SAVE_SESSION'; payload: { windowId?: number; name?: string; closeAfter?: boolean; allWindows?: boolean } }
   | { action: 'RESTORE_SESSION'; payload: { sessionId: string; mode: RestoreMode } }
   | { action: 'DELETE_SESSION'; payload: { sessionId: string } }
   | {
@@ -34,6 +34,7 @@ export type Message =
     }
   | { action: 'IMPORT_SESSIONS'; payload: { data: string; source: ImportSource } }
   | { action: 'UPDATE_SETTINGS'; payload: Partial<Settings> }
+  | { action: 'GET_SETTINGS'; payload: Record<string, never> }
   | { action: 'AUTO_SAVE_STATUS'; payload: Record<string, never> }
   | { action: 'UPDATE_SESSION'; payload: { sessionId: string; updates: Partial<Session> } };
 

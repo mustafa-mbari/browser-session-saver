@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Clock, Trash2 } from 'lucide-react';
 import { useSession } from '@shared/hooks/useSession';
-import { formatRelative, formatTimestamp } from '@core/utils/date';
+import { formatRelative } from '@core/utils/date';
 import Badge from '@shared/components/Badge';
 import Button from '@shared/components/Button';
 import EmptyState from '@shared/components/EmptyState';

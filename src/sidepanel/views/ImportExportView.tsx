@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Download, Upload, FileJson, FileText } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import { Download, Upload, FileJson, FileText, type LucideIcon } from 'lucide-react';
 import Button from '@shared/components/Button';
 import { useSession } from '@shared/hooks/useSession';
 import { useMessaging } from '@shared/hooks/useMessaging';
@@ -13,6 +13,14 @@ export default function ImportExportView() {
   const [importResult, setImportResult] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const mimeTypes: Record<string, string> = {
+    json: 'application/json',
+    html: 'text/html',
+    markdown: 'text/markdown',
+    csv: 'text/csv',
+    text: 'text/plain',
+  };
+
   const handleExport = async () => {
     const sessionIds = sessions.map((s) => s.id);
     const response = await sendMessage<string>({
@@ -22,7 +30,7 @@ export default function ImportExportView() {
 
     if (response.success && response.data) {
       const blob = new Blob([response.data], {
-        type: exportFormat === 'json' ? 'application/json' : 'text/html',
+        type: mimeTypes[exportFormat] ?? 'application/octet-stream',
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -33,10 +41,7 @@ export default function ImportExportView() {
     }
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processImportFile = useCallback(async (file: File) => {
     setImporting(true);
     setImportResult(null);
 
@@ -56,6 +61,12 @@ export default function ImportExportView() {
 
     setImporting(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [sendMessage]);
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processImportFile(file);
   };
 
   return (
@@ -105,12 +116,7 @@ export default function ImportExportView() {
           onDrop={(e) => {
             e.preventDefault();
             const file = e.dataTransfer.files[0];
-            if (file && fileInputRef.current) {
-              const dt = new DataTransfer();
-              dt.items.add(file);
-              fileInputRef.current.files = dt.files;
-              fileInputRef.current.dispatchEvent(new Event('change', { bubbles: true }));
-            }
+            if (file) processImportFile(file);
           }}
         >
           <Upload size={24} className="mx-auto mb-2 text-[var(--color-text-secondary)]" />
@@ -148,7 +154,7 @@ function FormatOption({
   selected,
   onClick,
 }: {
-  icon: React.ComponentType<{ size?: number }>;
+  icon: LucideIcon;
   label: string;
   description: string;
   selected: boolean;
