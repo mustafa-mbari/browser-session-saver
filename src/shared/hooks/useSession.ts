@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import type { Session } from '@core/types/session.types';
 import type { SessionFilter, SessionSort, RestoreMode } from '@core/types/messages.types';
 import { useMessaging } from './useMessaging';
+import * as SessionService from '@core/services/session.service';
 
 /** Write a timestamp to storage so every extension page sees the change. */
 function notifySessionsChanged(): void {
@@ -97,16 +98,19 @@ export function useSession() {
     return () => window.removeEventListener('session-changed', handler);
   }, [refreshSessions]);
 
-  // Cross-page refresh (sidepanel ↔ dashboard via storage notification)
+  // Cross-page refresh (sidepanel ↔ dashboard).
+  // Read directly from IndexedDB to avoid the SW round-trip which can fail
+  // with "message port closed before a response was received" if the SW is sleeping.
   useEffect(() => {
-    const handler = (changes: Record<string, chrome.storage.StorageChange>) => {
+    const handler = async (changes: Record<string, chrome.storage.StorageChange>) => {
       if (changes['_sessions_updated']) {
-        void refreshSessions();
+        const updated = await SessionService.getAllSessions();
+        setSessions(updated);
       }
     };
     chrome.storage.local.onChanged.addListener(handler);
     return () => chrome.storage.local.onChanged.removeListener(handler);
-  }, [refreshSessions]);
+  }, []);
 
   return {
     sessions,
