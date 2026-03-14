@@ -3,6 +3,12 @@ import type { Session } from '@core/types/session.types';
 import type { SessionFilter, SessionSort, RestoreMode } from '@core/types/messages.types';
 import { useMessaging } from './useMessaging';
 
+/** Write a timestamp to storage so every extension page sees the change. */
+function notifySessionsChanged(): void {
+  window.dispatchEvent(new CustomEvent('session-changed'));
+  chrome.storage.local.set({ _sessions_updated: Date.now() });
+}
+
 export function useSession() {
   const { sendMessage } = useMessaging();
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -34,7 +40,7 @@ export function useSession() {
         payload: { name: options?.name, closeAfter: options?.closeAfter },
       });
       if (response.success) {
-        window.dispatchEvent(new CustomEvent('session-changed'));
+        notifySessionsChanged();
       }
       return response;
     },
@@ -58,7 +64,7 @@ export function useSession() {
         payload: { sessionId },
       });
       if (response.success) {
-        window.dispatchEvent(new CustomEvent('session-changed'));
+        notifySessionsChanged();
       }
       return response;
     },
@@ -72,21 +78,34 @@ export function useSession() {
         payload: { sessionId, updates },
       });
       if (response.success) {
-        window.dispatchEvent(new CustomEvent('session-changed'));
+        notifySessionsChanged();
       }
       return response;
     },
     [sendMessage],
   );
 
+  // Initial load
   useEffect(() => {
     refreshSessions();
   }, [refreshSessions]);
 
+  // In-page refresh (same window)
   useEffect(() => {
     const handler = () => { void refreshSessions(); };
     window.addEventListener('session-changed', handler);
     return () => window.removeEventListener('session-changed', handler);
+  }, [refreshSessions]);
+
+  // Cross-page refresh (sidepanel ↔ dashboard via storage notification)
+  useEffect(() => {
+    const handler = (changes: Record<string, chrome.storage.StorageChange>) => {
+      if (changes['_sessions_updated']) {
+        void refreshSessions();
+      }
+    };
+    chrome.storage.local.onChanged.addListener(handler);
+    return () => chrome.storage.local.onChanged.removeListener(handler);
   }, [refreshSessions]);
 
   return {
