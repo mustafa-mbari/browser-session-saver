@@ -18,3 +18,15 @@ export function getFaviconUrl(url: string): string {
 export function getFaviconInitial(title: string, url: string): string {
   return (title || url).charAt(0).toUpperCase();
 }
+
+/**
+ * Resolves a stored favIconUrl to a usable URL, sanitizing browser-internal
+ * URLs (chrome://, edge://) that extensions cannot load. Falls back to
+ * Google's favicon service using the page URL.
+ */
+export function resolveFavIcon(stored: string | undefined, pageUrl: string): string {
+  if (!stored || stored.startsWith('chrome://') || stored.startsWith('edge://')) {
+    return getFaviconUrl(pageUrl);
+  }
+  return stored;
+}

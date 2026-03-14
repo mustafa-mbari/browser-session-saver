@@ -2,6 +2,7 @@ import type { NewTabDB } from '@core/storage/newtab-storage';
 import type { Board, BookmarkCategory, BookmarkEntry } from '@core/types/newtab.types';
 import { generateId } from '@core/utils/uuid';
 import { nowISO } from '@core/utils/date';
+import { getFaviconUrl } from '@core/utils/favicon';
 
 const BOARDS = 'boards';
 const CATEGORIES = 'bookmarkCategories';
@@ -50,6 +51,11 @@ export async function deleteBoard(db: NewTabDB, id: string): Promise<void> {
 
 export async function getCategories(db: NewTabDB, boardId: string): Promise<BookmarkCategory[]> {
   const cats = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'boardId', boardId);
+  const board = await db.get<Board>(BOARDS, boardId);
+  if (board && board.categoryIds.length > 0) {
+    const order = new Map(board.categoryIds.map((id, idx) => [id, idx]));
+    return cats.sort((a, b) => (order.get(a.id) ?? 9999) - (order.get(b.id) ?? 9999));
+  }
   return cats.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
@@ -103,6 +109,11 @@ export async function deleteCategory(db: NewTabDB, id: string): Promise<void> {
 
 export async function getEntries(db: NewTabDB, categoryId: string): Promise<BookmarkEntry[]> {
   const entries = await db.getAllByIndex<BookmarkEntry>(ENTRIES, 'categoryId', categoryId);
+  const cat = await db.get<BookmarkCategory>(CATEGORIES, categoryId);
+  if (cat && cat.bookmarkIds.length > 0) {
+    const order = new Map(cat.bookmarkIds.map((id, idx) => [id, idx]));
+    return entries.sort((a, b) => (order.get(a.id) ?? 9999) - (order.get(b.id) ?? 9999));
+  }
   return entries.sort((a, b) => a.addedAt.localeCompare(b.addedAt));
 }
 
@@ -176,7 +187,7 @@ function flattenBookmarkTree(
           categoryId: catId,
           title: child.title || child.url,
           url: child.url,
-          favIconUrl: `chrome://favicon/size/16@1x/${encodeURIComponent(child.url)}`,
+          favIconUrl: getFaviconUrl(child.url),
           addedAt: nowISO(),
           isNative: true,
           nativeId: child.id,

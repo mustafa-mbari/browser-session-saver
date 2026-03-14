@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import EmptyState from '@shared/components/EmptyState';
 import { Globe } from 'lucide-react';
+import { getFaviconUrl } from '@core/utils/favicon';
 
 interface Site {
   url: string;
@@ -40,7 +41,7 @@ export default function FrequentlyVisitedPanel() {
   return (
     <div className="flex flex-wrap gap-4 justify-center py-4">
       {sites.map((site) => {
-        const faviconUrl = `chrome://favicon/size/32@1x/${encodeURIComponent(site.url)}`;
+        const faviconUrl = getFaviconUrl(site.url);
         return (
           <a
             key={site.url}

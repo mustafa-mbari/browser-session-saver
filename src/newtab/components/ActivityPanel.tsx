@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { History } from 'lucide-react';
 import EmptyState from '@shared/components/EmptyState';
+import { getFaviconUrl } from '@core/utils/favicon';
 
 interface HistoryItem {
   id: string;
@@ -66,7 +67,7 @@ export default function ActivityPanel() {
           className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/10 transition-colors"
         >
           <img
-            src={`chrome://favicon/size/16@1x/${encodeURIComponent(item.url)}`}
+            src={getFaviconUrl(item.url)}
             alt=""
             className="w-4 h-4 rounded shrink-0"
           />

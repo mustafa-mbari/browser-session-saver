@@ -10,6 +10,7 @@ import {
   type TodoItem,
   type TodoList,
 } from '@core/types/newtab.types';
+import { updateNewTabSettings } from '@core/services/newtab-settings.service';
 
 export type NewTabView =
   | 'quick-links'
@@ -72,11 +73,13 @@ export const useNewTabStore = create<NewTabState>((set) => ({
   isLoading: true,
 
   setSettings: (s) => set({ settings: s, layoutMode: s.layoutMode }),
-  updateSettings: (partial) =>
+  updateSettings: (partial) => {
+    void updateNewTabSettings(partial); // persist to chrome.storage.local
     set((state) => ({
       settings: { ...state.settings, ...partial },
       layoutMode: partial.layoutMode ?? state.layoutMode,
-    })),
+    }));
+  },
   setLayoutMode: (mode) => set({ layoutMode: mode }),
   setActiveView: (view) => set({ activeView: view }),
   setBoards: (boards) => set({ boards }),

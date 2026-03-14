@@ -133,6 +133,20 @@ export class NewTabDB {
   async deleteBlob(id: string): Promise<void> {
     return this.delete(Stores.wallpaperImages, id);
   }
+
+  async clearAll(): Promise<void> {
+    const db = await this.openDB();
+    const storeNames = Object.values(Stores) as string[];
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeNames, 'readwrite');
+      let pending = storeNames.length;
+      for (const store of storeNames) {
+        const req = tx.objectStore(store).clear();
+        req.onsuccess = () => { if (--pending === 0) resolve(); };
+        req.onerror = () => reject(req.error);
+      }
+    });
+  }
 }
 
 export const newtabDB = new NewTabDB();

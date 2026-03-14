@@ -1,7 +1,6 @@
 import { useRef, useCallback, useState } from 'react';
 import NewTabHeader from '@newtab/components/NewTabHeader';
 import ClockWidget from '@newtab/components/ClockWidget';
-import TopNavTabs from '@newtab/components/TopNavTabs';
 import QuickLinksRow from '@newtab/components/QuickLinksRow';
 import FrequentlyVisitedPanel from '@newtab/components/FrequentlyVisitedPanel';
 import TabsPanel from '@newtab/components/TabsPanel';
@@ -68,6 +67,11 @@ export default function DashboardLayout() {
     store.setEntries(entries.filter((e) => e.id !== id));
   }, [entries, store]);
 
+  const handleRenameEntry = useCallback(async (id: string, title: string, url: string) => {
+    await BookmarkService.updateEntry(newtabDB, id, { title, url });
+    store.setEntries(entries.map((e) => (e.id === id ? { ...e, title, url } : e)));
+  }, [entries, store]);
+
   const handleDeleteCategory = useCallback(async (id: string) => {
     await BookmarkService.deleteCategory(newtabDB, id);
     store.setCategories(categories.filter((c) => c.id !== id));
@@ -81,14 +85,29 @@ export default function DashboardLayout() {
     store.setCategories(categories.map((c) => (c.id === id ? { ...c, collapsed: !c.collapsed } : c)));
   }, [categories, store]);
 
-  const handleReorderEntries = useCallback(async (_categoryId: string, orderedIds: string[]) => {
+  const handleReorderEntries = useCallback(async (categoryId: string, orderedIds: string[]) => {
+    // Persist order via category's bookmarkIds
+    await BookmarkService.updateCategory(newtabDB, categoryId, { bookmarkIds: orderedIds });
+    // Reorder the entries array in the store so the UI reflects the new order immediately
     const map = new Map(orderedIds.map((id, idx) => [id, idx]));
-    store.setEntries(entries.map((e) => (map.has(e.id) ? { ...e, position: map.get(e.id)! } : e)));
+    const catEntries = entries.filter((e) => e.categoryId === categoryId);
+    const otherEntries = entries.filter((e) => e.categoryId !== categoryId);
+    const reordered = [...catEntries].sort((a, b) => (map.get(a.id) ?? 9999) - (map.get(b.id) ?? 9999));
+    store.setEntries([...otherEntries, ...reordered]);
   }, [entries, store]);
 
   const handleReorderCategories = useCallback(async (reordered: typeof categories) => {
-    store.setCategories(reordered);
-  }, [store]);
+    const boardId = activeBoard?.id;
+    if (boardId) {
+      await BookmarkService.updateBoard(newtabDB, boardId, {
+        categoryIds: reordered.map((c) => c.id),
+      });
+    }
+    store.setCategories([
+      ...categories.filter((c) => c.boardId !== boardId),
+      ...reordered,
+    ]);
+  }, [activeBoard, categories, store]);
 
   const handleImportNative = useCallback(async (boardId: string) => {
     await BookmarkService.importNativeBookmarks(newtabDB, boardId);
@@ -160,6 +179,26 @@ export default function DashboardLayout() {
     store.updateSettings({ activeBoardId: board.id });
   }, [boards, store]);
 
+  const handleRenameBoard = useCallback(async (id: string, name: string) => {
+    await BookmarkService.updateBoard(newtabDB, id, { name });
+    store.setBoards(boards.map((b) => (b.id === id ? { ...b, name } : b)));
+  }, [boards, store]);
+
+  const handleDeleteBoard = useCallback(async (id: string) => {
+    await BookmarkService.deleteBoard(newtabDB, id);
+    const nextBoards = boards.filter((b) => b.id !== id);
+    store.setBoards(nextBoards);
+    store.setCategories(categories.filter((c) => c.boardId !== id));
+    store.setEntries(entries.filter((e) => {
+      const cat = categories.find((c) => c.id === e.categoryId);
+      return cat?.boardId !== id;
+    }));
+    // Switch to another board if the deleted one was active
+    if (settings.activeBoardId === id) {
+      store.updateSettings({ activeBoardId: nextBoards[0]?.id ?? null });
+    }
+  }, [boards, categories, entries, settings.activeBoardId, store]);
+
   const bookmarkBoardProps = activeBoard
     ? {
         board: activeBoard,
@@ -171,6 +210,7 @@ export default function DashboardLayout() {
         onToggleCollapse: (id: string) => { void handleToggleCollapse(id); },
         onAddEntry: (catId: string, title: string, url: string) => { void handleAddEntry(catId, title, url); },
         onDeleteEntry: (id: string) => { void handleDeleteEntry(id); },
+        onRenameEntry: (id: string, title: string, url: string) => { void handleRenameEntry(id, title, url); },
         onReorderCategories: (cats: typeof categories) => { void handleReorderCategories(cats); },
         onReorderEntries: (catId: string, ids: string[]) => { void handleReorderEntries(catId, ids); },
         onImportNative: (boardId: string) => { void handleImportNative(boardId); },
@@ -190,8 +230,11 @@ export default function DashboardLayout() {
       <NewTabHeader
         ref={searchRef}
         settings={settings}
+        activeView={activeView}
+        onViewChange={store.setActiveView}
         onOpenSettings={() => store.toggleSettings()}
         onOpenWallpaper={() => store.toggleWallpaper()}
+        onToggleClock={() => store.updateSettings({ showClock: !settings.showClock })}
       />
 
       {/* ── Body: sidebar + main ── */}
@@ -206,6 +249,8 @@ export default function DashboardLayout() {
           onToggle={() => store.updateSettings({ sidebarCollapsed: !settings.sidebarCollapsed })}
           onNewBoard={() => { void handleNewBoard(); }}
           onViewChange={store.setActiveView}
+          onRenameBoard={(id, name) => { void handleRenameBoard(id, name); }}
+          onDeleteBoard={(id) => { void handleDeleteBoard(id); }}
         />
 
         {/* Main content */}
@@ -219,7 +264,7 @@ export default function DashboardLayout() {
 
           {/* Quick Links — always pinned when visible and not in session view */}
           {settings.showQuickLinks && !isSessionView && (
-            <div className="px-6 pt-4 pb-2 shrink-0">
+            <div className="px-[6%] pt-4 pb-2 shrink-0">
               <QuickLinksRow
                 links={quickLinks}
                 onAdd={() => setAddLinkOpen(true)}
@@ -230,16 +275,9 @@ export default function DashboardLayout() {
             </div>
           )}
 
-          {/* Navigation tabs — only for non-session views */}
-          {!isSessionView && (
-            <div className="px-6 pb-2 shrink-0">
-              <TopNavTabs activeView={activeView} onViewChange={store.setActiveView} />
-            </div>
-          )}
-
           {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto px-6 pb-6">
-            <div className="max-w-7xl mx-auto">
+          <div className="flex-1 overflow-y-auto px-[6%] pb-6">
+            <div>
 
               {/* Bookmark views */}
               {activeView === 'bookmarks' && bookmarkBoardProps && (

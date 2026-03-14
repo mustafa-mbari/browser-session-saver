@@ -4,9 +4,12 @@ import { useNewTabSettings } from '@newtab/hooks/useNewTabSettings';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
 import { useKeyboardShortcuts } from '@newtab/hooks/useKeyboardShortcuts';
 import { newtabDB } from '@core/storage/newtab-storage';
+import { updateNewTabSettings } from '@core/services/newtab-settings.service';
+import { DEFAULT_NEWTAB_SETTINGS } from '@core/types/newtab.types';
 import * as BookmarkService from '@core/services/bookmark.service';
 import * as QuickLinksService from '@core/services/quicklinks.service';
 import * as TodoService from '@core/services/todo.service';
+import { seedDefaultData } from '@core/services/seed.service';
 import BackgroundLayer from '@newtab/components/BackgroundLayer';
 import MinimalLayout from '@newtab/layouts/MinimalLayout';
 import FocusLayout from '@newtab/layouts/FocusLayout';
@@ -46,18 +49,52 @@ export default function App() {
           QuickLinksService.syncTopSites(newtabDB),
           TodoService.getTodoLists(newtabDB),
         ]);
+
+        // First launch: seed default boards and a default todo list
+        if (boards.length === 0) {
+          const seeded = await seedDefaultData(newtabDB);
+          const [seededBoards, seededLists] = await Promise.all([
+            BookmarkService.getBoards(newtabDB),
+            TodoService.getTodoLists(newtabDB),
+          ]);
+          setBoards(seededBoards);
+          setQuickLinks(links);
+          setTodoLists(seededLists);
+          store.updateSettings({ activeBoardId: seeded.mainBoard.id });
+
+          const allCats = await Promise.all(
+            seededBoards.map((b) => BookmarkService.getCategories(newtabDB, b.id)),
+          );
+          const cats = allCats.flat();
+          store.setCategories(cats);
+          if (cats.length > 0) {
+            const allEntries = await Promise.all(
+              cats.map((c) => BookmarkService.getEntries(newtabDB, c.id)),
+            );
+            store.setEntries(allEntries.flat());
+          }
+          return;
+        }
+
         setBoards(boards);
         setQuickLinks(links);
         setTodoLists(lists);
 
-        // Load categories and entries for the active board
+        // Load categories and entries for ALL boards
         if (boards.length > 0) {
-          const activeBoardId = settings.activeBoardId ?? boards[0].id;
-          if (!settings.activeBoardId) {
+          // Ensure activeBoardId is set to the first board if not already
+          const storedSettings = await import('@core/services/newtab-settings.service')
+            .then((m) => m.getNewTabSettings());
+          if (!storedSettings.activeBoardId) {
             store.updateSettings({ activeBoardId: boards[0].id });
           }
-          const cats = await BookmarkService.getCategories(newtabDB, activeBoardId);
+
+          const allCats = await Promise.all(
+            boards.map((b) => BookmarkService.getCategories(newtabDB, b.id)),
+          );
+          const cats = allCats.flat();
           store.setCategories(cats);
+
           if (cats.length > 0) {
             const allEntries = await Promise.all(
               cats.map((c) => BookmarkService.getEntries(newtabDB, c.id)),
@@ -112,6 +149,11 @@ export default function App() {
           settings={settings}
           onUpdate={(updates) => store.updateSettings(updates)}
           onClose={() => store.toggleSettings()}
+          onClearData={async () => {
+            await newtabDB.clearAll();
+            await updateNewTabSettings(DEFAULT_NEWTAB_SETTINGS);
+            window.location.reload();
+          }}
         />
       )}
       {isWallpaperOpen && (

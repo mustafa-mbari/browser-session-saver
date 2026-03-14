@@ -1,16 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  MoreHorizontal,
+  Pencil,
   Plus,
   Clock,
   Bookmark,
   Layers,
   ArrowDownUp,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 import Tooltip from '@shared/components/Tooltip';
+import ContextMenu from '@shared/components/ContextMenu';
 import type { Board } from '@core/types/newtab.types';
 import type { NewTabView } from '@newtab/stores/newtab.store';
 
@@ -107,6 +111,91 @@ function NavItem({ icon, label, active, onClick, indent }: NavItemProps) {
   );
 }
 
+// ── Board item with inline rename ─────────────────────────────────────────────
+
+interface BoardItemProps {
+  board: Board;
+  isActive: boolean;
+  onSelect: () => void;
+  onRename: (id: string, name: string) => void;
+  onDelete: (id: string) => void;
+}
+
+function BoardItem({ board, isActive, onSelect, onRename, onDelete }: BoardItemProps) {
+  const [renaming, setRenaming] = useState(false);
+  const [draft, setDraft] = useState(board.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const commit = () => {
+    const name = draft.trim() || board.name;
+    onRename(board.id, name);
+    setRenaming(false);
+  };
+
+  const menuItems = [
+    {
+      label: 'Rename',
+      icon: Pencil,
+      onClick: () => { setDraft(board.name); setRenaming(true); setTimeout(() => inputRef.current?.focus(), 0); },
+    },
+    {
+      label: 'Delete Board',
+      icon: Trash2,
+      onClick: () => onDelete(board.id),
+      danger: true,
+    },
+  ];
+
+  return (
+    <div
+      className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm transition-colors group ${
+        isActive ? 'bg-white/20' : 'hover:bg-white/10'
+      }`}
+    >
+      <span className="text-base shrink-0">{board.icon}</span>
+
+      {renaming ? (
+        <input
+          ref={inputRef}
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit();
+            if (e.key === 'Escape') { setDraft(board.name); setRenaming(false); }
+            e.stopPropagation();
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="flex-1 min-w-0 bg-white/10 rounded px-1 py-0 text-sm outline-none"
+          style={{ color: 'var(--newtab-text)' }}
+        />
+      ) : (
+        <button
+          className="flex-1 min-w-0 text-left truncate"
+          style={{ color: 'var(--newtab-text)' }}
+          onClick={onSelect}
+        >
+          {board.name}
+        </button>
+      )}
+
+      {!renaming && (
+        <ContextMenu items={menuItems}>
+          <button
+            className="p-0.5 rounded hover:bg-white/10 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+            aria-label="Board options"
+          >
+            <MoreHorizontal size={13} style={{ color: 'var(--newtab-text-secondary)' }} />
+          </button>
+        </ContextMenu>
+      )}
+    </div>
+  );
+}
+
+// ── Main sidebar ──────────────────────────────────────────────────────────────
+
 interface Props {
   boards: Board[];
   activeBoard: Board | null;
@@ -116,6 +205,8 @@ interface Props {
   onToggle: () => void;
   onNewBoard: () => void;
   onViewChange: (view: NewTabView) => void;
+  onRenameBoard: (id: string, name: string) => void;
+  onDeleteBoard: (id: string) => void;
 }
 
 export default function DashboardSidebar({
@@ -127,12 +218,12 @@ export default function DashboardSidebar({
   onToggle,
   onNewBoard,
   onViewChange,
+  onRenameBoard,
+  onDeleteBoard,
 }: Props) {
   const [nativeTree, setNativeTree] = useState<NativeNode[]>([]);
   const [showNative, setShowNative] = useState(false);
   const [sessionsExpanded, setSessionsExpanded] = useState(true);
-
-  const isSessionView = ['sessions', 'auto-saves', 'tab-groups', 'import-export'].includes(activeView);
 
   useEffect(() => {
     if (!showNative) return;
@@ -204,17 +295,14 @@ export default function DashboardSidebar({
       <SectionLabel label="Boards" />
       <div className="flex flex-col gap-0.5 px-2">
         {boards.map((board) => (
-          <button
+          <BoardItem
             key={board.id}
-            onClick={() => { onSelectBoard(board); onViewChange('bookmarks'); }}
-            className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors w-full text-left ${
-              activeBoard?.id === board.id && activeView === 'bookmarks' ? 'bg-white/20' : 'hover:bg-white/10'
-            }`}
-            style={{ color: 'var(--newtab-text)' }}
-          >
-            <span className="text-base">{board.icon}</span>
-            <span className="flex-1 truncate">{board.name}</span>
-          </button>
+            board={board}
+            isActive={activeBoard?.id === board.id && activeView === 'bookmarks'}
+            onSelect={() => { onSelectBoard(board); onViewChange('bookmarks'); }}
+            onRename={onRenameBoard}
+            onDelete={onDeleteBoard}
+          />
         ))}
         <button
           onClick={onNewBoard}
@@ -300,9 +388,6 @@ export default function DashboardSidebar({
           )}
         </div>
       </div>
-
-      {/* Suppress unused var warning */}
-      {isSessionView && null}
     </div>
   );
 }

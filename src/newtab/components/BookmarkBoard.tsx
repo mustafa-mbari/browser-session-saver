@@ -28,6 +28,7 @@ interface Props {
   onToggleCollapse: (id: string) => void;
   onAddEntry: (categoryId: string, title: string, url: string) => void;
   onDeleteEntry: (id: string) => void;
+  onRenameEntry: (id: string, title: string, url: string) => void;
   onReorderCategories: (newCategories: BookmarkCategory[]) => void;
   onReorderEntries: (categoryId: string, orderedIds: string[]) => void;
   onImportNative: (boardId: string) => void;
@@ -47,6 +48,7 @@ export default function BookmarkBoard({
   onToggleCollapse,
   onAddEntry,
   onDeleteEntry,
+  onRenameEntry,
   onReorderCategories,
   onReorderEntries,
   onImportNative,
@@ -109,6 +111,7 @@ export default function BookmarkBoard({
                     rowSpan={cat.rowSpan ?? 1}
                     onAddEntry={onAddEntry}
                     onDeleteEntry={onDeleteEntry}
+                    onRenameEntry={onRenameEntry}
                     onDeleteCategory={onDeleteCategory}
                     onToggleCollapse={onToggleCollapse}
                     onReorderEntries={onReorderEntries}
