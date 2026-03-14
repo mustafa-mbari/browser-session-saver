@@ -8,6 +8,17 @@ export function useTheme() {
   const { sendMessage } = useMessaging();
   const [theme, setThemeState] = useState<ThemePreference>('system');
 
+  // Load persisted theme from storage on mount
+  useEffect(() => {
+    sendMessage<Settings>({ action: 'GET_SETTINGS', payload: {} }).then((r) => {
+      if (r.success && r.data) {
+        const saved = (r.data as Settings).theme as ThemePreference | undefined;
+        if (saved) setThemeState(saved);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const isDark = useDarkMode(theme);
 
   useEffect(() => {

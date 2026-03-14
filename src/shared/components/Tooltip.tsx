@@ -1,4 +1,5 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface TooltipProps {
   content: string;
@@ -6,18 +7,51 @@ interface TooltipProps {
   position?: 'top' | 'bottom' | 'left' | 'right';
 }
 
-const positionStyles = {
-  top: 'bottom-full left-1/2 -translate-x-1/2 mb-1',
-  bottom: 'top-full left-1/2 -translate-x-1/2 mt-1',
-  left: 'right-full top-1/2 -translate-y-1/2 mr-1',
-  right: 'left-full top-1/2 -translate-y-1/2 ml-1',
-};
-
-export default function Tooltip({ content, children, position = 'top' }: TooltipProps) {
+export default function Tooltip({ content, children, position = 'bottom' }: TooltipProps) {
   const [show, setShow] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!show || !wrapperRef.current) return;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const GAP = 6;
+
+    let top = 0;
+    let left = 0;
+
+    switch (position) {
+      case 'top':
+        top = rect.top - GAP;
+        left = rect.left + rect.width / 2;
+        break;
+      case 'bottom':
+        top = rect.bottom + GAP;
+        left = rect.left + rect.width / 2;
+        break;
+      case 'left':
+        top = rect.top + rect.height / 2;
+        left = rect.left - GAP;
+        break;
+      case 'right':
+        top = rect.top + rect.height / 2;
+        left = rect.right + GAP;
+        break;
+    }
+
+    setCoords({ top, left });
+  }, [show, position]);
+
+  const transformMap: Record<string, string> = {
+    top: 'translate(-50%, -100%)',
+    bottom: 'translate(-50%, 0)',
+    left: 'translate(-100%, -50%)',
+    right: 'translate(0, -50%)',
+  };
 
   return (
     <div
+      ref={wrapperRef}
       className="relative inline-flex"
       onMouseEnter={() => setShow(true)}
       onMouseLeave={() => setShow(false)}
@@ -25,18 +59,23 @@ export default function Tooltip({ content, children, position = 'top' }: Tooltip
       onBlur={() => setShow(false)}
     >
       {children}
-      {show && (
-        <div
-          className={`
-            absolute z-50 px-2 py-1 text-xs rounded bg-gray-900 text-white
-            whitespace-nowrap pointer-events-none
-            ${positionStyles[position]}
-          `}
-          role="tooltip"
-        >
-          {content}
-        </div>
-      )}
+      {show &&
+        createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              top: coords.top,
+              left: coords.left,
+              transform: transformMap[position],
+              zIndex: 9999,
+            }}
+            className="px-2 py-1 text-xs rounded bg-gray-900 text-white whitespace-nowrap pointer-events-none"
+            role="tooltip"
+          >
+            {content}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
