@@ -1,0 +1,174 @@
+{
+  "extName": {
+    "message": "Session Saver",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Save, restore, and manage your browser sessions with one click. Auto-save protects your tabs before shutdown, sleep, or low battery.",
+    "description": "Extension description"
+  },
+  "saveSession": {
+    "message": "Save Session",
+    "description": "Button label for saving current session"
+  },
+  "saveAndClose": {
+    "message": "Save & Close",
+    "description": "Button label for saving and closing tabs"
+  },
+  "allWindows": {
+    "message": "All Windows",
+    "description": "Button label for saving all windows"
+  },
+  "restoreSession": {
+    "message": "Restore",
+    "description": "Button label for restoring a session"
+  },
+  "deleteSession": {
+    "message": "Delete",
+    "description": "Button label for deleting a session"
+  },
+  "exportSessions": {
+    "message": "Export",
+    "description": "Button label for exporting sessions"
+  },
+  "importSessions": {
+    "message": "Import",
+    "description": "Button label for importing sessions"
+  },
+  "settings": {
+    "message": "Settings",
+    "description": "Settings page title"
+  },
+  "searchPlaceholder": {
+    "message": "Search sessions...",
+    "description": "Search input placeholder"
+  },
+  "noSessions": {
+    "message": "No sessions saved",
+    "description": "Empty state title"
+  },
+  "noSessionsDesc": {
+    "message": "Save your current tabs to get started. Sessions will appear here.",
+    "description": "Empty state description"
+  },
+  "autoSaveActive": {
+    "message": "Auto-save active",
+    "description": "Auto-save badge tooltip when active"
+  },
+  "autoSavePaused": {
+    "message": "Auto-save paused",
+    "description": "Auto-save badge tooltip when paused"
+  },
+  "sessionRestored": {
+    "message": "Session restored",
+    "description": "Toast message after restoring session"
+  },
+  "sessionDeleted": {
+    "message": "Session deleted",
+    "description": "Toast message after deleting session"
+  },
+  "sessionSaved": {
+    "message": "Session saved",
+    "description": "Toast message after saving session"
+  },
+  "filterAll": {
+    "message": "All",
+    "description": "Filter chip label"
+  },
+  "filterManual": {
+    "message": "Manual",
+    "description": "Filter chip label"
+  },
+  "filterAuto": {
+    "message": "Auto",
+    "description": "Filter chip label"
+  },
+  "filterStarred": {
+    "message": "Starred",
+    "description": "Filter chip label"
+  },
+  "filterPinned": {
+    "message": "Pinned",
+    "description": "Filter chip label"
+  },
+  "openDashboard": {
+    "message": "Open Dashboard",
+    "description": "Link to open dashboard"
+  },
+  "openSidePanel": {
+    "message": "Open Side Panel",
+    "description": "Link to open side panel"
+  },
+  "enableAutoSave": {
+    "message": "Enable Auto-Save",
+    "description": "Settings toggle label"
+  },
+  "saveInterval": {
+    "message": "Save Interval",
+    "description": "Settings slider label"
+  },
+  "maxAutoSaves": {
+    "message": "Max Auto-Saves",
+    "description": "Settings input label"
+  },
+  "saveOnBrowserClose": {
+    "message": "Save on Browser Close",
+    "description": "Settings toggle label"
+  },
+  "saveOnLowBattery": {
+    "message": "Save on Low Battery",
+    "description": "Settings toggle label"
+  },
+  "saveOnSleep": {
+    "message": "Save on Sleep / Hibernate",
+    "description": "Settings toggle label"
+  },
+  "saveOnNetworkDisconnect": {
+    "message": "Save on Network Disconnect",
+    "description": "Settings toggle label"
+  },
+  "theme": {
+    "message": "Theme",
+    "description": "Theme selector label"
+  },
+  "themeSystem": {
+    "message": "System",
+    "description": "System theme option"
+  },
+  "themeLight": {
+    "message": "Light",
+    "description": "Light theme option"
+  },
+  "themeDark": {
+    "message": "Dark",
+    "description": "Dark theme option"
+  },
+  "tabs": {
+    "message": "$COUNT$ tab$PLURAL$",
+    "description": "Tab count",
+    "placeholders": {
+      "count": { "content": "$1" },
+      "plural": { "content": "$2" }
+    }
+  },
+  "groups": {
+    "message": "$COUNT$ group$PLURAL$",
+    "description": "Group count",
+    "placeholders": {
+      "count": { "content": "$1" },
+      "plural": { "content": "$2" }
+    }
+  },
+  "confirmDelete": {
+    "message": "Are you sure you want to delete this session?",
+    "description": "Delete confirmation"
+  },
+  "clearAllData": {
+    "message": "Clear All Session Data",
+    "description": "Clear data button"
+  },
+  "clearAllDataWarning": {
+    "message": "This will permanently delete all saved sessions, auto-saves, and settings. This action cannot be undone.",
+    "description": "Clear data warning"
+  }
+}

@@ -1,0 +1,265 @@
+import type { Message, MessageResponse } from '@core/types/messages.types';
+import type { Session } from '@core/types/session.types';
+import type { Settings } from '@core/types/settings.types';
+import { STORAGE_KEYS } from '@core/types/storage.types';
+import type { StorageMetadata } from '@core/types/storage.types';
+import * as SessionService from '@core/services/session.service';
+import { captureTabGroups, restoreTabGroups } from '@core/services/tab-group.service';
+import { getSettingsStorage, getSessionStorage } from '@core/storage/storage-factory';
+import { DEFAULT_SETTINGS } from '@core/types/settings.types';
+import { exportAsJSON, exportAsHTML, exportAsMarkdown, exportAsCSV, exportAsText } from '@core/services/export.service';
+import { importFromJSON, importFromHTML, importFromURLList } from '@core/services/import.service';
+
+export function registerEventListeners(): void {
+  chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
+    handleMessage(message)
+      .then(sendResponse)
+      .catch((err) => sendResponse({ success: false, error: String(err) }));
+    return true; // keep message channel open for async response
+  });
+}
+
+async function handleMessage(message: Message): Promise<MessageResponse> {
+  switch (message.action) {
+    case 'SAVE_SESSION':
+      return handleSaveSession(message.payload);
+    case 'RESTORE_SESSION':
+      return handleRestoreSession(message.payload);
+    case 'DELETE_SESSION':
+      return handleDeleteSession(message.payload);
+    case 'GET_SESSIONS':
+      return handleGetSessions(message.payload);
+    case 'GET_CURRENT_TABS':
+      return handleGetCurrentTabs();
+    case 'UPDATE_SETTINGS':
+      return handleUpdateSettings(message.payload);
+    case 'AUTO_SAVE_STATUS':
+      return handleAutoSaveStatus();
+    case 'UPDATE_SESSION':
+      return handleUpdateSession(message.payload);
+    case 'EXPORT_SESSIONS':
+      return handleExportSessions(message.payload);
+    case 'IMPORT_SESSIONS':
+      return handleImportSessions(message.payload);
+    default:
+      return { success: false, error: 'Unknown action' };
+  }
+}
+
+async function handleSaveSession(payload: {
+  windowId?: number;
+  name?: string;
+  closeAfter?: boolean;
+}): Promise<MessageResponse<Session>> {
+  const windowId = payload.windowId ?? (await getCurrentWindowId());
+  const chromeTabs = await chrome.tabs.query({ windowId });
+  const chromeGroups = await chrome.tabGroups.query({ windowId });
+
+  const { tabs, tabGroups } = captureTabGroups(chromeTabs, chromeGroups);
+
+  const session = await SessionService.saveSession(tabs, tabGroups, {
+    name: payload.name,
+    windowId,
+  });
+
+  if (payload.closeAfter) {
+    const tabIds = chromeTabs.map((t) => t.id).filter((id): id is number => id !== undefined);
+    if (tabIds.length > 0) {
+      await chrome.tabs.create({ windowId });
+      await chrome.tabs.remove(tabIds);
+    }
+  }
+
+  return { success: true, data: session };
+}
+
+async function handleRestoreSession(payload: {
+  sessionId: string;
+  mode: 'new_window' | 'current' | 'append';
+}): Promise<MessageResponse> {
+  const session = await SessionService.getSession(payload.sessionId);
+  if (!session) return { success: false, error: 'Session not found' };
+
+  const ungroupedTabs = session.tabs.filter((t) => t.groupId === -1);
+  let windowId: number;
+
+  if (payload.mode === 'new_window') {
+    const firstUrl = ungroupedTabs[0]?.url || session.tabs[0]?.url;
+    const window = await chrome.windows.create({ url: firstUrl, focused: true });
+    windowId = window.id!;
+
+    for (let i = 1; i < ungroupedTabs.length; i++) {
+      await chrome.tabs.create({
+        url: ungroupedTabs[i].url,
+        windowId,
+        pinned: ungroupedTabs[i].pinned,
+        active: false,
+      });
+    }
+  } else {
+    windowId = await getCurrentWindowId();
+
+    if (payload.mode === 'current') {
+      const existing = await chrome.tabs.query({ windowId });
+      for (const tab of ungroupedTabs) {
+        await chrome.tabs.create({
+          url: tab.url,
+          windowId,
+          pinned: tab.pinned,
+          active: false,
+        });
+      }
+      const existingIds = existing
+        .map((t) => t.id)
+        .filter((id): id is number => id !== undefined);
+      if (existingIds.length > 0) await chrome.tabs.remove(existingIds);
+    } else {
+      for (const tab of ungroupedTabs) {
+        await chrome.tabs.create({
+          url: tab.url,
+          windowId,
+          pinned: tab.pinned,
+          active: false,
+        });
+      }
+    }
+  }
+
+  if (session.tabGroups.length > 0) {
+    await restoreTabGroups(session.tabGroups, session.tabs, windowId);
+  }
+
+  return { success: true };
+}
+
+async function handleDeleteSession(payload: {
+  sessionId: string;
+}): Promise<MessageResponse> {
+  const deleted = await SessionService.deleteSession(payload.sessionId);
+  return deleted
+    ? { success: true }
+    : { success: false, error: 'Session not found or locked' };
+}
+
+async function handleGetSessions(
+  payload: Message extends { action: 'GET_SESSIONS'; payload: infer P } ? P : never,
+): Promise<MessageResponse<Session[]>> {
+  const sessions = await SessionService.getAllSessions(payload.filter, payload.sort);
+  return { success: true, data: sessions };
+}
+
+async function handleGetCurrentTabs(): Promise<MessageResponse> {
+  const windowId = await getCurrentWindowId();
+  const tabs = await chrome.tabs.query({ windowId });
+  const groups = await chrome.tabGroups.query({ windowId });
+  return {
+    success: true,
+    data: {
+      tabCount: tabs.length,
+      groupCount: groups.length,
+      windowId,
+    },
+  };
+}
+
+async function handleUpdateSettings(
+  updates: Partial<Settings>,
+): Promise<MessageResponse> {
+  const storage = getSettingsStorage();
+  const current = (await storage.get<Settings>(STORAGE_KEYS.SETTINGS)) ?? { ...DEFAULT_SETTINGS };
+  const updated = { ...current, ...updates };
+  await storage.set(STORAGE_KEYS.SETTINGS, updated);
+  return { success: true, data: updated };
+}
+
+async function handleAutoSaveStatus(): Promise<MessageResponse> {
+  const storage = getSettingsStorage();
+  const settings = (await storage.get<Settings>(STORAGE_KEYS.SETTINGS)) ?? DEFAULT_SETTINGS;
+  const metadata = await storage.get<StorageMetadata>(STORAGE_KEYS.METADATA);
+  return {
+    success: true,
+    data: {
+      isActive: settings.enableAutoSave,
+      lastAutoSave: metadata?.lastAutoSave ?? null,
+      lastTrigger: null,
+    },
+  };
+}
+
+async function handleUpdateSession(payload: {
+  sessionId: string;
+  updates: Partial<Session>;
+}): Promise<MessageResponse<Session>> {
+  const updated = await SessionService.updateSession(payload.sessionId, payload.updates);
+  return updated
+    ? { success: true, data: updated }
+    : { success: false, error: 'Session not found' };
+}
+
+async function handleExportSessions(payload: {
+  sessionIds: string[];
+  format: string;
+}): Promise<MessageResponse<string>> {
+  const sessions: Session[] = [];
+  for (const id of payload.sessionIds) {
+    const session = await SessionService.getSession(id);
+    if (session) sessions.push(session);
+  }
+
+  let data: string;
+  switch (payload.format) {
+    case 'html':
+      data = exportAsHTML(sessions);
+      break;
+    case 'markdown':
+      data = exportAsMarkdown(sessions);
+      break;
+    case 'csv':
+      data = exportAsCSV(sessions);
+      break;
+    case 'text':
+      data = exportAsText(sessions);
+      break;
+    case 'json':
+    default:
+      data = exportAsJSON(sessions);
+      break;
+  }
+
+  return { success: true, data };
+}
+
+async function handleImportSessions(payload: {
+  data: string;
+  source: string;
+}): Promise<MessageResponse> {
+  let result;
+  switch (payload.source) {
+    case 'html':
+      result = importFromHTML(payload.data);
+      break;
+    case 'url_list':
+      result = importFromURLList(payload.data);
+      break;
+    case 'json':
+    default:
+      result = importFromJSON(payload.data);
+      break;
+  }
+
+  const storage = getSessionStorage();
+  for (const session of result.sessions) {
+    await storage.set(session.id, session);
+  }
+
+  return {
+    success: result.sessions.length > 0,
+    data: { imported: result.sessions.length, errors: result.errors },
+    error: result.errors.length > 0 ? result.errors.join('; ') : undefined,
+  };
+}
+
+async function getCurrentWindowId(): Promise<number> {
+  const window = await chrome.windows.getCurrent();
+  return window.id!;
+}

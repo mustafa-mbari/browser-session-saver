@@ -1,0 +1,12 @@
+/* Chrome tab group colors */
+:root {
+  --group-grey: #5f6368;
+  --group-blue: #1a73e8;
+  --group-red: #ea4335;
+  --group-yellow: #fbbc04;
+  --group-green: #34a853;
+  --group-pink: #e8710a;
+  --group-purple: #a142f4;
+  --group-cyan: #24c1e0;
+  --group-orange: #fa903e;
+}

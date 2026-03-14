@@ -1,0 +1,119 @@
+{
+  "extName": {
+    "message": "حافظ الجلسات"
+  },
+  "extDescription": {
+    "message": "احفظ واستعد وأدر جلسات المتصفح بنقرة واحدة. الحفظ التلقائي يحمي علامات التبويب قبل الإغلاق والسكون وانخفاض البطارية."
+  },
+  "saveSession": {
+    "message": "حفظ الجلسة"
+  },
+  "saveAndClose": {
+    "message": "حفظ وإغلاق"
+  },
+  "allWindows": {
+    "message": "جميع النوافذ"
+  },
+  "restoreSession": {
+    "message": "استعادة"
+  },
+  "deleteSession": {
+    "message": "حذف"
+  },
+  "exportSessions": {
+    "message": "تصدير"
+  },
+  "importSessions": {
+    "message": "استيراد"
+  },
+  "settings": {
+    "message": "الإعدادات"
+  },
+  "searchPlaceholder": {
+    "message": "بحث في الجلسات..."
+  },
+  "noSessions": {
+    "message": "لا توجد جلسات محفوظة"
+  },
+  "noSessionsDesc": {
+    "message": "احفظ علامات التبويب الحالية للبدء. ستظهر الجلسات هنا."
+  },
+  "autoSaveActive": {
+    "message": "الحفظ التلقائي نشط"
+  },
+  "autoSavePaused": {
+    "message": "الحفظ التلقائي متوقف"
+  },
+  "sessionRestored": {
+    "message": "تم استعادة الجلسة"
+  },
+  "sessionDeleted": {
+    "message": "تم حذف الجلسة"
+  },
+  "sessionSaved": {
+    "message": "تم حفظ الجلسة"
+  },
+  "filterAll": {
+    "message": "الكل"
+  },
+  "filterManual": {
+    "message": "يدوي"
+  },
+  "filterAuto": {
+    "message": "تلقائي"
+  },
+  "filterStarred": {
+    "message": "مميز"
+  },
+  "filterPinned": {
+    "message": "مثبت"
+  },
+  "openDashboard": {
+    "message": "فتح لوحة التحكم"
+  },
+  "openSidePanel": {
+    "message": "فتح اللوحة الجانبية"
+  },
+  "enableAutoSave": {
+    "message": "تمكين الحفظ التلقائي"
+  },
+  "saveInterval": {
+    "message": "فترة الحفظ"
+  },
+  "maxAutoSaves": {
+    "message": "الحد الأقصى للحفظ التلقائي"
+  },
+  "saveOnBrowserClose": {
+    "message": "الحفظ عند إغلاق المتصفح"
+  },
+  "saveOnLowBattery": {
+    "message": "الحفظ عند انخفاض البطارية"
+  },
+  "saveOnSleep": {
+    "message": "الحفظ عند السكون"
+  },
+  "saveOnNetworkDisconnect": {
+    "message": "الحفظ عند قطع الاتصال"
+  },
+  "theme": {
+    "message": "المظهر"
+  },
+  "themeSystem": {
+    "message": "النظام"
+  },
+  "themeLight": {
+    "message": "فاتح"
+  },
+  "themeDark": {
+    "message": "داكن"
+  },
+  "confirmDelete": {
+    "message": "هل أنت متأكد أنك تريد حذف هذه الجلسة؟"
+  },
+  "clearAllData": {
+    "message": "مسح جميع البيانات"
+  },
+  "clearAllDataWarning": {
+    "message": "سيتم حذف جميع الجلسات المحفوظة والحفظ التلقائي والإعدادات نهائياً. لا يمكن التراجع عن هذا الإجراء."
+  }
+}
