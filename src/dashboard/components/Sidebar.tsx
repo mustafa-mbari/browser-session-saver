@@ -14,9 +14,16 @@ export default function Sidebar() {
 
   return (
     <aside className="w-56 h-screen bg-[var(--color-bg-secondary)] border-r border-[var(--color-border)] flex flex-col">
-      <div className="px-4 py-4">
-        <h1 className="text-lg font-semibold">Session Saver</h1>
-        <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">Dashboard</p>
+      <div className="px-4 py-4 flex items-center gap-3">
+        <img
+          src={chrome.runtime.getURL('icons/bs_logo.png')}
+          alt="Session Saver"
+          className="w-8 h-8 shrink-0"
+        />
+        <div>
+          <h1 className="text-lg font-semibold leading-tight">Session Saver</h1>
+          <p className="text-xs text-[var(--color-text-secondary)]">Dashboard</p>
+        </div>
       </div>
 
       <nav className="flex-1 px-2 space-y-0.5">

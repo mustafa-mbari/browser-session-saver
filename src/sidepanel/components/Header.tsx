@@ -26,6 +26,13 @@ export default function Header() {
             <ArrowLeft size={18} />
           </button>
         )}
+        {currentView === 'home' && (
+          <img
+            src={chrome.runtime.getURL('icons/bs_logo.png')}
+            alt="Session Saver"
+            className="w-5 h-5 shrink-0"
+          />
+        )}
         <span className="font-semibold text-sm">
           {currentView === 'home' ? 'Session Saver' : viewTitle(currentView)}
         </span>
