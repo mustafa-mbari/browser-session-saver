@@ -17,6 +17,7 @@ export default defineConfig({
       '@sidepanel': resolve(__dirname, 'src/sidepanel'),
       '@popup': resolve(__dirname, 'src/popup'),
       '@dashboard': resolve(__dirname, 'src/dashboard'),
+      '@newtab': resolve(__dirname, 'src/newtab'),
     },
   },
   build: {
@@ -25,6 +26,7 @@ export default defineConfig({
         sidepanel: resolve(__dirname, 'src/sidepanel/index.html'),
         popup: resolve(__dirname, 'src/popup/index.html'),
         dashboard: resolve(__dirname, 'src/dashboard/index.html'),
+        newtab: resolve(__dirname, 'src/newtab/index.html'),
       },
     },
   },

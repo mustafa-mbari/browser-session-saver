@@ -5,17 +5,30 @@ import { DEFAULT_SETTINGS } from '@core/types/settings.types';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import Button from '@shared/components/Button';
 import Modal from '@shared/components/Modal';
+import {
+  getNewTabSettings,
+  updateNewTabSettings,
+} from '@core/services/newtab-settings.service';
+import type { LayoutMode, NewTabSettings } from '@core/types/newtab.types';
+import { DEFAULT_NEWTAB_SETTINGS } from '@core/types/newtab.types';
 
 export default function SettingsPage() {
   const { sendMessage } = useMessaging();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [newtabSettings, setNewtabSettings] = useState<NewTabSettings>(DEFAULT_NEWTAB_SETTINGS);
 
   useEffect(() => {
     sendMessage<Settings>({ action: 'GET_SETTINGS', payload: {} }).then((r) => {
       if (r.success && r.data) setSettings(r.data as Settings);
     });
+    getNewTabSettings().then(setNewtabSettings).catch(() => {});
   }, [sendMessage]);
+
+  const updateNewtab = async (updates: Partial<NewTabSettings>) => {
+    const next = await updateNewTabSettings(updates);
+    setNewtabSettings(next);
+  };
 
   const update = async <K extends keyof Settings>(key: K, value: Settings[K]) => {
     const updated = { ...settings, [key]: value };
@@ -48,6 +61,28 @@ export default function SettingsPage() {
           { value: 'light', label: 'Light' },
           { value: 'dark', label: 'Dark' },
         ]} onChange={(v) => update('theme', v as Settings['theme'])} />
+      </SettingsSection>
+
+      {/* New Tab Page */}
+      <SettingsSection title="New Tab Page">
+        <Toggle
+          label="Enable New Tab Override"
+          checked={newtabSettings.enabled}
+          onChange={(v) => { void updateNewtab({ enabled: v }); }}
+        />
+        <Select
+          label="Default Layout"
+          value={newtabSettings.layoutMode}
+          options={[
+            { value: 'minimal', label: 'Minimal — Search & clock only' },
+            { value: 'focus', label: 'Focus — Search + quick links + to-do' },
+            { value: 'dashboard', label: 'Dashboard — Full layout with sidebar' },
+          ]}
+          onChange={(v) => { void updateNewtab({ layoutMode: v as LayoutMode }); }}
+        />
+        <p className="text-xs text-[var(--color-text-secondary)]">
+          Open a new tab to access the full wallpaper, bookmark, and widget settings.
+        </p>
       </SettingsSection>
 
       {/* Behavior */}

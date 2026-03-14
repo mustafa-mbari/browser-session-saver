@@ -11,7 +11,8 @@
       "Bash(npm view:*)",
       "Bash(cd:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx vite build)"
+      "Bash(npx vite build)",
+      "Bash(npm install:*)"
     ]
   }
 }
