@@ -34,11 +34,11 @@ export function useSession() {
         payload: { name: options?.name, closeAfter: options?.closeAfter },
       });
       if (response.success) {
-        await refreshSessions();
+        window.dispatchEvent(new CustomEvent('session-changed'));
       }
       return response;
     },
-    [sendMessage, refreshSessions],
+    [sendMessage],
   );
 
   const restoreSession = useCallback(
@@ -58,11 +58,11 @@ export function useSession() {
         payload: { sessionId },
       });
       if (response.success) {
-        await refreshSessions();
+        window.dispatchEvent(new CustomEvent('session-changed'));
       }
       return response;
     },
-    [sendMessage, refreshSessions],
+    [sendMessage],
   );
 
   const updateSession = useCallback(
@@ -72,11 +72,11 @@ export function useSession() {
         payload: { sessionId, updates },
       });
       if (response.success) {
-        await refreshSessions();
+        window.dispatchEvent(new CustomEvent('session-changed'));
       }
       return response;
     },
-    [sendMessage, refreshSessions],
+    [sendMessage],
   );
 
   useEffect(() => {
