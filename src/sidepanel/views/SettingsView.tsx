@@ -85,6 +85,12 @@ export default function SettingsView() {
           checked={settings.saveOnNetworkDisconnect}
           onChange={(v) => updateSetting('saveOnNetworkDisconnect', v)}
         />
+        <Toggle
+          label="Update auto-save when tabs are closed"
+          checked={settings.autoSaveOnTabClose ?? false}
+          onChange={(v) => updateSetting('autoSaveOnTabClose', v)}
+          description="Off (default): auto-save only adds new tabs — closing a tab keeps it in the session. On: auto-save always reflects exactly what's currently open."
+        />
       </Section>
 
       {/* Appearance */}
@@ -138,29 +144,36 @@ function Toggle({
   label,
   checked,
   onChange,
+  description,
 }: {
   label: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  description?: string;
 }) {
   return (
-    <label className="flex items-center justify-between cursor-pointer">
-      <span className="text-sm">{label}</span>
-      <button
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={`relative w-9 h-5 rounded-full transition-colors ${
-          checked ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
-        }`}
-      >
-        <span
-          className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
-            checked ? 'translate-x-4' : ''
+    <div className="space-y-0.5">
+      <label className="flex items-center justify-between cursor-pointer">
+        <span className="text-sm">{label}</span>
+        <button
+          role="switch"
+          aria-checked={checked}
+          onClick={() => onChange(!checked)}
+          className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ml-3 ${
+            checked ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
           }`}
-        />
-      </button>
-    </label>
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+              checked ? 'translate-x-4' : ''
+            }`}
+          />
+        </button>
+      </label>
+      {description && (
+        <p className="text-[11px] text-[var(--color-text-secondary)] leading-snug">{description}</p>
+      )}
+    </div>
   );
 }
 

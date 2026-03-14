@@ -11,6 +11,9 @@ export interface Settings {
   closeTabsAfterSave: boolean;
   primaryUI: 'sidepanel' | 'popup';
   theme: 'light' | 'dark' | 'system';
+  /** When false (default), auto-save only adds new tabs — closed tabs stay in the session.
+   *  When true, auto-save reflects the exact current open tabs (closed tabs are removed). */
+  autoSaveOnTabClose: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -26,4 +29,5 @@ export const DEFAULT_SETTINGS: Settings = {
   closeTabsAfterSave: false,
   primaryUI: 'sidepanel',
   theme: 'system',
+  autoSaveOnTabClose: false,
 };

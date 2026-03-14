@@ -91,12 +91,13 @@ async function saveClosedWindowFromCache(
   if (!_settings?.enableAutoSave) return;
 
   try {
-    if (await isDuplicate(cached.tabs, 'window_close')) return;
-
-    await SessionService.upsertAutoSaveSession(cached.tabs, cached.tabGroups, {
-      windowId,
-      autoSaveTrigger: 'window_close',
-    });
+    // Always merge on window close — preserve tabs from the closing window
+    await SessionService.upsertAutoSaveSession(
+      cached.tabs,
+      cached.tabGroups,
+      { windowId, autoSaveTrigger: 'window_close' },
+      true, // mergeWithExisting
+    );
   } catch (error) {
     console.error('Window close auto-save failed:', error);
   }
@@ -116,25 +117,33 @@ async function performAutoSave(trigger: AutoSaveTrigger): Promise<void> {
   _isSaving = true;
 
   try {
+    // Collect ALL tabs from ALL open windows into a single list
     const windows = await chrome.windows.getAll({ populate: false });
+    const allTabs: Tab[] = [];
+    const allTabGroups: TabGroup[] = [];
 
-    for (const window of windows) {
-      if (!window.id) continue;
-
-      const chromeTabs = await chrome.tabs.query({ windowId: window.id });
+    for (const win of windows) {
+      if (!win.id) continue;
+      const chromeTabs = await chrome.tabs.query({ windowId: win.id });
       if (chromeTabs.length === 0) continue;
-
-      const chromeGroups = await chrome.tabGroups.query({ windowId: window.id });
+      const chromeGroups = await chrome.tabGroups.query({ windowId: win.id });
       const { tabs, tabGroups } = captureTabGroups(chromeTabs, chromeGroups);
-
-      // De-duplication check
-      if (await isDuplicate(tabs, trigger)) continue;
-
-      await SessionService.upsertAutoSaveSession(tabs, tabGroups, {
-        windowId: window.id,
-        autoSaveTrigger: trigger,
-      });
+      allTabs.push(...tabs);
+      allTabGroups.push(...tabGroups);
     }
+
+    if (allTabs.length === 0) return;
+
+    // mergeWithExisting = true when autoSaveOnTabClose is disabled (default).
+    // Merge keeps closed tabs in the session; only new URLs are added.
+    const mergeWithExisting = !(_settings?.autoSaveOnTabClose ?? false);
+
+    await SessionService.upsertAutoSaveSession(
+      allTabs,
+      allTabGroups,
+      { autoSaveTrigger: trigger },
+      mergeWithExisting,
+    );
   } catch (error) {
     console.error('Auto-save failed:', error);
   } finally {
@@ -149,18 +158,6 @@ async function performAutoSave(trigger: AutoSaveTrigger): Promise<void> {
   }
 }
 
-async function isDuplicate(tabs: Tab[], trigger: AutoSaveTrigger): Promise<boolean> {
-  const sessions = await SessionService.getAllSessions({ isAutoSave: true });
-  const existing = sessions.find((s) => s.autoSaveTrigger === trigger);
-
-  if (!existing) return false;
-  if (existing.tabs.length !== tabs.length) return false;
-
-  const existingUrls = existing.tabs.map((t) => t.url).sort();
-  const currentUrls = tabs.map((t) => t.url).sort();
-
-  return existingUrls.every((url, i) => url === currentUrls[i]);
-}
 
 function initBatteryMonitor(threshold: number): void {
   try {

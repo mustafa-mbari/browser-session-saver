@@ -14,6 +14,7 @@ export interface SaveSessionOptions {
   isAutoSave?: boolean;
   autoSaveTrigger?: AutoSaveTrigger;
   isPinned?: boolean;
+  isLocked?: boolean;
 }
 
 function generateSessionName(isAutoSave: boolean, trigger?: AutoSaveTrigger): string {
@@ -47,7 +48,7 @@ export async function saveSession(
     tags: [],
     isPinned: options.isPinned ?? false,
     isStarred: false,
-    isLocked: false,
+    isLocked: options.isLocked ?? false,
     isAutoSave,
     autoSaveTrigger: trigger,
     notes: '',
@@ -76,33 +77,66 @@ export async function saveSession(
 }
 
 /**
- * Upsert an auto-save session by trigger type.
- * If a session with the same trigger already exists, update it in place.
- * Otherwise create a new pinned session.
- * This ensures only one entry per trigger type accumulates in the list.
+ * Upsert the single persistent auto-save entry.
+ *
+ * There is exactly ONE auto-save entry in the store (regardless of trigger type).
+ * It is always pinned and locked so it cannot be deleted accidentally.
+ *
+ * @param mergeWithExisting  When true (default = autoSaveOnTabClose is OFF):
+ *   keep all existing tabs and only ADD new URLs from `tabs`.
+ *   Closed tabs remain in the session — the auto-save grows as the user browses.
+ *   When false (autoSaveOnTabClose is ON):
+ *   replace the stored tabs with the current snapshot exactly.
  */
 export async function upsertAutoSaveSession(
   tabs: Tab[],
   tabGroups: TabGroup[],
   options: SaveSessionOptions = {},
+  mergeWithExisting = false,
 ): Promise<Session> {
   const storage = getSessionStorage();
   const trigger = options.autoSaveTrigger ?? 'timer';
   const now = nowISO();
 
-  // Find the existing auto-save entry for this trigger type
+  // Always find THE single auto-save entry (newest first, any trigger type)
   const all = await getAllSessions({ isAutoSave: true });
-  const existing = all.find((s) => s.autoSaveTrigger === trigger && !s.isLocked);
+  const existing = all[0] ?? null;
 
   if (existing) {
+    let finalTabs = tabs;
+    let finalTabGroups = tabGroups;
+
+    if (mergeWithExisting) {
+      // Add-only: keep every existing tab, append URLs not yet present
+      const existingUrls = new Set(existing.tabs.map((t) => t.url));
+      const newTabs = tabs.filter((t) => !existingUrls.has(t.url));
+
+      if (newTabs.length === 0 && tabGroups.length === existing.tabGroups.length) {
+        // Nothing changed — skip the write
+        return existing;
+      }
+
+      finalTabs = [...existing.tabs, ...newTabs];
+
+      const existingGroupKeys = new Set(
+        existing.tabGroups.map((g) => `${g.title}-${g.color}`),
+      );
+      const newGroups = tabGroups.filter(
+        (g) => !existingGroupKeys.has(`${g.title}-${g.color}`),
+      );
+      finalTabGroups = [...existing.tabGroups, ...newGroups];
+    }
+
     const updated: Session = {
       ...existing,
-      tabs,
-      tabGroups,
-      tabCount: tabs.length,
+      tabs: finalTabs,
+      tabGroups: finalTabGroups,
+      tabCount: finalTabs.length,
       name: generateSessionName(true, trigger),
       updatedAt: now,
       isPinned: true,
+      isLocked: true,
+      autoSaveTrigger: trigger,
       windowId: options.windowId ?? existing.windowId,
     };
     await storage.set(existing.id, updated);
@@ -119,12 +153,13 @@ export async function upsertAutoSaveSession(
     return updated;
   }
 
-  // No existing entry: create a new pinned auto-save
+  // No existing entry — create the first auto-save (pinned + locked)
   return saveSession(tabs, tabGroups, {
     ...options,
     isAutoSave: true,
     autoSaveTrigger: trigger,
     isPinned: true,
+    isLocked: true,
   });
 }
 
@@ -208,7 +243,7 @@ export async function checkDuplicate(tabUrls: string[]): Promise<boolean> {
 async function enforceAutoSaveLimit(maxAutoSaves: number): Promise<void> {
   const allSessions = await getAllSessions();
   const autoSaves = allSessions
-    .filter((s) => s.isAutoSave)
+    .filter((s) => s.isAutoSave && !s.isLocked)
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   const storage = getSessionStorage();
