@@ -24,13 +24,26 @@ const HOME_TABS: { key: HomeTab; label: string }[] = [
   { key: 'tab-group', label: 'Tab Group' },
 ];
 
+const SEARCH_PLACEHOLDERS: Record<HomeTab, string> = {
+  session: 'Search sessions… (#tag to filter)',
+  tab: 'Search open tabs…',
+  'tab-group': 'Search tab groups…',
+};
+
 export default function HomeView() {
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>('session');
+  const [searchQuery, setSearchQuery] = useState('');
   const { sessions, loading, deleteSession } = useSession();
   const { activeFilter, sortBy, sortDirection, selectedSessionIds, isSelectionMode, clearSelection } = useSidePanelStore();
   const { sendMessage } = useMessaging();
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
+
+  // Reset search when switching tabs
+  const handleTabChange = useCallback((tab: HomeTab) => {
+    setActiveHomeTab(tab);
+    setSearchQuery('');
+  }, []);
 
   const filteredByType = useMemo(() => {
     const filter: SessionFilter = {};
@@ -51,6 +64,7 @@ export default function HomeView() {
   const { filteredSessions, setQuery } = useSearch(filteredByType);
 
   const handleSearch = useCallback((q: string) => {
+    setSearchQuery(q);
     const tagMatches = q.match(/#(\w+)/g) ?? [];
     const extractedTags = tagMatches.map((t) => t.slice(1).toLowerCase());
     const cleanQuery = q.replace(/#\w+/g, '').trim();
@@ -130,35 +144,40 @@ export default function HomeView() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Tab Bar */}
-      <div className="flex border-b border-[var(--color-border)] px-1">
+      {/* Modern segmented tab bar */}
+      <div className="mx-3 my-2.5 flex bg-[var(--color-bg-secondary)] rounded-lg p-0.5 gap-0.5">
         {HOME_TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveHomeTab(tab.key)}
-            className={`flex-1 py-2.5 text-xs font-medium transition-colors relative ${
+            onClick={() => handleTabChange(tab.key)}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all duration-150 ${
               activeHomeTab === tab.key
-                ? 'text-primary'
+                ? 'bg-[var(--color-bg)] text-[var(--color-text)] shadow-sm ring-1 ring-black/5 dark:ring-white/10'
                 : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
             }`}
+            aria-selected={activeHomeTab === tab.key}
+            role="tab"
           >
             {tab.label}
-            {activeHomeTab === tab.key && (
-              <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-t" />
-            )}
           </button>
         ))}
       </div>
 
+      {/* Search bar — always visible, adapts per tab */}
+      <SearchBar
+        onSearch={handleSearch}
+        placeholder={SEARCH_PLACEHOLDERS[activeHomeTab]}
+        showFilters={activeHomeTab === 'session'}
+      />
+
       {/* Tab Content */}
       {activeHomeTab === 'session' && (
-        <>
-          <SearchBar onSearch={handleSearch} />
-          <SessionList sessions={sortedSessions} loading={loading} onToast={addToast} />
-        </>
+        <SessionList sessions={sortedSessions} loading={loading} onToast={addToast} />
       )}
-      {activeHomeTab === 'tab' && <CurrentTabsPanel />}
-      {activeHomeTab === 'tab-group' && <TabGroupsPanel sessions={sessions} loading={loading} />}
+      {activeHomeTab === 'tab' && <CurrentTabsPanel query={searchQuery} />}
+      {activeHomeTab === 'tab-group' && (
+        <TabGroupsPanel sessions={sessions} loading={loading} query={searchQuery} />
+      )}
 
       {/* Footer */}
       <div className="px-3 py-2 border-t border-[var(--color-border)] flex items-center justify-between text-xs text-[var(--color-text-secondary)]">
@@ -174,7 +193,7 @@ export default function HomeView() {
         <span>{sessions.length} session{sessions.length !== 1 ? 's' : ''}</span>
       </div>
 
-      {/* Quick Actions — moved to bottom */}
+      {/* Quick Actions — at the bottom */}
       <QuickActions onToast={addToast} />
 
       {/* Bulk Action Toolbar */}
@@ -203,9 +222,14 @@ export default function HomeView() {
 
 // ── Current Tabs Panel ────────────────────────────────────────────────────────
 
-function CurrentTabsPanel() {
+interface CurrentTabsPanelProps {
+  query: string;
+}
+
+function CurrentTabsPanel({ query }: CurrentTabsPanelProps) {
   const [tabs, setTabs] = useState<chrome.tabs.Tab[]>([]);
   const [loading, setLoading] = useState(true);
+  const q = query.toLowerCase();
 
   useEffect(() => {
     chrome.tabs.query({ currentWindow: true }, (result) => {
@@ -213,6 +237,14 @@ function CurrentTabsPanel() {
       setLoading(false);
     });
   }, []);
+
+  const filtered = q
+    ? tabs.filter(
+        (t) =>
+          t.title?.toLowerCase().includes(q) ||
+          t.url?.toLowerCase().includes(q),
+      )
+    : tabs;
 
   if (loading) return <LoadingSpinner />;
 
@@ -226,9 +258,19 @@ function CurrentTabsPanel() {
     );
   }
 
+  if (filtered.length === 0) {
+    return (
+      <EmptyState
+        icon={Layers}
+        title="No results"
+        description={`No tabs matching "${query}"`}
+      />
+    );
+  }
+
   return (
     <div className="flex-1 overflow-auto">
-      {tabs.map((tab) => (
+      {filtered.map((tab) => (
         <div
           key={tab.id}
           className="flex items-center gap-2.5 px-3 py-2 border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors cursor-pointer"
@@ -247,9 +289,7 @@ function CurrentTabsPanel() {
             <p className="text-xs font-medium truncate">{tab.title || tab.url}</p>
             <p className="text-[10px] text-[var(--color-text-secondary)] truncate">{tab.url}</p>
           </div>
-          {tab.active && (
-            <Badge variant="primary">Active</Badge>
-          )}
+          {tab.active && <Badge variant="primary">Active</Badge>}
         </div>
       ))}
     </div>
@@ -261,6 +301,7 @@ function CurrentTabsPanel() {
 interface TabGroupsPanelProps {
   sessions: Session[];
   loading: boolean;
+  query: string;
 }
 
 interface GroupInfo {
@@ -269,7 +310,9 @@ interface GroupInfo {
   totalTabs: number;
 }
 
-function TabGroupsPanel({ sessions, loading }: TabGroupsPanelProps) {
+function TabGroupsPanel({ sessions, loading, query }: TabGroupsPanelProps) {
+  const q = query.toLowerCase();
+
   const groups = useMemo((): GroupInfo[] => {
     const groupMap = new Map<string, GroupInfo>();
     for (const session of sessions) {
@@ -287,6 +330,10 @@ function TabGroupsPanel({ sessions, loading }: TabGroupsPanelProps) {
     return Array.from(groupMap.values()).sort((a, b) => b.sessionCount - a.sessionCount);
   }, [sessions]);
 
+  const filtered = q
+    ? groups.filter((info) => (info.group.title ?? '').toLowerCase().includes(q))
+    : groups;
+
   if (loading) return <LoadingSpinner />;
 
   if (groups.length === 0) {
@@ -299,9 +346,19 @@ function TabGroupsPanel({ sessions, loading }: TabGroupsPanelProps) {
     );
   }
 
+  if (filtered.length === 0) {
+    return (
+      <EmptyState
+        icon={Layers}
+        title="No results"
+        description={`No groups matching "${query}"`}
+      />
+    );
+  }
+
   return (
     <div className="flex-1 overflow-auto">
-      {groups.map((info, index) => (
+      {filtered.map((info, index) => (
         <div
           key={`${info.group.title}-${info.group.color}-${index}`}
           className="px-3 py-2.5 border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors"
