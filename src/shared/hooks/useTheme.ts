@@ -8,18 +8,15 @@ export function useTheme() {
   const { sendMessage } = useMessaging();
   const [theme, setThemeState] = useState<ThemePreference>('system');
 
-  // Load persisted theme from storage on mount
+  // Load persisted theme directly from storage (no service-worker hop that can fail)
   useEffect(() => {
-    sendMessage<Settings>({ action: 'GET_SETTINGS', payload: {} }).then((r) => {
-      if (r.success && r.data) {
-        const saved = (r.data as Settings).theme as ThemePreference | undefined;
-        if (saved) setThemeState(saved);
-      }
+    chrome.storage.local.get('settings', (result) => {
+      const saved = result?.settings?.theme as ThemePreference | undefined;
+      if (saved) setThemeState(saved);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // React to theme changes written by any page (e.g. sidepanel → dashboard sync)
+  // React to theme changes from any extension page (sidepanel ↔ dashboard sync)
   useEffect(() => {
     const handler = (changes: Record<string, chrome.storage.StorageChange>) => {
       const newTheme = changes['settings']?.newValue?.theme as ThemePreference | undefined;
