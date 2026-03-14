@@ -196,7 +196,6 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
               <button
                 className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 aria-label="More actions"
-                onClick={(e) => e.stopPropagation()}
               >
                 <MoreVertical size={14} />
               </button>

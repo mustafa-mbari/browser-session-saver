@@ -30,7 +30,7 @@ export default function ContextMenu({ items, children }: ContextMenuProps) {
 
   return (
     <div className="relative" ref={menuRef}>
-      <div onClick={() => setOpen(!open)}>{children}</div>
+      <div onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>{children}</div>
       {open && (
         <div
           className="absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-card bg-[var(--color-bg)] shadow-lg border border-[var(--color-border)] py-1"
@@ -47,7 +47,8 @@ export default function ContextMenu({ items, children }: ContextMenuProps) {
                   ${item.danger ? 'text-error' : 'text-[var(--color-text)]'}
                 `}
                 role="menuitem"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   item.onClick();
                   setOpen(false);
                 }}
