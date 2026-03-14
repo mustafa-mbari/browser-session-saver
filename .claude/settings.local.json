@@ -9,7 +9,9 @@
       "mcp__context7__resolve-library-id",
       "mcp__context7__query-docs",
       "Bash(npm view:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite build)"
     ]
   }
 }
