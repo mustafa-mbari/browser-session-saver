@@ -17,7 +17,7 @@ import * as QuickLinksService from '@core/services/quicklinks.service';
 import * as BookmarkService from '@core/services/bookmark.service';
 import * as TodoService from '@core/services/todo.service';
 import { useState } from 'react';
-import type { QuickLink } from '@core/types/newtab.types';
+import type { QuickLink, CardType } from '@core/types/newtab.types';
 
 export default function FocusLayout() {
   const store = useNewTabStore();
@@ -131,14 +131,15 @@ export default function FocusLayout() {
     store.setEntries([...entries, ...newEntries]);
   }, [categories, entries, store]);
 
-  const handleAddCategory = useCallback(async (boardId: string) => {
+  const handleAddCategory = useCallback(async (boardId: string, cardType: CardType = 'bookmark') => {
+    const defaults: Record<CardType, { name: string; icon: string; color: string }> = {
+      bookmark: { name: 'New Card', icon: '📁', color: '#6366f1' },
+      clock:    { name: 'Clock',    icon: '🕐', color: '#0ea5e9' },
+      note:     { name: 'Note',     icon: '📝', color: '#f59e0b' },
+      todo:     { name: 'To-Do',    icon: '✅', color: '#22c55e' },
+    };
     const cat = await BookmarkService.saveCategory(newtabDB, {
-      boardId,
-      name: 'New Category',
-      icon: '📁',
-      color: '#6366f1',
-      bookmarkIds: [],
-      collapsed: false,
+      boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, colSpan: 1, cardType,
     });
     store.setCategories([...categories, cat]);
   }, [categories, store]);
@@ -215,7 +216,7 @@ export default function FocusLayout() {
                 categories={boardCategories}
                 entries={entries}
                 density={settings.cardDensity}
-                onAddCategory={(id) => { void handleAddCategory(id); }}
+                onAddCategory={(id, cardType) => { void handleAddCategory(id, cardType); }}
                 onDeleteCategory={(id) => { void handleDeleteCategory(id); }}
                 onToggleCollapse={(id) => { void handleToggleCollapse(id); }}
                 onAddEntry={(catId, title, url) => { void handleAddEntry(catId, title, url); }}
@@ -223,6 +224,9 @@ export default function FocusLayout() {
                 onReorderCategories={(cats) => { void handleReorderCategories(cats); }}
                 onReorderEntries={(catId, ids) => { void handleReorderEntries(catId, ids); }}
                 onImportNative={(boardId) => { void handleImportNative(boardId); }}
+                onResizeCategory={() => {}}
+                onRenameCard={() => {}}
+                onDuplicateCard={() => {}}
               />
             </div>
           )}

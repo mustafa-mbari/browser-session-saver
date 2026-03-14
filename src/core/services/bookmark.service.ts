@@ -57,7 +57,7 @@ export async function saveCategory(
   db: NewTabDB,
   data: Omit<BookmarkCategory, 'id' | 'createdAt'>,
 ): Promise<BookmarkCategory> {
-  const cat: BookmarkCategory = { ...data, id: generateId(), createdAt: nowISO() };
+  const cat: BookmarkCategory = { colSpan: 1, rowSpan: 1, ...data, id: generateId(), createdAt: nowISO() };
   await db.put(CATEGORIES, cat);
 
   const board = await db.get<Board>(BOARDS, data.boardId);

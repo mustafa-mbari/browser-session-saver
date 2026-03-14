@@ -1,7 +1,6 @@
 import { forwardRef } from 'react';
 import { Paintbrush, Settings, Sun, Moon, Monitor } from 'lucide-react';
 import SearchBar from '@newtab/components/SearchBar';
-import ClockWidget from '@newtab/components/ClockWidget';
 import { useTheme } from '@shared/hooks/useTheme';
 import type { NewTabSettings } from '@core/types/newtab.types';
 
@@ -32,11 +31,11 @@ const NewTabHeader = forwardRef<HTMLInputElement, Props>(
     const ThemeIcon = THEME_ICONS[theme as keyof typeof THEME_ICONS] ?? Monitor;
 
     return (
-      <header className="glass-dark shrink-0 flex items-center gap-3 px-5 py-3 border-b border-white/10">
+      <header className="glass-dark shrink-0 flex items-center gap-3 px-4 py-1.5 border-b border-white/10">
         {/* Branding */}
-        <div className="flex items-center gap-2.5 shrink-0 min-w-[180px]">
+        <div className="flex items-center gap-2 shrink-0 min-w-[160px]">
           <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold"
+            className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold"
             style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
           >
             S
@@ -45,16 +44,6 @@ const NewTabHeader = forwardRef<HTMLInputElement, Props>(
             Session Saver
           </span>
         </div>
-
-        {/* Clock */}
-        {settings.showClock && (
-          <div
-            className="text-lg font-light shrink-0 select-none"
-            style={{ color: 'var(--newtab-text)', textShadow: '0 1px 6px rgba(0,0,0,0.4)' }}
-          >
-            <ClockWidget clockFormat={settings.clockFormat} />
-          </div>
-        )}
 
         {/* Search — grows to fill remaining space */}
         <div className="flex-1 max-w-2xl mx-auto">
@@ -66,7 +55,7 @@ const NewTabHeader = forwardRef<HTMLInputElement, Props>(
           {/* Theme toggle */}
           <button
             onClick={cycleTheme}
-            className="p-2 rounded-lg hover:bg-white/15 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-white/15 transition-colors"
             aria-label={`Theme: ${theme}. Click to cycle`}
             title={`Theme: ${theme}`}
           >
@@ -76,7 +65,7 @@ const NewTabHeader = forwardRef<HTMLInputElement, Props>(
           {/* Wallpaper */}
           <button
             onClick={onOpenWallpaper}
-            className="p-2 rounded-lg hover:bg-white/15 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-white/15 transition-colors"
             aria-label="Change background"
             title="Background & Wallpaper"
           >
@@ -86,7 +75,7 @@ const NewTabHeader = forwardRef<HTMLInputElement, Props>(
           {/* Settings */}
           <button
             onClick={onOpenSettings}
-            className="p-2 rounded-lg hover:bg-white/15 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-white/15 transition-colors"
             aria-label="Settings"
             title="Settings"
           >

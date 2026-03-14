@@ -1,5 +1,6 @@
 import { useRef, useCallback, useState } from 'react';
 import NewTabHeader from '@newtab/components/NewTabHeader';
+import ClockWidget from '@newtab/components/ClockWidget';
 import TopNavTabs from '@newtab/components/TopNavTabs';
 import QuickLinksRow from '@newtab/components/QuickLinksRow';
 import FrequentlyVisitedPanel from '@newtab/components/FrequentlyVisitedPanel';
@@ -17,7 +18,7 @@ import { newtabDB } from '@core/storage/newtab-storage';
 import * as QuickLinksService from '@core/services/quicklinks.service';
 import * as BookmarkService from '@core/services/bookmark.service';
 import { getFaviconUrl } from '@core/utils/favicon';
-import type { QuickLink } from '@core/types/newtab.types';
+import type { QuickLink, CardType } from '@core/types/newtab.types';
 
 export default function DashboardLayout() {
   const store = useNewTabStore();
@@ -95,13 +96,61 @@ export default function DashboardLayout() {
     store.setCategories([...categories.filter((c) => c.boardId !== boardId), ...newCats]);
   }, [categories, store]);
 
-  const handleAddCategory = useCallback(async (boardId: string) => {
+  const handleAddCategory = useCallback(async (boardId: string, cardType: CardType = 'bookmark') => {
+    const defaults: Record<CardType, { name: string; icon: string; color: string }> = {
+      bookmark: { name: 'New Card', icon: '📁', color: '#6366f1' },
+      clock:    { name: 'Clock',    icon: '🕐', color: '#0ea5e9' },
+      note:     { name: 'Note',     icon: '📝', color: '#f59e0b' },
+      todo:     { name: 'To-Do',    icon: '✅', color: '#22c55e' },
+    };
     const cat = await BookmarkService.saveCategory(newtabDB, {
-      boardId, name: 'New Category', icon: '📁',
-      color: '#6366f1', bookmarkIds: [], collapsed: false,
+      boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, colSpan: 1, cardType,
     });
     store.setCategories([...categories, cat]);
   }, [categories, store]);
+
+  const handleResizeCategory = useCallback(async (id: string, colSpan: 1 | 2 | 3, rowSpan: 1 | 2 | 3) => {
+    await BookmarkService.updateCategory(newtabDB, id, { colSpan, rowSpan });
+    store.setCategories(categories.map((c) => (c.id === id ? { ...c, colSpan, rowSpan } : c)));
+  }, [categories, store]);
+
+  const handleUpdateNote = useCallback(async (id: string, noteContent: string) => {
+    await BookmarkService.updateCategory(newtabDB, id, { noteContent });
+    store.setCategories(categories.map((c) => (c.id === id ? { ...c, noteContent } : c)));
+  }, [categories, store]);
+
+  const handleRenameCard = useCallback(async (id: string, name: string) => {
+    await BookmarkService.updateCategory(newtabDB, id, { name });
+    store.setCategories(categories.map((c) => (c.id === id ? { ...c, name } : c)));
+  }, [categories, store]);
+
+  const handleDuplicateCard = useCallback(async (id: string) => {
+    const cat = categories.find((c) => c.id === id);
+    if (!cat) return;
+    const catEntries = entries.filter((e) => e.categoryId === id);
+    const newCat = await BookmarkService.saveCategory(newtabDB, {
+      boardId: cat.boardId,
+      name: `${cat.name} (copy)`,
+      icon: cat.icon,
+      color: cat.color,
+      bookmarkIds: [],
+      collapsed: false,
+      colSpan: cat.colSpan ?? 1,
+      cardType: cat.cardType,
+      noteContent: cat.noteContent,
+    });
+    const newEntries = await Promise.all(
+      catEntries.map((e) => BookmarkService.saveEntry(newtabDB, {
+        categoryId: newCat.id,
+        title: e.title,
+        url: e.url,
+        favIconUrl: e.favIconUrl,
+        isNative: false,
+      })),
+    );
+    store.setCategories([...categories, newCat]);
+    store.setEntries([...entries, ...newEntries]);
+  }, [categories, entries, store]);
 
   const handleNewBoard = useCallback(async () => {
     const board = await BookmarkService.saveBoard(newtabDB, {
@@ -117,7 +166,7 @@ export default function DashboardLayout() {
         categories: boardCategories,
         entries,
         density: settings.cardDensity,
-        onAddCategory: (id: string) => { void handleAddCategory(id); },
+        onAddCategory: (id: string, cardType: CardType) => { void handleAddCategory(id, cardType); },
         onDeleteCategory: (id: string) => { void handleDeleteCategory(id); },
         onToggleCollapse: (id: string) => { void handleToggleCollapse(id); },
         onAddEntry: (catId: string, title: string, url: string) => { void handleAddEntry(catId, title, url); },
@@ -125,6 +174,10 @@ export default function DashboardLayout() {
         onReorderCategories: (cats: typeof categories) => { void handleReorderCategories(cats); },
         onReorderEntries: (catId: string, ids: string[]) => { void handleReorderEntries(catId, ids); },
         onImportNative: (boardId: string) => { void handleImportNative(boardId); },
+        onResizeCategory: (id: string, colSpan: 1 | 2 | 3, rowSpan: 1 | 2 | 3) => { void handleResizeCategory(id, colSpan, rowSpan); },
+        onUpdateNote: (id: string, content: string) => { void handleUpdateNote(id, content); },
+        onRenameCard: (id: string, name: string) => { void handleRenameCard(id, name); },
+        onDuplicateCard: (id: string) => { void handleDuplicateCard(id); },
       }
     : null;
 
@@ -157,6 +210,13 @@ export default function DashboardLayout() {
 
         {/* Main content */}
         <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Clock — shown above quick links when enabled and not in session view */}
+          {settings.showClock && !isSessionView && (
+            <div className="shrink-0 pt-5 pb-1">
+              <ClockWidget clockFormat={settings.clockFormat} />
+            </div>
+          )}
+
           {/* Quick Links — always pinned when visible and not in session view */}
           {settings.showQuickLinks && !isSessionView && (
             <div className="px-6 pt-4 pb-2 shrink-0">

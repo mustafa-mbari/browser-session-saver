@@ -35,8 +35,8 @@ const SearchBar = forwardRef<HTMLInputElement, Props>(({ settings }, ref) => {
 
   return (
     <div className="relative w-full max-w-2xl mx-auto">
-      <div className="glass-panel rounded-3xl flex items-center px-5 py-3 gap-3 shadow-lg">
-        <Search size={20} className="shrink-0 opacity-60" style={{ color: 'var(--newtab-text)' }} />
+      <div className="glass-panel rounded-full flex items-center px-4 py-1.5 gap-2 shadow-md">
+        <Search size={14} className="shrink-0 opacity-50" style={{ color: 'var(--newtab-text)' }} />
         <input
           ref={ref}
           type="text"
@@ -44,7 +44,7 @@ const SearchBar = forwardRef<HTMLInputElement, Props>(({ settings }, ref) => {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Search the web or enter a URL…"
-          className="flex-1 bg-transparent outline-none text-lg placeholder-white/40"
+          className="flex-1 bg-transparent outline-none text-sm placeholder-white/40"
           style={{ color: 'var(--newtab-text)' }}
           aria-label="Search"
           autoComplete="off"

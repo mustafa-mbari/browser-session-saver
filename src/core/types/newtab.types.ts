@@ -1,4 +1,5 @@
 export type LayoutMode = 'minimal' | 'focus' | 'dashboard';
+export type CardType = 'bookmark' | 'clock' | 'note' | 'todo';
 export type CardDensity = 'comfortable' | 'compact';
 export type SearchEngine = 'google' | 'bing' | 'duckduckgo' | 'brave' | 'custom';
 export type ClockFormat = '12h' | '24h';
@@ -22,6 +23,10 @@ export interface BookmarkCategory {
   color: string;
   bookmarkIds: string[];
   collapsed: boolean;
+  colSpan?: 1 | 2 | 3;
+  rowSpan?: 1 | 2 | 3;
+  cardType?: CardType;
+  noteContent?: string;
   createdAt: string;
 }
 

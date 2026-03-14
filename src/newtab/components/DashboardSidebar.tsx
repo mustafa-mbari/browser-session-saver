@@ -250,7 +250,7 @@ export default function DashboardSidebar({
           <div className="flex flex-col gap-0.5 px-2">
             <NavItem
               icon={<Clock size={13} />}
-              label="All Sessions"
+              label="Sessions"
               active={activeView === 'sessions'}
               onClick={() => onViewChange('sessions')}
             />
