@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:claudelog.com)",
+      "WebFetch(domain:apidog.com)",
+      "Bash(claude mcp:*)",
+      "Bash(npm run build:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "Bash(npm view:*)",
+      "Bash(cd:*)"
+    ]
+  }
+}
