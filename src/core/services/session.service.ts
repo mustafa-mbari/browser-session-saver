@@ -13,6 +13,7 @@ export interface SaveSessionOptions {
   windowId?: number;
   isAutoSave?: boolean;
   autoSaveTrigger?: AutoSaveTrigger;
+  isPinned?: boolean;
 }
 
 function generateSessionName(isAutoSave: boolean, trigger?: AutoSaveTrigger): string {
@@ -44,7 +45,7 @@ export async function saveSession(
     tabGroups,
     windowId: options.windowId ?? -1,
     tags: [],
-    isPinned: false,
+    isPinned: options.isPinned ?? false,
     isStarred: false,
     isLocked: false,
     isAutoSave,
@@ -72,6 +73,59 @@ export async function saveSession(
   }
 
   return session;
+}
+
+/**
+ * Upsert an auto-save session by trigger type.
+ * If a session with the same trigger already exists, update it in place.
+ * Otherwise create a new pinned session.
+ * This ensures only one entry per trigger type accumulates in the list.
+ */
+export async function upsertAutoSaveSession(
+  tabs: Tab[],
+  tabGroups: TabGroup[],
+  options: SaveSessionOptions = {},
+): Promise<Session> {
+  const storage = getSessionStorage();
+  const trigger = options.autoSaveTrigger ?? 'timer';
+  const now = nowISO();
+
+  // Find the existing auto-save entry for this trigger type
+  const all = await getAllSessions({ isAutoSave: true });
+  const existing = all.find((s) => s.autoSaveTrigger === trigger && !s.isLocked);
+
+  if (existing) {
+    const updated: Session = {
+      ...existing,
+      tabs,
+      tabGroups,
+      tabCount: tabs.length,
+      name: generateSessionName(true, trigger),
+      updatedAt: now,
+      isPinned: true,
+      windowId: options.windowId ?? existing.windowId,
+    };
+    await storage.set(existing.id, updated);
+
+    const settingsStorage = getSettingsStorage();
+    const metadata = (await settingsStorage.get<StorageMetadata>(STORAGE_KEYS.METADATA)) ?? {
+      version: CURRENT_SCHEMA_VERSION,
+      lastAutoSave: null,
+      storageUsedBytes: 0,
+    };
+    metadata.lastAutoSave = now;
+    await settingsStorage.set(STORAGE_KEYS.METADATA, metadata);
+
+    return updated;
+  }
+
+  // No existing entry: create a new pinned auto-save
+  return saveSession(tabs, tabGroups, {
+    ...options,
+    isAutoSave: true,
+    autoSaveTrigger: trigger,
+    isPinned: true,
+  });
 }
 
 export async function getSession(id: string): Promise<Session | null> {
@@ -137,6 +191,18 @@ export async function duplicateSession(id: string): Promise<Session | null> {
     name: `${session.name} (Copy)`,
     windowId: session.windowId,
   });
+}
+
+export async function checkDuplicate(tabUrls: string[]): Promise<boolean> {
+  const sessions = await getAllSessions(undefined, { field: 'createdAt', direction: 'desc' });
+  if (sessions.length === 0) return false;
+
+  const latest = sessions[0];
+  if (latest.tabs.length !== tabUrls.length) return false;
+
+  const latestUrls = latest.tabs.map((t) => t.url).sort();
+  const currentUrls = [...tabUrls].sort();
+  return latestUrls.every((url, i) => url === currentUrls[i]);
 }
 
 async function enforceAutoSaveLimit(maxAutoSaves: number): Promise<void> {

@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react';
 import { Search, ArrowDownUp } from 'lucide-react';
 import { useSidePanelStore, type FilterType, type SortField } from '../stores/sidepanel.store';
 
@@ -20,7 +21,13 @@ const sorts: { key: SortField; label: string }[] = [
 ];
 
 export default function SearchBar({ onSearch }: SearchBarProps) {
-  const { activeFilter, setFilter, sortBy, setSort } = useSidePanelStore();
+  const { activeFilter, setFilter, sortBy, setSort, setFocusSearch } = useSidePanelStore();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setFocusSearch(() => inputRef.current?.focus());
+    return () => setFocusSearch(null);
+  }, [setFocusSearch]);
 
   return (
     <div className="px-3 py-2 space-y-2 border-b border-[var(--color-border)]">
@@ -30,8 +37,9 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
           className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]"
         />
         <input
+          ref={inputRef}
           type="text"
-          placeholder="Search sessions..."
+          placeholder="Search sessions... (#tag to filter)"
           className="w-full pl-8 pr-3 py-1.5 text-sm rounded-btn bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[var(--color-text)] placeholder-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
           onChange={(e) => onSearch(e.target.value)}
           aria-label="Search sessions"

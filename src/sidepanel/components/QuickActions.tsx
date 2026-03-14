@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { Save, X, Monitor } from 'lucide-react';
 import Button from '@shared/components/Button';
 import Badge from '@shared/components/Badge';
-import { useSession } from '@shared/hooks/useSession';
 import { useMessaging } from '@shared/hooks/useMessaging';
-import type { CurrentTabsResponse } from '@core/types/messages.types';
+import { useSession } from '@shared/hooks/useSession';
+import type { CurrentTabsResponse, SaveSessionResponse } from '@core/types/messages.types';
+import type { ToastData } from '@shared/components/Toast';
 
 interface QuickActionsProps {
-  onToast?: (message: string, type: 'success' | 'error') => void;
+  onToast?: (toast: Omit<ToastData, 'id'>) => void;
 }
 
 export default function QuickActions({ onToast }: QuickActionsProps) {
@@ -37,9 +38,14 @@ export default function QuickActions({ onToast }: QuickActionsProps) {
     const result = await saveSession({ closeAfter });
     setSaving(false);
     if (result.success) {
-      onToast?.('Session saved successfully', 'success');
+      const responseData = result.data as SaveSessionResponse | undefined;
+      if (responseData?.isDuplicate) {
+        onToast?.({ message: 'Session looks identical to a recent save', type: 'warning' });
+      } else {
+        onToast?.({ message: 'Session saved successfully', type: 'success' });
+      }
     } else {
-      onToast?.(result.error ?? 'Failed to save session', 'error');
+      onToast?.({ message: result.error ?? 'Failed to save session', type: 'error' });
     }
   };
 
@@ -51,9 +57,9 @@ export default function QuickActions({ onToast }: QuickActionsProps) {
     });
     setSaving(false);
     if (result.success) {
-      onToast?.('All windows saved', 'success');
+      onToast?.({ message: 'All windows saved', type: 'success' });
     } else {
-      onToast?.(result.error ?? 'Failed to save', 'error');
+      onToast?.({ message: result.error ?? 'Failed to save', type: 'error' });
     }
   };
 

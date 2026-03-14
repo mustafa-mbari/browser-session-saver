@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { Download, Upload, FileJson, FileText, type LucideIcon } from 'lucide-react';
+import { Download, Upload, FileJson, FileText, Table2, AlignLeft, FileCode, type LucideIcon } from 'lucide-react';
 import Button from '@shared/components/Button';
 import { useSession } from '@shared/hooks/useSession';
 import { useMessaging } from '@shared/hooks/useMessaging';
@@ -78,7 +78,7 @@ export default function ImportExportView() {
           Export Sessions
         </h3>
         <div className="space-y-3">
-          <div className="flex gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <FormatOption
               icon={FileJson}
               label="JSON"
@@ -92,6 +92,27 @@ export default function ImportExportView() {
               description="Bookmarks"
               selected={exportFormat === 'html'}
               onClick={() => setExportFormat('html')}
+            />
+            <FormatOption
+              icon={FileCode}
+              label="Markdown"
+              description="Readable"
+              selected={exportFormat === 'markdown'}
+              onClick={() => setExportFormat('markdown')}
+            />
+            <FormatOption
+              icon={Table2}
+              label="CSV"
+              description="Spreadsheet"
+              selected={exportFormat === 'csv'}
+              onClick={() => setExportFormat('csv')}
+            />
+            <FormatOption
+              icon={AlignLeft}
+              label="Text"
+              description="URL list"
+              selected={exportFormat === 'text'}
+              onClick={() => setExportFormat('text')}
             />
           </div>
           <p className="text-xs text-[var(--color-text-secondary)]">

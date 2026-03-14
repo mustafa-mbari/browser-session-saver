@@ -2,6 +2,7 @@ import { useRef, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Inbox } from 'lucide-react';
 import type { Session } from '@core/types/session.types';
+import type { ToastData } from '@shared/components/Toast';
 import EmptyState from '@shared/components/EmptyState';
 import LoadingSpinner from '@shared/components/LoadingSpinner';
 import Button from '@shared/components/Button';
@@ -11,7 +12,7 @@ import SessionCard from './SessionCard';
 interface SessionListProps {
   sessions: Session[];
   loading: boolean;
-  onToast?: (message: string, type: 'success' | 'error') => void;
+  onToast?: (toast: Omit<ToastData, 'id'>) => void;
 }
 
 export default function SessionList({ sessions, loading, onToast }: SessionListProps) {
@@ -26,8 +27,8 @@ export default function SessionList({ sessions, loading, onToast }: SessionListP
   });
 
   const handleToast = useCallback(
-    (message: string, type: 'success' | 'error') => {
-      onToast?.(message, type);
+    (toast: Omit<ToastData, 'id'>) => {
+      onToast?.(toast);
     },
     [onToast],
   );

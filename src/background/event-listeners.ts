@@ -1,4 +1,4 @@
-import type { Message, MessageResponse } from '@core/types/messages.types';
+import type { Message, MessageResponse, SessionDiffResponse, SaveSessionResponse } from '@core/types/messages.types';
 import type { Session } from '@core/types/session.types';
 import type { Settings } from '@core/types/settings.types';
 import { STORAGE_KEYS } from '@core/types/storage.types';
@@ -9,6 +9,7 @@ import { getSettingsStorage, getSessionStorage } from '@core/storage/storage-fac
 import { DEFAULT_SETTINGS } from '@core/types/settings.types';
 import { exportAsJSON, exportAsHTML, exportAsMarkdown, exportAsCSV, exportAsText } from '@core/services/export.service';
 import { importFromJSON, importFromHTML, importFromURLList } from '@core/services/import.service';
+import { generateId } from '@core/utils/uuid';
 
 export function registerEventListeners(): void {
   chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
@@ -43,6 +44,14 @@ async function handleMessage(message: Message): Promise<MessageResponse> {
       return handleExportSessions(message.payload);
     case 'IMPORT_SESSIONS':
       return handleImportSessions(message.payload);
+    case 'UNDELETE_SESSION':
+      return handleUndeleteSession(message.payload);
+    case 'MERGE_SESSIONS':
+      return handleMergeSessions(message.payload);
+    case 'DIFF_SESSIONS':
+      return handleDiffSessions(message.payload);
+    case 'RESTORE_SELECTED_TABS':
+      return handleRestoreSelectedTabs(message.payload);
     default:
       return { success: false, error: 'Unknown action' };
   }
@@ -53,9 +62,8 @@ async function handleSaveSession(payload: {
   name?: string;
   closeAfter?: boolean;
   allWindows?: boolean;
-}): Promise<MessageResponse<Session | Session[]>> {
+}): Promise<MessageResponse<SaveSessionResponse>> {
   if (payload.allWindows) {
-    // Save all open windows as separate sessions
     const windows = await chrome.windows.getAll({ populate: false });
     const sessions: Session[] = [];
     for (const win of windows) {
@@ -70,7 +78,7 @@ async function handleSaveSession(payload: {
       });
       sessions.push(session);
     }
-    return { success: true, data: sessions };
+    return { success: true, data: { session: sessions, isDuplicate: false } };
   }
 
   const windowId = payload.windowId ?? (await getCurrentWindowId());
@@ -78,6 +86,9 @@ async function handleSaveSession(payload: {
   const chromeGroups = await chrome.tabGroups.query({ windowId });
 
   const { tabs, tabGroups } = captureTabGroups(chromeTabs, chromeGroups);
+
+  const tabUrls = chromeTabs.map((t) => t.url ?? '').filter(Boolean);
+  const isDuplicate = await SessionService.checkDuplicate(tabUrls);
 
   const session = await SessionService.saveSession(tabs, tabGroups, {
     name: payload.name,
@@ -92,16 +103,17 @@ async function handleSaveSession(payload: {
     }
   }
 
-  return { success: true, data: session };
+  return { success: true, data: { session, isDuplicate } };
 }
 
 async function handleRestoreSession(payload: {
   sessionId: string;
   mode: 'new_window' | 'current' | 'append';
-}): Promise<MessageResponse> {
+}): Promise<MessageResponse<{ failedUrls: string[] }>> {
   const session = await SessionService.getSession(payload.sessionId);
   if (!session) return { success: false, error: 'Session not found' };
 
+  const failedUrls: string[] = [];
   const ungroupedTabs = session.tabs.filter((t) => t.groupId === -1);
   let windowId: number;
 
@@ -111,12 +123,16 @@ async function handleRestoreSession(payload: {
     windowId = window.id!;
 
     for (let i = 1; i < ungroupedTabs.length; i++) {
-      await chrome.tabs.create({
-        url: ungroupedTabs[i].url,
-        windowId,
-        pinned: ungroupedTabs[i].pinned,
-        active: false,
-      });
+      try {
+        await chrome.tabs.create({
+          url: ungroupedTabs[i].url,
+          windowId,
+          pinned: ungroupedTabs[i].pinned,
+          active: false,
+        });
+      } catch {
+        failedUrls.push(ungroupedTabs[i].url);
+      }
     }
   } else {
     windowId = await getCurrentWindowId();
@@ -124,12 +140,16 @@ async function handleRestoreSession(payload: {
     if (payload.mode === 'current') {
       const existing = await chrome.tabs.query({ windowId });
       for (const tab of ungroupedTabs) {
-        await chrome.tabs.create({
-          url: tab.url,
-          windowId,
-          pinned: tab.pinned,
-          active: false,
-        });
+        try {
+          await chrome.tabs.create({
+            url: tab.url,
+            windowId,
+            pinned: tab.pinned,
+            active: false,
+          });
+        } catch {
+          failedUrls.push(tab.url);
+        }
       }
       const existingIds = existing
         .map((t) => t.id)
@@ -137,12 +157,16 @@ async function handleRestoreSession(payload: {
       if (existingIds.length > 0) await chrome.tabs.remove(existingIds);
     } else {
       for (const tab of ungroupedTabs) {
-        await chrome.tabs.create({
-          url: tab.url,
-          windowId,
-          pinned: tab.pinned,
-          active: false,
-        });
+        try {
+          await chrome.tabs.create({
+            url: tab.url,
+            windowId,
+            pinned: tab.pinned,
+            active: false,
+          });
+        } catch {
+          failedUrls.push(tab.url);
+        }
       }
     }
   }
@@ -151,7 +175,10 @@ async function handleRestoreSession(payload: {
     await restoreTabGroups(session.tabGroups, session.tabs, windowId);
   }
 
-  return { success: true };
+  return {
+    success: true,
+    data: failedUrls.length > 0 ? { failedUrls } : undefined,
+  };
 }
 
 async function handleDeleteSession(payload: {
@@ -284,6 +311,114 @@ async function handleImportSessions(payload: {
     success: result.sessions.length > 0,
     data: { imported: result.sessions.length, errors: result.errors },
     error: result.errors.length > 0 ? result.errors.join('; ') : undefined,
+  };
+}
+
+async function handleUndeleteSession(payload: {
+  session: Session;
+}): Promise<MessageResponse<Session>> {
+  const storage = getSessionStorage();
+  await storage.set(payload.session.id, payload.session);
+  return { success: true, data: payload.session };
+}
+
+async function handleMergeSessions(payload: {
+  sessionIds: string[];
+  targetName: string;
+}): Promise<MessageResponse<Session>> {
+  const sessions: Session[] = [];
+  for (const id of payload.sessionIds) {
+    const s = await SessionService.getSession(id);
+    if (s) sessions.push(s);
+  }
+  if (sessions.length < 2) return { success: false, error: 'Need at least 2 sessions to merge' };
+
+  // Deduplicate tabs by URL, preserving first occurrence; flatten tab groups
+  const seenUrls = new Set<string>();
+  const mergedTabs = sessions.flatMap((session) =>
+    session.tabs.filter((tab) => {
+      if (seenUrls.has(tab.url)) return false;
+      seenUrls.add(tab.url);
+      return true;
+    }).map((tab) => ({ ...tab, id: generateId(), groupId: -1 as const })),
+  );
+
+  const merged = await SessionService.saveSession(mergedTabs, [], {
+    name: payload.targetName,
+  });
+  return { success: true, data: merged };
+}
+
+async function handleDiffSessions(payload: {
+  sessionIdA: string;
+  sessionIdB: string;
+}): Promise<MessageResponse<SessionDiffResponse>> {
+  const sessionA = await SessionService.getSession(payload.sessionIdA);
+  const sessionB = await SessionService.getSession(payload.sessionIdB);
+  if (!sessionA || !sessionB) return { success: false, error: 'Session not found' };
+
+  const urlsA = new Set(sessionA.tabs.map((t) => t.url));
+  const urlsB = new Set(sessionB.tabs.map((t) => t.url));
+
+  const added = sessionB.tabs.filter((t) => !urlsA.has(t.url));
+  const removed = sessionA.tabs.filter((t) => !urlsB.has(t.url));
+  const unchanged = sessionA.tabs.filter((t) => urlsB.has(t.url));
+
+  return { success: true, data: { added, removed, unchanged } };
+}
+
+async function handleRestoreSelectedTabs(payload: {
+  sessionId: string;
+  tabIds: string[];
+  mode: 'new_window' | 'current' | 'append';
+}): Promise<MessageResponse> {
+  const session = await SessionService.getSession(payload.sessionId);
+  if (!session) return { success: false, error: 'Session not found' };
+
+  const selectedSet = new Set(payload.tabIds);
+  const tabsToOpen = session.tabs.filter((t) => selectedSet.has(t.id));
+  if (tabsToOpen.length === 0) return { success: false, error: 'No tabs selected' };
+
+  const failedUrls: string[] = [];
+
+  if (payload.mode === 'new_window') {
+    const firstUrl = tabsToOpen[0].url;
+    const window = await chrome.windows.create({ url: firstUrl, focused: true });
+    const windowId = window.id!;
+    for (let i = 1; i < tabsToOpen.length; i++) {
+      try {
+        await chrome.tabs.create({ url: tabsToOpen[i].url, windowId, pinned: tabsToOpen[i].pinned, active: false });
+      } catch {
+        failedUrls.push(tabsToOpen[i].url);
+      }
+    }
+  } else {
+    const windowId = await getCurrentWindowId();
+    if (payload.mode === 'current') {
+      const existing = await chrome.tabs.query({ windowId });
+      for (const tab of tabsToOpen) {
+        try {
+          await chrome.tabs.create({ url: tab.url, windowId, pinned: tab.pinned, active: false });
+        } catch {
+          failedUrls.push(tab.url);
+        }
+      }
+      const existingIds = existing.map((t) => t.id).filter((id): id is number => id !== undefined);
+      if (existingIds.length > 0) await chrome.tabs.remove(existingIds);
+    } else {
+      for (const tab of tabsToOpen) {
+        try {
+          await chrome.tabs.create({ url: tab.url, windowId, pinned: tab.pinned, active: false });
+        } catch {
+          failedUrls.push(tab.url);
+        }
+      }
+    }
+  }
+
+  return {
+    success: true,
+    data: failedUrls.length > 0 ? { failedUrls } : undefined,
   };
 }
 

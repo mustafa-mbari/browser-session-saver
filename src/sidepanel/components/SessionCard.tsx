@@ -1,6 +1,7 @@
-import { memo, useState, useCallback, useMemo } from 'react';
+import { memo, useState, useCallback, useMemo, useRef } from 'react';
 import { MoreVertical, RotateCcw, Trash2, Edit, Pin, Star, Download, Lock } from 'lucide-react';
 import type { Session } from '@core/types/session.types';
+import type { ToastData } from '@shared/components/Toast';
 import { formatRelative } from '@core/utils/date';
 import { useSidePanelStore } from '../stores/sidepanel.store';
 import { useSession } from '@shared/hooks/useSession';
@@ -10,14 +11,15 @@ import TabGroupPreview from './TabGroupPreview';
 
 interface SessionCardProps {
   session: Session;
-  onToast?: (message: string, type: 'success' | 'error') => void;
+  onToast?: (toast: Omit<ToastData, 'id'>) => void;
 }
 
 export default memo(function SessionCard({ session, onToast }: SessionCardProps) {
-  const { navigateTo } = useSidePanelStore();
+  const { navigateTo, isSelectionMode, selectedSessionIds, toggleSelection } = useSidePanelStore();
   const { restoreSession, deleteSession, updateSession } = useSession();
   const { sendMessage } = useMessaging();
   const [restoring, setRestoring] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleRestore = useCallback(
     async (e: React.MouseEvent) => {
@@ -26,22 +28,62 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
       const result = await restoreSession(session.id);
       setRestoring(false);
       if (result.success) {
-        onToast?.('Session restored', 'success');
+        const failedUrls = (result.data as { failedUrls?: string[] } | undefined)?.failedUrls;
+        if (failedUrls && failedUrls.length > 0) {
+          onToast?.({ message: `${failedUrls.length} tab(s) failed to open`, type: 'warning', duration: 8000 });
+        } else {
+          onToast?.({ message: 'Session restored', type: 'success' });
+        }
       } else {
-        onToast?.(result.error ?? 'Failed to restore', 'error');
+        onToast?.({ message: result.error ?? 'Failed to restore', type: 'error' });
       }
     },
     [restoreSession, session.id, onToast],
   );
 
   const handleDelete = useCallback(async () => {
+    const sessionSnapshot = { ...session };
     const result = await deleteSession(session.id);
     if (result.success) {
-      onToast?.('Session deleted', 'success');
+      onToast?.({
+        message: 'Session deleted',
+        type: 'success',
+        duration: 10000,
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            await sendMessage({ action: 'UNDELETE_SESSION', payload: { session: sessionSnapshot } });
+            window.dispatchEvent(new CustomEvent('session-changed'));
+          },
+        },
+      });
     } else {
-      onToast?.(result.error ?? 'Failed to delete', 'error');
+      onToast?.({ message: result.error ?? 'Failed to delete', type: 'error' });
     }
-  }, [deleteSession, session.id, onToast]);
+  }, [deleteSession, session, onToast, sendMessage]);
+
+  const handleCardClick = useCallback(() => {
+    if (isSelectionMode) {
+      toggleSelection(session.id);
+    } else {
+      navigateTo('session-detail', session.id);
+    }
+  }, [isSelectionMode, toggleSelection, session.id, navigateTo]);
+
+  const handlePointerDown = useCallback(() => {
+    if (!isSelectionMode) {
+      longPressTimer.current = setTimeout(() => {
+        toggleSelection(session.id);
+      }, 400);
+    }
+  }, [isSelectionMode, toggleSelection, session.id]);
+
+  const handlePointerUp = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
 
   const menuItems = useMemo(() => [
     {
@@ -91,18 +133,34 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
     },
   ], [session, updateSession, navigateTo, sendMessage, handleDelete]);
 
+  const isSelected = selectedSessionIds.has(session.id);
+
   return (
     <div
-      className="px-3 py-2.5 border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors cursor-pointer"
-      onClick={() => navigateTo('session-detail', session.id)}
+      className={`px-3 py-2.5 border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors cursor-pointer${isSelected ? ' bg-blue-50 dark:bg-blue-900/20' : ''}`}
+      onClick={handleCardClick}
       role="button"
       tabIndex={0}
       aria-label={`Session: ${session.name}`}
+      aria-pressed={isSelectionMode ? isSelected : undefined}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') navigateTo('session-detail', session.id);
+        if (e.key === 'Enter') handleCardClick();
       }}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
     >
       <div className="flex items-start justify-between gap-2">
+        {isSelectionMode && (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => toggleSelection(session.id)}
+            onClick={(e) => e.stopPropagation()}
+            className="mt-1 shrink-0 accent-primary"
+            aria-label={`Select ${session.name}`}
+          />
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             {session.isStarred && <Star size={12} className="text-warning shrink-0 fill-warning" />}
@@ -120,29 +178,31 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
           </div>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={handleRestore}
-            disabled={restoring}
-            className="px-2 py-1 text-xs font-medium text-primary bg-blue-50 dark:bg-blue-900/30 rounded-btn hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
-            aria-label="Restore session"
-          >
-            {restoring ? (
-              <span className="animate-spin inline-block w-3 h-3 border border-primary border-t-transparent rounded-full" />
-            ) : (
-              <RotateCcw size={14} />
-            )}
-          </button>
-          <ContextMenu items={menuItems}>
+        {!isSelectionMode && (
+          <div className="flex items-center gap-1 shrink-0">
             <button
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              aria-label="More actions"
-              onClick={(e) => e.stopPropagation()}
+              onClick={handleRestore}
+              disabled={restoring}
+              className="px-2 py-1 text-xs font-medium text-primary bg-blue-50 dark:bg-blue-900/30 rounded-btn hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
+              aria-label="Restore session"
             >
-              <MoreVertical size={14} />
+              {restoring ? (
+                <span className="animate-spin inline-block w-3 h-3 border border-primary border-t-transparent rounded-full" />
+              ) : (
+                <RotateCcw size={14} />
+              )}
             </button>
-          </ContextMenu>
-        </div>
+            <ContextMenu items={menuItems}>
+              <button
+                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                aria-label="More actions"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical size={14} />
+              </button>
+            </ContextMenu>
+          </div>
+        )}
       </div>
     </div>
   );

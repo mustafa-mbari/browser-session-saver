@@ -170,5 +170,97 @@
   "clearAllDataWarning": {
     "message": "This will permanently delete all saved sessions, auto-saves, and settings. This action cannot be undone.",
     "description": "Clear data warning"
+  },
+  "undoDelete": {
+    "message": "Undo",
+    "description": "Undo delete action label in toast"
+  },
+  "addTag": {
+    "message": "+ add tag",
+    "description": "Tag input placeholder in session detail"
+  },
+  "addNotes": {
+    "message": "Add notes...",
+    "description": "Notes textarea placeholder in session detail"
+  },
+  "editTabs": {
+    "message": "Edit",
+    "description": "Toggle tab edit mode button in session detail"
+  },
+  "exportFormat_markdown": {
+    "message": "Markdown",
+    "description": "Export format label"
+  },
+  "exportFormat_csv": {
+    "message": "CSV",
+    "description": "Export format label"
+  },
+  "exportFormat_text": {
+    "message": "Text",
+    "description": "Export format label"
+  },
+  "mergeSessions": {
+    "message": "Merge",
+    "description": "Merge sessions button in bulk toolbar"
+  },
+  "compareSessions": {
+    "message": "Compare",
+    "description": "Compare/diff sessions button in bulk toolbar"
+  },
+  "duplicateWarning": {
+    "message": "Session looks identical to a recent save",
+    "description": "Duplicate detection warning toast"
+  },
+  "restoreSelectiveTabs": {
+    "message": "Restore Session",
+    "description": "Selective restore modal title"
+  },
+  "restoreMode_new_window": {
+    "message": "New Window",
+    "description": "Restore mode option"
+  },
+  "restoreMode_current": {
+    "message": "Replace",
+    "description": "Restore mode option"
+  },
+  "restoreMode_append": {
+    "message": "Append",
+    "description": "Restore mode option"
+  },
+  "tabsFailed": {
+    "message": "$COUNT$ tab$PLURAL$ failed to open",
+    "description": "Dead URL warning toast",
+    "placeholders": {
+      "count": { "content": "$1" },
+      "plural": { "content": "$2" }
+    }
+  },
+  "keyboardShortcutRestore": {
+    "message": "Go to Sessions (Ctrl+Shift+R)",
+    "description": "Keyboard shortcut tooltip"
+  },
+  "keyboardShortcutDashboard": {
+    "message": "Open Dashboard (Ctrl+Shift+D)",
+    "description": "Keyboard shortcut tooltip"
+  },
+  "keyboardShortcutSearch": {
+    "message": "Focus Search (Ctrl+Shift+F)",
+    "description": "Keyboard shortcut tooltip"
+  },
+  "keyboardShortcutExport": {
+    "message": "Quick Export (Ctrl+Shift+E)",
+    "description": "Keyboard shortcut tooltip"
+  },
+  "bulkDelete": {
+    "message": "$COUNT$ session$PLURAL$ deleted",
+    "description": "Bulk delete toast",
+    "placeholders": {
+      "count": { "content": "$1" },
+      "plural": { "content": "$2" }
+    }
+  },
+  "searchTagHint": {
+    "message": "Use #tag to filter by tag",
+    "description": "Search bar hint for tag filtering"
   }
 }

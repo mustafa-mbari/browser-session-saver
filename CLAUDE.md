@@ -37,7 +37,7 @@ npm run format   # Prettier
 - `src/core/types/session.types.ts` — Core data model (Session, Tab, TabGroup)
 - `src/core/types/messages.types.ts` — Message protocol between SW and UI
 - `src/background/event-listeners.ts` — Central message dispatcher
-- `src/background/auto-save-engine.ts` — Auto-save trigger management
+- `src/background/auto-save-engine.ts` — Auto-save trigger management; calls `upsertAutoSaveSession` so each trigger type maintains exactly one pinned entry (updated in place)
 - `src/sidepanel/views/HomeView.tsx` — Primary user-facing view
 
 ## Testing

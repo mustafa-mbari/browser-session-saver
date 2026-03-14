@@ -5,7 +5,7 @@ Save, restore, and manage your browser sessions with one click. Auto-save protec
 ## Features
 
 - **One-Click Save** — Save all tabs from the current window instantly
-- **Auto-Save Engine** — Automatically saves before browser close, system sleep, low battery, periodic timer, and window close
+- **Auto-Save Engine** — Automatically saves before browser close, system sleep, low battery, periodic timer, and window close; one pinned entry per trigger type, updated in place instead of accumulating
 - **Tab Group Support** — Full-fidelity save/restore of Chrome tab groups with colors, names, and collapsed state
 - **Side Panel UI** — Primary interface docked to the browser for always-accessible session management
 - **Search & Filter** — Full-text search across session names, tags, URLs, and titles

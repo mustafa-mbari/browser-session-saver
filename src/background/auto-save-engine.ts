@@ -91,11 +91,10 @@ async function saveClosedWindowFromCache(
   if (!_settings?.enableAutoSave) return;
 
   try {
-    if (await isDuplicate(cached.tabs)) return;
+    if (await isDuplicate(cached.tabs, 'window_close')) return;
 
-    await SessionService.saveSession(cached.tabs, cached.tabGroups, {
+    await SessionService.upsertAutoSaveSession(cached.tabs, cached.tabGroups, {
       windowId,
-      isAutoSave: true,
       autoSaveTrigger: 'window_close',
     });
   } catch (error) {
@@ -129,11 +128,10 @@ async function performAutoSave(trigger: AutoSaveTrigger): Promise<void> {
       const { tabs, tabGroups } = captureTabGroups(chromeTabs, chromeGroups);
 
       // De-duplication check
-      if (await isDuplicate(tabs)) continue;
+      if (await isDuplicate(tabs, trigger)) continue;
 
-      await SessionService.saveSession(tabs, tabGroups, {
+      await SessionService.upsertAutoSaveSession(tabs, tabGroups, {
         windowId: window.id,
-        isAutoSave: true,
         autoSaveTrigger: trigger,
       });
     }
@@ -151,21 +149,17 @@ async function performAutoSave(trigger: AutoSaveTrigger): Promise<void> {
   }
 }
 
-async function isDuplicate(tabs: Tab[]): Promise<boolean> {
-  const sessions = await SessionService.getAllSessions(
-    { isAutoSave: true },
-    { field: 'createdAt', direction: 'desc' },
-  );
+async function isDuplicate(tabs: Tab[], trigger: AutoSaveTrigger): Promise<boolean> {
+  const sessions = await SessionService.getAllSessions({ isAutoSave: true });
+  const existing = sessions.find((s) => s.autoSaveTrigger === trigger);
 
-  if (sessions.length === 0) return false;
+  if (!existing) return false;
+  if (existing.tabs.length !== tabs.length) return false;
 
-  const latest = sessions[0];
-  if (latest.tabs.length !== tabs.length) return false;
-
-  const latestUrls = latest.tabs.map((t) => t.url).sort();
+  const existingUrls = existing.tabs.map((t) => t.url).sort();
   const currentUrls = tabs.map((t) => t.url).sort();
 
-  return latestUrls.every((url, i) => url === currentUrls[i]);
+  return existingUrls.every((url, i) => url === currentUrls[i]);
 }
 
 function initBatteryMonitor(threshold: number): void {

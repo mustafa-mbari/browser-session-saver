@@ -83,6 +83,12 @@ export function useSession() {
     refreshSessions();
   }, [refreshSessions]);
 
+  useEffect(() => {
+    const handler = () => { void refreshSessions(); };
+    window.addEventListener('session-changed', handler);
+    return () => window.removeEventListener('session-changed', handler);
+  }, [refreshSessions]);
+
   return {
     sessions,
     loading,

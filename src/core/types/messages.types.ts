@@ -1,4 +1,4 @@
-import type { Session, AutoSaveTrigger } from './session.types';
+import type { Session, Tab, AutoSaveTrigger } from './session.types';
 import type { Settings } from './settings.types';
 
 export type ExportFormat = 'json' | 'html' | 'markdown' | 'csv' | 'text';
@@ -36,7 +36,11 @@ export type Message =
   | { action: 'UPDATE_SETTINGS'; payload: Partial<Settings> }
   | { action: 'GET_SETTINGS'; payload: Record<string, never> }
   | { action: 'AUTO_SAVE_STATUS'; payload: Record<string, never> }
-  | { action: 'UPDATE_SESSION'; payload: { sessionId: string; updates: Partial<Session> } };
+  | { action: 'UPDATE_SESSION'; payload: { sessionId: string; updates: Partial<Session> } }
+  | { action: 'UNDELETE_SESSION'; payload: { session: Session } }
+  | { action: 'MERGE_SESSIONS'; payload: { sessionIds: string[]; targetName: string } }
+  | { action: 'DIFF_SESSIONS'; payload: { sessionIdA: string; sessionIdB: string } }
+  | { action: 'RESTORE_SELECTED_TABS'; payload: { sessionId: string; tabIds: string[]; mode: RestoreMode } };
 
 export interface MessageResponse<T = unknown> {
   success: boolean;
@@ -54,4 +58,15 @@ export interface CurrentTabsResponse {
   tabCount: number;
   groupCount: number;
   windowId: number;
+}
+
+export interface SessionDiffResponse {
+  added: Tab[];
+  removed: Tab[];
+  unchanged: Tab[];
+}
+
+export interface SaveSessionResponse {
+  session: Session | Session[];
+  isDuplicate: boolean;
 }
