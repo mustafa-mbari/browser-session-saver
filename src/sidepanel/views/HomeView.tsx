@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
-import { ExternalLink, Download, Trash2, X, Layers } from 'lucide-react';
+import { ExternalLink, Download, Trash2, X, Layers, MoreVertical, Pin, Copy, RotateCcw } from 'lucide-react';
 import { useSession } from '@shared/hooks/useSession';
 import { useSearch } from '@shared/hooks/useSearch';
 import { useSidePanelStore } from '../stores/sidepanel.store';
@@ -11,6 +11,7 @@ import Button from '@shared/components/Button';
 import EmptyState from '@shared/components/EmptyState';
 import LoadingSpinner from '@shared/components/LoadingSpinner';
 import Badge from '@shared/components/Badge';
+import ContextMenu from '@shared/components/ContextMenu';
 import { generateId } from '@core/utils/uuid';
 import type { SessionFilter } from '@core/types/messages.types';
 import { useMessaging } from '@shared/hooks/useMessaging';
@@ -39,7 +40,6 @@ export default function HomeView() {
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
 
-  // Reset search when switching tabs
   const handleTabChange = useCallback((tab: HomeTab) => {
     setActiveHomeTab(tab);
     setSearchQuery('');
@@ -174,9 +174,11 @@ export default function HomeView() {
       {activeHomeTab === 'session' && (
         <SessionList sessions={sortedSessions} loading={loading} onToast={addToast} />
       )}
-      {activeHomeTab === 'tab' && <CurrentTabsPanel query={searchQuery} />}
+      {activeHomeTab === 'tab' && (
+        <CurrentTabsPanel query={searchQuery} onToast={addToast} />
+      )}
       {activeHomeTab === 'tab-group' && (
-        <TabGroupsPanel sessions={sessions} loading={loading} query={searchQuery} />
+        <TabGroupsPanel sessions={sessions} loading={loading} query={searchQuery} onToast={addToast} />
       )}
 
       {/* Footer */}
@@ -224,19 +226,44 @@ export default function HomeView() {
 
 interface CurrentTabsPanelProps {
   query: string;
+  onToast: (toast: Omit<ToastData, 'id'>) => void;
 }
 
-function CurrentTabsPanel({ query }: CurrentTabsPanelProps) {
+function CurrentTabsPanel({ query, onToast }: CurrentTabsPanelProps) {
   const [tabs, setTabs] = useState<chrome.tabs.Tab[]>([]);
   const [loading, setLoading] = useState(true);
   const q = query.toLowerCase();
 
-  useEffect(() => {
+  const refreshTabs = useCallback(() => {
     chrome.tabs.query({ currentWindow: true }, (result) => {
       setTabs(result);
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    refreshTabs();
+  }, [refreshTabs]);
+
+  const handlePin = useCallback(async (tab: chrome.tabs.Tab) => {
+    if (!tab.id) return;
+    await chrome.tabs.update(tab.id, { pinned: !tab.pinned });
+    refreshTabs();
+  }, [refreshTabs]);
+
+  const handleDuplicate = useCallback(async (tab: chrome.tabs.Tab) => {
+    if (!tab.id) return;
+    await chrome.tabs.duplicate(tab.id);
+    refreshTabs();
+    onToast({ message: 'Tab duplicated', type: 'success' });
+  }, [refreshTabs, onToast]);
+
+  const handleClose = useCallback(async (tab: chrome.tabs.Tab) => {
+    if (!tab.id) return;
+    await chrome.tabs.remove(tab.id);
+    refreshTabs();
+    onToast({ message: 'Tab closed', type: 'success' });
+  }, [refreshTabs, onToast]);
 
   const filtered = q
     ? tabs.filter(
@@ -273,7 +300,7 @@ function CurrentTabsPanel({ query }: CurrentTabsPanelProps) {
       {filtered.map((tab) => (
         <div
           key={tab.id}
-          className="flex items-center gap-2.5 px-3 py-2 border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors cursor-pointer"
+          className="flex items-center gap-2.5 px-3 py-2 border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors cursor-pointer group"
           onClick={() => tab.id && chrome.tabs.update(tab.id, { active: true })}
           role="button"
           tabIndex={0}
@@ -289,7 +316,37 @@ function CurrentTabsPanel({ query }: CurrentTabsPanelProps) {
             <p className="text-xs font-medium truncate">{tab.title || tab.url}</p>
             <p className="text-[10px] text-[var(--color-text-secondary)] truncate">{tab.url}</p>
           </div>
-          {tab.active && <Badge variant="primary">Active</Badge>}
+          <div className="flex items-center gap-1 shrink-0">
+            {tab.active && <Badge variant="primary">Active</Badge>}
+            {tab.pinned && <Badge variant="success">Pinned</Badge>}
+            <ContextMenu
+              items={[
+                {
+                  label: tab.pinned ? 'Unpin tab' : 'Pin tab',
+                  icon: Pin,
+                  onClick: () => handlePin(tab),
+                },
+                {
+                  label: 'Duplicate tab',
+                  icon: Copy,
+                  onClick: () => handleDuplicate(tab),
+                },
+                {
+                  label: 'Close tab',
+                  icon: Trash2,
+                  onClick: () => handleClose(tab),
+                  danger: true,
+                },
+              ]}
+            >
+              <button
+                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors opacity-0 group-hover:opacity-100"
+                aria-label="Tab actions"
+              >
+                <MoreVertical size={14} />
+              </button>
+            </ContextMenu>
+          </div>
         </div>
       ))}
     </div>
@@ -302,15 +359,17 @@ interface TabGroupsPanelProps {
   sessions: Session[];
   loading: boolean;
   query: string;
+  onToast: (toast: Omit<ToastData, 'id'>) => void;
 }
 
 interface GroupInfo {
   group: TabGroup;
   sessionCount: number;
   totalTabs: number;
+  urls: string[];
 }
 
-function TabGroupsPanel({ sessions, loading, query }: TabGroupsPanelProps) {
+function TabGroupsPanel({ sessions, loading, query, onToast }: TabGroupsPanelProps) {
   const q = query.toLowerCase();
 
   const groups = useMemo((): GroupInfo[] => {
@@ -318,12 +377,23 @@ function TabGroupsPanel({ sessions, loading, query }: TabGroupsPanelProps) {
     for (const session of sessions) {
       for (const group of session.tabGroups) {
         const key = `${group.title}-${group.color}`;
+        const groupTabUrls = session.tabs
+          .filter((t) => group.tabIds.includes(t.id))
+          .map((t) => t.url);
         const existing = groupMap.get(key);
         if (existing) {
           existing.sessionCount++;
           existing.totalTabs += group.tabIds.length;
+          for (const url of groupTabUrls) {
+            if (!existing.urls.includes(url)) existing.urls.push(url);
+          }
         } else {
-          groupMap.set(key, { group, sessionCount: 1, totalTabs: group.tabIds.length });
+          groupMap.set(key, {
+            group,
+            sessionCount: 1,
+            totalTabs: group.tabIds.length,
+            urls: groupTabUrls,
+          });
         }
       }
     }
@@ -333,6 +403,22 @@ function TabGroupsPanel({ sessions, loading, query }: TabGroupsPanelProps) {
   const filtered = q
     ? groups.filter((info) => (info.group.title ?? '').toLowerCase().includes(q))
     : groups;
+
+  const handleOpenAll = useCallback(async (info: GroupInfo) => {
+    if (info.urls.length === 0) {
+      onToast({ message: 'No tabs found for this group', type: 'warning' });
+      return;
+    }
+    for (const url of info.urls) {
+      await chrome.tabs.create({ url, active: false });
+    }
+    onToast({ message: `Opened ${info.urls.length} tab${info.urls.length !== 1 ? 's' : ''}`, type: 'success' });
+  }, [onToast]);
+
+  const handleCopyName = useCallback((info: GroupInfo) => {
+    void navigator.clipboard.writeText(info.group.title ?? 'Unnamed group');
+    onToast({ message: 'Group name copied', type: 'success' });
+  }, [onToast]);
 
   if (loading) return <LoadingSpinner />;
 
@@ -361,21 +447,42 @@ function TabGroupsPanel({ sessions, loading, query }: TabGroupsPanelProps) {
       {filtered.map((info, index) => (
         <div
           key={`${info.group.title}-${info.group.color}-${index}`}
-          className="px-3 py-2.5 border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors"
+          className="flex items-center gap-2 px-3 py-2.5 border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors group"
         >
-          <div className="flex items-center gap-2">
-            <span
-              className="w-3 h-3 rounded-full shrink-0"
-              style={{ backgroundColor: `var(--group-${info.group.color})` }}
-            />
-            <span className="font-medium text-sm truncate">
+          <span
+            className="w-3 h-3 rounded-full shrink-0 mt-0.5"
+            style={{ backgroundColor: `var(--group-${info.group.color})` }}
+          />
+          <div className="flex-1 min-w-0">
+            <span className="font-medium text-sm truncate block">
               {info.group.title || 'Unnamed group'}
             </span>
+            <div className="flex items-center gap-3 mt-0.5 text-xs text-[var(--color-text-secondary)]">
+              <span>{info.totalTabs} tab{info.totalTabs !== 1 ? 's' : ''}</span>
+              <span>{info.sessionCount} session{info.sessionCount !== 1 ? 's' : ''}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-3 mt-0.5 ml-5 text-xs text-[var(--color-text-secondary)]">
-            <span>{info.totalTabs} tab{info.totalTabs !== 1 ? 's' : ''}</span>
-            <span>{info.sessionCount} session{info.sessionCount !== 1 ? 's' : ''}</span>
-          </div>
+          <ContextMenu
+            items={[
+              {
+                label: 'Open all tabs',
+                icon: RotateCcw,
+                onClick: () => handleOpenAll(info),
+              },
+              {
+                label: 'Copy name',
+                icon: Copy,
+                onClick: () => handleCopyName(info),
+              },
+            ]}
+          >
+            <button
+              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+              aria-label="Group actions"
+            >
+              <MoreVertical size={14} />
+            </button>
+          </ContextMenu>
         </div>
       ))}
     </div>
