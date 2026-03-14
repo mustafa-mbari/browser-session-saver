@@ -5,13 +5,11 @@ import AutoSaveBadge from './AutoSaveBadge';
 
 export default function Header() {
   const { currentView, navigationStack, goBack, navigateTo } = useSidePanelStore();
-  const { isDark, setTheme, theme } = useTheme();
+  const { isDark, setTheme } = useTheme();
   const canGoBack = navigationStack.length > 1;
 
   const toggleTheme = () => {
-    if (theme === 'system') setTheme('dark');
-    else if (theme === 'dark') setTheme('light');
-    else setTheme('system');
+    setTheme(isDark ? 'light' : 'dark');
   };
 
   return (

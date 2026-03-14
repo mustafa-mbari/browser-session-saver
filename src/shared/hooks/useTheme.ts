@@ -19,6 +19,16 @@ export function useTheme() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // React to theme changes written by any page (e.g. sidepanel → dashboard sync)
+  useEffect(() => {
+    const handler = (changes: Record<string, chrome.storage.StorageChange>) => {
+      const newTheme = changes['settings']?.newValue?.theme as ThemePreference | undefined;
+      if (newTheme) setThemeState(newTheme);
+    };
+    chrome.storage.local.onChanged.addListener(handler);
+    return () => chrome.storage.local.onChanged.removeListener(handler);
+  }, []);
+
   const isDark = useDarkMode(theme);
 
   useEffect(() => {
