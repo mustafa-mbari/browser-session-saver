@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Plus, ArrowRight } from 'lucide-react';
 import type { BookmarkCategory } from '@core/types/newtab.types';
-import type { Subscription } from '@core/types/subscription.types';
+import type { Subscription, CustomCategory } from '@core/types/subscription.types';
+import { CATEGORY_LABELS } from '@core/types/subscription.types';
 import { SubscriptionStorage } from '@core/storage/subscription-storage';
 import { SubscriptionService } from '@core/services/subscription.service';
 import { resolveFavIcon, getFaviconInitial } from '@core/utils/favicon';
@@ -11,13 +12,6 @@ interface Props {
   category: BookmarkCategory;
 }
 
-const urgencyDot: Record<string, string> = {
-  overdue: 'bg-red-500',
-  today:   'bg-orange-500',
-  urgent:  'bg-orange-400',
-  soon:    'bg-yellow-400',
-  safe:    'bg-green-400',
-};
 
 const urgencyBorder: Record<string, string> = {
   overdue: 'border-l-2 border-l-red-500',
@@ -25,6 +19,30 @@ const urgencyBorder: Record<string, string> = {
   urgent:  'border-l-2 border-l-orange-400',
   soon:    'border-l-2 border-l-yellow-400',
   safe:    '',
+};
+
+const urgencyText: Record<string, string> = {
+  overdue: 'text-red-400',
+  today:   'text-orange-400',
+  urgent:  'text-orange-300',
+  soon:    'text-yellow-300',
+  safe:    'text-white/40',
+};
+
+const statusCls: Record<string, string> = {
+  active:    'bg-green-500/20 text-green-300',
+  trial:     'bg-violet-500/20 text-violet-300',
+  canceling: 'bg-orange-500/20 text-orange-300',
+  paused:    'bg-white/10 text-white/35',
+  canceled:  'bg-white/5 text-white/20',
+};
+
+const billingLabel: Record<string, string> = {
+  monthly: 'mo', yearly: 'yr', weekly: 'wk', custom: '—',
+};
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  work: '💼', personal: '👤', saas: '⚡', streaming: '🎬', utility: '🔧', other: '📦',
 };
 
 function FaviconSmall({ url, name }: { url?: string; name: string }) {
@@ -53,12 +71,17 @@ function FaviconSmall({ url, name }: { url?: string; name: string }) {
 
 export default function SubscriptionCardBody({ category }: Props) {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [customCats, setCustomCats] = useState<CustomCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const setActiveView = useNewTabStore((s) => s.setActiveView);
 
   useEffect(() => {
-    void SubscriptionStorage.getAll().then((subs) => {
+    void Promise.all([
+      SubscriptionStorage.getAll(),
+      SubscriptionStorage.getCustomCategories(),
+    ]).then(([subs, cats]) => {
       setSubscriptions(subs);
+      setCustomCats(cats);
       setLoading(false);
     });
   }, []);
@@ -74,7 +97,7 @@ export default function SubscriptionCardBody({ category }: Props) {
   const upcoming = [...subscriptions]
     .filter((s) => s.status !== 'canceled')
     .sort((a, b) => a.nextBillingDate.localeCompare(b.nextBillingDate))
-    .slice(0, colSpan === 3 ? 8 : colSpan === 2 ? 5 : 0);
+    .slice(0, colSpan === 3 ? 10 : colSpan === 2 ? 7 : 3);
 
   if (loading) {
     return (
@@ -109,13 +132,74 @@ export default function SubscriptionCardBody({ category }: Props) {
         </span>
       </div>
 
-      {/* Upcoming renewals list */}
-      {upcoming.length > 0 && (
+      {/* Upcoming renewals — table for 2w+, compact rows for 1w */}
+      {upcoming.length > 0 && colSpan >= 2 ? (
+        <div className="flex flex-col">
+          {/* Table header */}
+          <div
+            className="grid gap-x-2 px-1.5 pb-1 border-b border-white/8 text-[10px] font-semibold uppercase tracking-wider select-none"
+            style={{ gridTemplateColumns: '1fr 18px auto auto auto auto', color: 'var(--newtab-text-secondary)', opacity: 0.4 }}
+          >
+            <span>Name</span>
+            <span />
+            <span>Cycle</span>
+            <span>Status</span>
+            <span className="text-right">Next Due</span>
+            <span className="text-right">Price</span>
+          </div>
+          {/* Table rows */}
+          {upcoming.map((s) => {
+            const urgency = SubscriptionService.getUrgency(s);
+            const days = SubscriptionService.getDaysUntil(s.nextBillingDate);
+            const daysLabel = days < 0 ? `${Math.abs(days)}d late` : days === 0 ? 'Today' : `${days}d`;
+            const dateLabel = new Date(s.nextBillingDate).toLocaleDateString('default', { month: 'short', day: 'numeric' });
+            return (
+              <div
+                key={s.id}
+                className={`grid gap-x-2 items-center py-1 px-1.5 rounded-md hover:bg-white/8 transition-colors ${urgencyBorder[urgency]}`}
+                style={{ gridTemplateColumns: '1fr 18px auto auto auto auto', cursor: s.url ? 'pointer' : 'default' }}
+                onClick={() => s.url && window.open(s.url, '_blank')}
+              >
+                {/* Name */}
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <FaviconSmall url={s.url} name={s.name} />
+                  <span className="text-xs truncate" style={{ color: 'var(--newtab-text)' }}>{s.name}</span>
+                </div>
+                {/* Category emoji */}
+                <span className="text-xs text-center shrink-0" title={CATEGORY_LABELS[s.category] ?? customCats.find((c) => c.value === s.category)?.label ?? s.category}>
+                  {CATEGORY_EMOJI[s.category] ?? customCats.find((c) => c.value === s.category)?.emoji ?? '📦'}
+                </span>
+                {/* Billing cycle */}
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-center shrink-0" style={{ color: 'var(--newtab-text-secondary)' }}>
+                  {billingLabel[s.billingCycle] ?? s.billingCycle}
+                </span>
+                {/* Status */}
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium capitalize shrink-0 ${statusCls[s.status] ?? statusCls.active}`}>
+                  {s.status}
+                </span>
+                {/* Date + days */}
+                <div className="flex flex-col items-end shrink-0">
+                  <span className="text-[10px] tabular-nums" style={{ color: 'var(--newtab-text-secondary)', opacity: 0.75 }}>
+                    {dateLabel}
+                  </span>
+                  <span className={`text-[9px] font-medium tabular-nums ${urgencyText[urgency]}`}>
+                    {daysLabel}
+                  </span>
+                </div>
+                {/* Price */}
+                <span className="text-xs font-medium text-right shrink-0 tabular-nums" style={{ color: 'var(--newtab-text)' }}>
+                  {SubscriptionService.formatCurrency(s.price, s.currency)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      ) : upcoming.length > 0 ? (
         <div className="flex flex-col gap-1">
           {upcoming.map((s) => {
             const urgency = SubscriptionService.getUrgency(s);
             const days = SubscriptionService.getDaysUntil(s.nextBillingDate);
-            const daysLabel = days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? 'Today' : `${days}d`;
+            const daysLabel = days < 0 ? `${Math.abs(days)}d late` : days === 0 ? 'Today' : `${days}d`;
             return (
               <div
                 key={s.id}
@@ -127,17 +211,17 @@ export default function SubscriptionCardBody({ category }: Props) {
                 <span className="flex-1 text-xs truncate" style={{ color: 'var(--newtab-text)' }}>
                   {s.name}
                 </span>
-                <span className={`text-[10px] shrink-0 ${urgencyDot[urgency].replace('bg-', 'text-')}`}>
+                <span className={`text-[10px] shrink-0 tabular-nums ${urgencyText[urgency]}`}>
                   {daysLabel}
                 </span>
-                <span className="text-xs font-medium shrink-0" style={{ color: 'var(--newtab-text)' }}>
+                <span className="text-xs font-medium shrink-0 tabular-nums" style={{ color: 'var(--newtab-text)' }}>
                   {SubscriptionService.formatCurrency(s.price, s.currency)}
                 </span>
               </div>
             );
           })}
         </div>
-      )}
+      ) : null}
 
       {subscriptions.length === 0 && (
         <p className="text-xs text-center py-2 opacity-50" style={{ color: 'var(--newtab-text-secondary)' }}>

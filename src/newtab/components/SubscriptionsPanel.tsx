@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Search, SlidersHorizontal, ChevronLeft, ChevronRight, Calendar, BarChart3, Download, Upload, X, Wand2 } from 'lucide-react';
-import type { Subscription } from '@core/types/subscription.types';
+import { Plus, Search, SlidersHorizontal, ChevronLeft, ChevronRight, ChevronDown, Calendar, BarChart3, Download, Upload, X, Wand2 } from 'lucide-react';
+import type { Subscription, CustomCategory } from '@core/types/subscription.types';
 import { CATEGORY_LABELS, SUPPORTED_CURRENCIES, SUBSCRIPTION_TEMPLATES } from '@core/types/subscription.types';
 import { SubscriptionStorage } from '@core/storage/subscription-storage';
 import { SubscriptionService } from '@core/services/subscription.service';
@@ -81,12 +81,27 @@ function SummaryStrip({ subscriptions, onAdd }: { subscriptions: Subscription[];
   );
 }
 
+// ── Detail grid helper ───────────────────────────────────────────────────────
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] font-semibold uppercase tracking-wider opacity-40" style={TS}>{label}</span>
+      <span className="text-xs font-medium" style={T}>{value}</span>
+    </div>
+  );
+}
+
+// columns: Service | Category · Billing | Next Date | Payment | Price
+const LIST_COLS = '1fr auto auto auto auto';
+
 // ── Subscription row ────────────────────────────────────────────────────────
 
 function SubRow({
-  s, onEdit, onDelete, onStatusChange,
+  s, customCats, onEdit, onDelete, onStatusChange,
 }: {
   s: Subscription;
+  customCats: CustomCategory[];
   onEdit: (s: Subscription) => void;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: Subscription['status']) => void;
@@ -97,58 +112,123 @@ function SubRow({
   const daysLabel = s.status === 'canceled' || s.status === 'paused' ? null
     : days < 0 ? `${Math.abs(days)}d overdue`
     : days === 0 ? 'Today' : `${days}d`;
+  const catEmoji = CATEGORY_ICONS[s.category] ?? customCats.find((c) => c.value === s.category)?.emoji ?? '📦';
+  const catLabel = CATEGORY_LABELS[s.category] ?? customCats.find((c) => c.value === s.category)?.label ?? s.category;
 
   return (
     <div className={`rounded-lg bg-white/5 hover:bg-white/8 transition-colors ${urgencyBg[urgency]}`}>
-      <div className="flex items-center gap-2.5 px-3 py-2 cursor-pointer" onClick={() => setExpanded((v) => !v)}>
-        <Favicon url={s.url} name={s.name} size={18} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium truncate" style={T}>{s.name}</span>
-            {daysLabel && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${
-                urgency === 'overdue' || urgency === 'today' ? 'bg-red-500/20 text-red-400' :
-                urgency === 'urgent' ? 'bg-orange-500/20 text-orange-400' : 'bg-yellow-500/20 text-yellow-400'
-              }`}>{daysLabel}</span>
-            )}
-          </div>
-          <div className="flex items-center gap-1 mt-0.5">
-            <span className="text-[11px] opacity-50" style={TS}>{CATEGORY_LABELS[s.category]}</span>
-            <span className="opacity-30 text-[11px]" style={TS}>·</span>
-            <span className="text-[11px] opacity-50" style={TS}>{new Date(s.nextBillingDate).toLocaleDateString('default', { month: 'short', day: 'numeric' })}</span>
-          </div>
+      <div
+        className="grid items-center gap-x-4 px-3 py-2.5 cursor-pointer"
+        style={{ gridTemplateColumns: LIST_COLS }}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        {/* 1 · Service: favicon + name + urgency */}
+        <div className="flex items-center gap-2 min-w-0">
+          <Favicon url={s.url} name={s.name} size={18} />
+          <span className="text-sm font-medium truncate" style={T}>{s.name}</span>
+          {daysLabel && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${
+              urgency === 'overdue' || urgency === 'today' ? 'bg-red-500/20 text-red-400' :
+              urgency === 'urgent' ? 'bg-orange-500/20 text-orange-400' : 'bg-yellow-500/20 text-yellow-400'
+            }`}>{daysLabel}</span>
+          )}
         </div>
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          <span className="text-sm font-semibold" style={T}>{SubscriptionService.formatCurrency(s.price, s.currency)}</span>
+        {/* 2 · Category + billing cycle */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-xs">{catEmoji}</span>
+          <span className="text-xs" style={TS}>{catLabel}</span>
+          <span className="text-[10px] opacity-25" style={TS}>·</span>
+          <span className="text-xs capitalize" style={TS}>{s.billingCycle}</span>
+        </div>
+        {/* 3 · Next billing date */}
+        <span className="text-xs tabular-nums shrink-0" style={TS}>
+          {new Date(s.nextBillingDate).toLocaleDateString('default', { year: 'numeric', month: 'short', day: 'numeric' })}
+        </span>
+        {/* 4 · Payment method */}
+        <span
+          className="text-xs shrink-0 max-w-[110px] truncate"
+          style={{ color: 'var(--newtab-text-secondary)', opacity: s.paymentMethod ? 0.7 : 0.25 }}
+        >
+          {s.paymentMethod || '—'}
+        </span>
+        {/* 5 · Price + status */}
+        <div className="flex flex-col items-end gap-0.5 shrink-0">
+          <span className="text-sm font-semibold tabular-nums" style={T}>{SubscriptionService.formatCurrency(s.price, s.currency)}</span>
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${statusStyle[s.status]}`}>{s.status}</span>
         </div>
       </div>
 
       {expanded && (
-        <div className="px-3 pb-2.5 pt-1 border-t border-white/10 flex flex-wrap gap-1.5">
-          {s.url && (
-            <button onClick={() => window.open(s.url, '_blank')} className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition-colors" style={T}>
-              Open site
-            </button>
+        <div className="px-3 pb-3 pt-2.5 border-t border-white/10 flex flex-col gap-3">
+          {/* Detail grid */}
+          <div className="grid grid-cols-3 gap-x-4 gap-y-3">
+            <DetailItem
+              label="Next billing"
+              value={new Date(s.nextBillingDate).toLocaleDateString('default', { year: 'numeric', month: 'short', day: 'numeric' })}
+            />
+            <DetailItem
+              label="Billing cycle"
+              value={s.billingCycle.charAt(0).toUpperCase() + s.billingCycle.slice(1)}
+            />
+            <DetailItem
+              label="Category"
+              value={catLabel}
+            />
+            <DetailItem
+              label="Status"
+              value={s.status.charAt(0).toUpperCase() + s.status.slice(1)}
+            />
+            <DetailItem
+              label="Reminder"
+              value={`${s.reminder}d before renewal`}
+            />
+            <DetailItem label="Payment" value={s.paymentMethod || '—'} />
+            {s.email && <DetailItem label="Email" value={s.email} />}
+          </div>
+
+          {/* Notes */}
+          {s.notes && (
+            <div className="px-2.5 py-2 rounded-lg bg-white/5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider opacity-40 block mb-0.5" style={TS}>Notes</span>
+              <p className="text-xs leading-relaxed" style={{ ...T, opacity: 0.75 }}>{s.notes}</p>
+            </div>
           )}
-          <button onClick={() => onEdit(s)} className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition-colors" style={T}>
-            Edit
-          </button>
-          <button
-            onClick={() => onStatusChange(s.id, s.status !== 'paused' ? 'paused' : 'active')}
-            className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition-colors"
-            style={T}
-          >
-            {s.status !== 'paused' ? 'Pause' : 'Resume'}
-          </button>
-          {s.status !== 'canceled' && (
-            <button onClick={() => onStatusChange(s.id, 'canceled')} className="text-xs px-2 py-1 rounded bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 transition-colors">
-              Cancel
-            </button>
+
+          {/* Tags */}
+          {s.tags && s.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {s.tags.map((tag) => (
+                <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 font-medium" style={TS}>{tag}</span>
+              ))}
+            </div>
           )}
-          <button onClick={() => onDelete(s.id)} className="text-xs px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors ml-auto">
-            Delete
-          </button>
+
+          {/* Actions */}
+          <div className="flex flex-wrap gap-1.5 pt-1 border-t border-white/8">
+            {s.url && (
+              <button onClick={() => window.open(s.url, '_blank')} className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition-colors" style={T}>
+                Open site
+              </button>
+            )}
+            <button onClick={() => onEdit(s)} className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition-colors" style={T}>
+              Edit
+            </button>
+            <button
+              onClick={() => onStatusChange(s.id, s.status !== 'paused' ? 'paused' : 'active')}
+              className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition-colors"
+              style={T}
+            >
+              {s.status !== 'paused' ? 'Pause' : 'Resume'}
+            </button>
+            {s.status !== 'canceled' && (
+              <button onClick={() => onStatusChange(s.id, 'canceled')} className="text-xs px-2 py-1 rounded bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 transition-colors">
+                Cancel
+              </button>
+            )}
+            <button onClick={() => onDelete(s.id)} className="text-xs px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors ml-auto">
+              Delete
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -158,9 +238,10 @@ function SubRow({
 // ── List tab ─────────────────────────────────────────────────────────────────
 
 function ListTab({
-  subs, onEdit, onDelete, onStatusChange,
+  subs, customCats, onEdit, onDelete, onStatusChange,
 }: {
   subs: Subscription[];
+  customCats: CustomCategory[];
   onEdit: (s: Subscription) => void;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: Subscription['status']) => void;
@@ -230,7 +311,25 @@ function ListTab({
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 pb-4 flex flex-col gap-1.5">
+      <div className="flex-1 overflow-y-auto px-4 pb-4 flex flex-col gap-1">
+        {filtered.length > 0 && (
+          <div
+            className="grid gap-x-4 px-3 py-1.5 mb-0.5 border-b border-white/8 text-[10px] font-semibold uppercase tracking-wider select-none sticky top-0 z-10 shrink-0"
+            style={{
+              gridTemplateColumns: LIST_COLS,
+              color: 'var(--newtab-text-secondary)',
+              opacity: 0.4,
+              backgroundColor: 'rgba(14,14,28,0.88)',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <span>Service</span>
+            <span>Category · Billing</span>
+            <span>Next Date</span>
+            <span>Payment</span>
+            <span className="text-right">Price</span>
+          </div>
+        )}
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 gap-2">
             <span className="text-3xl">💳</span>
@@ -238,7 +337,7 @@ function ListTab({
           </div>
         ) : (
           filtered.map((s) => (
-            <SubRow key={s.id} s={s} onEdit={onEdit} onDelete={onDelete} onStatusChange={onStatusChange} />
+            <SubRow key={s.id} s={s} customCats={customCats} onEdit={onEdit} onDelete={onDelete} onStatusChange={onStatusChange} />
           ))
         )}
       </div>
@@ -531,6 +630,10 @@ const CATEGORY_ICONS: Record<string, string> = {
   work: '💼', personal: '👤', saas: '⚡', streaming: '🎬', utility: '🔧', other: '📦',
 };
 
+const CUSTOM_CAT_COLORS = [
+  '#3b82f6', '#ec4899', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#f97316', '#6b7280',
+];
+
 const BILLING_CYCLES: { key: Subscription['billingCycle']; label: string }[] = [
   { key: 'monthly', label: 'Monthly' },
   { key: 'yearly', label: 'Yearly' },
@@ -538,13 +641,63 @@ const BILLING_CYCLES: { key: Subscription['billingCycle']; label: string }[] = [
   { key: 'custom', label: 'Custom' },
 ];
 
-const STATUS_OPTIONS: { key: Subscription['status']; label: string; active: string; idle: string }[] = [
-  { key: 'active',    label: 'Active',    active: 'bg-green-500/20 text-green-300 border-green-500/40',   idle: '' },
-  { key: 'trial',     label: 'Trial',     active: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40', idle: '' },
-  { key: 'canceling', label: 'Canceling', active: 'bg-orange-500/20 text-orange-300 border-orange-500/40', idle: '' },
-  { key: 'paused',    label: 'Paused',    active: 'bg-white/15 text-white/60 border-white/20',             idle: '' },
-  { key: 'canceled',  label: 'Canceled',  active: 'bg-red-500/20 text-red-300 border-red-500/40',          idle: '' },
+const STATUS_OPTIONS: { key: Subscription['status']; label: string; activeStyle: React.CSSProperties }[] = [
+  { key: 'active',    label: 'Active',    activeStyle: { backgroundColor: 'rgba(34,197,94,0.18)',  color: '#86efac', borderColor: 'rgba(34,197,94,0.4)'  } },
+  { key: 'trial',     label: 'Trial',     activeStyle: { backgroundColor: 'rgba(234,179,8,0.18)', color: '#fde047', borderColor: 'rgba(234,179,8,0.4)'  } },
+  { key: 'canceling', label: 'Canceling', activeStyle: { backgroundColor: 'rgba(249,115,22,0.18)',color: '#fdba74', borderColor: 'rgba(249,115,22,0.4)' } },
+  { key: 'paused',    label: 'Paused',    activeStyle: { backgroundColor: 'rgba(255,255,255,0.12)',color: 'rgba(255,255,255,0.55)', borderColor: 'rgba(255,255,255,0.2)' } },
+  { key: 'canceled',  label: 'Canceled',  activeStyle: { backgroundColor: 'rgba(239,68,68,0.18)', color: '#fca5a5', borderColor: 'rgba(239,68,68,0.4)' } },
 ];
+
+// ── Custom currency picker (replaces native <select> to avoid OS white popup) ──
+
+function CurrencyPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative w-24 shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between border border-white/10 rounded-xl px-3 py-2.5 text-sm transition-all focus:border-violet-400/60"
+        style={{ backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--newtab-text)' }}
+      >
+        <span>{value}</span>
+        <ChevronDown size={11} style={{ color: 'var(--newtab-text-secondary)', opacity: 0.5, flexShrink: 0 }} />
+      </button>
+      {open && (
+        <div
+          className="absolute top-full left-0 right-0 mt-1 rounded-xl border border-white/15 overflow-y-auto z-50 shadow-2xl"
+          style={{ backgroundColor: '#1e1b3a', maxHeight: 220 }}
+        >
+          {SUPPORTED_CURRENCIES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => { onChange(c); setOpen(false); }}
+              className={`w-full text-left px-3 py-1.5 text-sm transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                c === value ? 'bg-violet-500/25 text-violet-200' : 'hover:bg-white/10'
+              }`}
+              style={c === value ? {} : { color: 'var(--newtab-text)' }}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function FormSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -558,22 +711,39 @@ function FormSection({ label, children }: { label: string; children: React.React
 }
 
 function SubForm({
-  initial, onSave, onClose,
+  initial, onSave, onClose, customCats, onCustomCatsChange,
 }: {
   initial?: Subscription | null;
   onSave: (s: Subscription) => void;
   onClose: () => void;
+  customCats: CustomCategory[];
+  onCustomCatsChange: (cats: CustomCategory[]) => void;
 }) {
   // Open with templates by default when adding new (not editing)
   const [showTemplates, setShowTemplates] = useState(!initial);
   const [nameError, setNameError] = useState(false);
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCatEmoji, setNewCatEmoji] = useState('');
+  const [newCatLabel, setNewCatLabel] = useState('');
+  const [newCatColor, setNewCatColor] = useState(CUSTOM_CAT_COLORS[0]);
   const [form, setForm] = useState<Partial<Subscription>>(initial ?? {
-    name: '', url: '', category: 'personal', price: 0, currency: 'USD',
+    name: '', url: '', email: '', category: 'personal', price: 0, currency: 'USD',
     billingCycle: 'monthly', nextBillingDate: SubscriptionService.computeNextBillingDate('monthly'),
     status: 'active', reminder: 3, notes: '', tags: [],
   });
 
   const set = <K extends keyof Subscription>(k: K, v: Subscription[K]) => setForm((p) => ({ ...p, [k]: v }));
+
+  const handleAddCustomCat = async () => {
+    if (!newCatLabel.trim()) return;
+    const slug = newCatLabel.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || `cat_${Date.now()}`;
+    const cat: CustomCategory = { value: slug, label: newCatLabel.trim(), emoji: newCatEmoji.trim() || '📦', color: newCatColor };
+    await SubscriptionStorage.addCustomCategory(cat);
+    onCustomCatsChange([...customCats, cat]);
+    set('category', cat.value);
+    setShowAddCategory(false);
+    setNewCatEmoji(''); setNewCatLabel(''); setNewCatColor(CUSTOM_CAT_COLORS[0]);
+  };
 
   const handleSave = () => {
     if (!form.name?.trim()) { setNameError(true); return; }
@@ -582,6 +752,7 @@ function SubForm({
       id: initial?.id ?? SubscriptionService.generateId(),
       name: form.name!.trim(),
       url: form.url?.trim() || undefined,
+      email: form.email?.trim() || undefined,
       category: form.category ?? 'personal',
       price: form.price ?? 0,
       currency: form.currency ?? 'USD',
@@ -599,7 +770,6 @@ function SubForm({
   // inline style wins over browser UA stylesheet (which forces white bg on inputs/selects)
   const inputBase = 'w-full border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-violet-400/60 transition-all';
   const inputStyle: React.CSSProperties = { backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--newtab-text)' };
-  const selectStyle: React.CSSProperties = { ...inputStyle, colorScheme: 'dark' };
 
   if (showTemplates) {
     return (
@@ -731,6 +901,14 @@ function SubForm({
                 onChange={(e) => set('url', e.target.value)}
                 placeholder="Website URL (optional)"
               />
+              <input
+                type="email"
+                className={inputBase}
+                style={inputStyle}
+                value={form.email ?? ''}
+                onChange={(e) => set('email', e.target.value)}
+                placeholder="Account email (optional)"
+              />
             </div>
           </FormSection>
 
@@ -754,14 +932,10 @@ function SubForm({
                   placeholder="0.00"
                 />
               </div>
-              <select
-                className="border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-violet-400/60 transition-all w-24 shrink-0"
-                style={selectStyle}
+              <CurrencyPicker
                 value={form.currency ?? 'USD'}
-                onChange={(e) => set('currency', e.target.value)}
-              >
-                {SUPPORTED_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+                onChange={(v) => set('currency', v)}
+              />
             </div>
 
             {/* Billing cycle pills */}
@@ -773,12 +947,11 @@ function SubForm({
                     set('billingCycle', key);
                     set('nextBillingDate', SubscriptionService.computeNextBillingDate(key));
                   }}
-                  className={`py-2 rounded-xl text-xs font-medium border transition-all ${
-                    form.billingCycle === key
-                      ? 'bg-violet-600 text-white border-violet-500/60 shadow-lg shadow-violet-900/30'
-                      : 'border-white/10 hover:border-white/20'
-                  }`}
-                  style={form.billingCycle === key ? {} : { ...TS, backgroundColor: 'rgba(255,255,255,0.05)' }}
+                  className="py-2 rounded-xl text-xs font-medium border transition-all"
+                  style={form.billingCycle === key
+                    ? { backgroundColor: 'rgb(124,58,237)', color: 'white', borderColor: 'rgba(139,92,246,0.6)' }
+                    : { ...TS, backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }
+                  }
                 >
                   {label}
                 </button>
@@ -801,35 +974,110 @@ function SubForm({
           {/* Category */}
           <FormSection label="Category">
             <div className="grid grid-cols-3 gap-1.5">
-              {(Object.entries(CATEGORY_LABELS) as [Subscription['category'], string][]).map(([k, v]) => (
+              {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
                 <button
                   key={k}
                   onClick={() => set('category', k)}
-                  className={`flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium border transition-all ${
-                    form.category === k
-                      ? 'bg-violet-600/70 text-white border-violet-500/50'
-                      : 'border-white/10 hover:border-white/20'
-                  }`}
-                  style={form.category === k ? {} : { ...TS, backgroundColor: 'rgba(255,255,255,0.05)' }}
+                  className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium border transition-all"
+                  style={form.category === k
+                    ? { backgroundColor: 'rgba(124,58,237,0.65)', color: 'white', borderColor: 'rgba(139,92,246,0.5)' }
+                    : { ...TS, backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }
+                  }
                 >
-                  <span className="text-sm">{CATEGORY_ICONS[k]}</span>
+                  <span className="text-sm">{CATEGORY_ICONS[k] ?? '📦'}</span>
                   <span className="truncate">{v}</span>
                 </button>
               ))}
+              {customCats.map((cat) => (
+                <button
+                  key={cat.value}
+                  onClick={() => set('category', cat.value)}
+                  className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium border transition-all"
+                  style={form.category === cat.value
+                    ? { backgroundColor: `${cat.color}44`, color: 'white', borderColor: `${cat.color}88` }
+                    : { ...TS, backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }
+                  }
+                >
+                  <span className="text-sm">{cat.emoji}</span>
+                  <span className="truncate">{cat.label}</span>
+                </button>
+              ))}
+              {!showAddCategory && (
+                <button
+                  onClick={() => setShowAddCategory(true)}
+                  className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-xs border border-dashed border-white/20 hover:border-violet-400/50 hover:bg-white/5 transition-all"
+                  style={TS}
+                >
+                  <Plus size={11} /> Custom
+                </button>
+              )}
             </div>
+            {showAddCategory && (
+              <div className="flex flex-col gap-2 p-3 rounded-xl bg-white/5 border border-white/10 mt-0.5">
+                <div className="flex gap-2">
+                  <input
+                    className="w-14 text-center text-xl border border-white/10 rounded-xl py-2 outline-none focus:border-violet-400/60 transition-all"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--newtab-text)' }}
+                    value={newCatEmoji}
+                    onChange={(e) => setNewCatEmoji(e.target.value)}
+                    placeholder="🎮"
+                    maxLength={2}
+                  />
+                  <input
+                    className="flex-1 border border-white/10 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400/60 transition-all"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--newtab-text)' }}
+                    value={newCatLabel}
+                    onChange={(e) => setNewCatLabel(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') void handleAddCustomCat(); }}
+                    placeholder="Category name"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px]" style={TS}>Color:</span>
+                  <div className="flex gap-1.5">
+                    {CUSTOM_CAT_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setNewCatColor(c)}
+                        className="w-5 h-5 rounded-full transition-transform hover:scale-110"
+                        style={{ background: c, outline: newCatColor === c ? '2px solid white' : '2px solid transparent', outlineOffset: '1px' }}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => void handleAddCustomCat()}
+                    disabled={!newCatLabel.trim()}
+                    className="flex-1 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium transition-colors disabled:opacity-40"
+                  >
+                    Add Category
+                  </button>
+                  <button
+                    onClick={() => { setShowAddCategory(false); setNewCatEmoji(''); setNewCatLabel(''); }}
+                    className="px-3 py-1.5 rounded-lg text-xs transition-colors hover:bg-white/10"
+                    style={TS}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </FormSection>
 
           {/* Status */}
           <FormSection label="Status">
             <div className="flex gap-1.5 flex-wrap">
-              {STATUS_OPTIONS.map(({ key, label, active }) => (
+              {STATUS_OPTIONS.map(({ key, label, activeStyle }) => (
                 <button
                   key={key}
                   onClick={() => set('status', key)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                    form.status === key ? active : 'border-white/10 hover:border-white/20'
-                  }`}
-                  style={form.status === key ? {} : { ...TS, backgroundColor: 'rgba(255,255,255,0.05)' }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all"
+                  style={form.status === key
+                    ? activeStyle
+                    : { ...TS, backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }
+                  }
                 >
                   {label}
                 </button>
@@ -904,13 +1152,17 @@ type SubTab = 'list' | 'calendar' | 'analytics';
 
 export default function SubscriptionsPanel() {
   const [subs, setSubs] = useState<Subscription[]>([]);
+  const [customCats, setCustomCats] = useState<CustomCategory[]>([]);
   const [tab, setTab] = useState<SubTab>('list');
   const [formOpen, setFormOpen] = useState(false);
   const [editSub, setEditSub] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    void SubscriptionStorage.getAll().then((s) => { setSubs(s); setLoading(false); });
+    void Promise.all([
+      SubscriptionStorage.getAll(),
+      SubscriptionStorage.getCustomCategories(),
+    ]).then(([s, cats]) => { setSubs(s); setCustomCats(cats); setLoading(false); });
   }, []);
 
   const handleSave = useCallback(async (sub: Subscription) => {
@@ -940,7 +1192,7 @@ export default function SubscriptionsPanel() {
 
   if (loading) return <div className="flex-1 flex items-center justify-center"><div className="w-5 h-5 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" /></div>;
 
-  if (formOpen) return <div className="flex flex-col h-full"><SubForm initial={editSub} onSave={handleSave} onClose={() => { setFormOpen(false); setEditSub(null); }} /></div>;
+  if (formOpen) return <div className="flex flex-col h-full"><SubForm initial={editSub} onSave={handleSave} onClose={() => { setFormOpen(false); setEditSub(null); }} customCats={customCats} onCustomCatsChange={setCustomCats} /></div>;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -961,7 +1213,7 @@ export default function SubscriptionsPanel() {
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col">
-        {tab === 'list'      && <ListTab subs={subs} onEdit={(s) => { setEditSub(s); setFormOpen(true); }} onDelete={handleDelete} onStatusChange={handleStatus} />}
+        {tab === 'list'      && <ListTab subs={subs} customCats={customCats} onEdit={(s) => { setEditSub(s); setFormOpen(true); }} onDelete={handleDelete} onStatusChange={handleStatus} />}
         {tab === 'calendar'  && <CalendarTab subs={subs} />}
         {tab === 'analytics' && <AnalyticsTab subs={subs} onImport={handleImport} />}
       </div>

@@ -111,12 +111,12 @@ export const SubscriptionService = {
 
   exportCSV(subs: Subscription[]): string {
     const headers = [
-      'id', 'name', 'url', 'category', 'price', 'currency', 'billingCycle',
+      'id', 'name', 'url', 'email', 'category', 'price', 'currency', 'billingCycle',
       'nextBillingDate', 'paymentMethod', 'status', 'reminder', 'notes', 'tags', 'createdAt',
     ];
     const rows = subs.map((s) =>
       [
-        s.id, s.name, s.url ?? '', s.category, s.price.toString(), s.currency,
+        s.id, s.name, s.url ?? '', s.email ?? '', s.category, s.price.toString(), s.currency,
         s.billingCycle, s.nextBillingDate, s.paymentMethod ?? '', s.status,
         s.reminder.toString(), s.notes ?? '', (s.tags ?? []).join(';'), s.createdAt,
       ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','),
@@ -151,7 +151,8 @@ export const SubscriptionService = {
         id: get('id') || generateId(),
         name: get('name'),
         url: get('url') || undefined,
-        category: (get('category') as Subscription['category']) || 'other',
+        email: get('email') || undefined,
+        category: get('category') || 'other',
         price: parseFloat(get('price')) || 0,
         currency: get('currency') || 'USD',
         billingCycle: (get('billingCycle') as Subscription['billingCycle']) || 'monthly',

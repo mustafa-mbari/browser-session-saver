@@ -3,12 +3,20 @@ export type BillingCycle = 'monthly' | 'yearly' | 'weekly' | 'custom';
 export type SubscriptionStatus = 'active' | 'trial' | 'canceling' | 'paused' | 'canceled';
 export type DueUrgency = 'overdue' | 'today' | 'urgent' | 'soon' | 'safe';
 
+export interface CustomCategory {
+  value: string;  // unique slug, e.g. 'gaming'
+  label: string;  // display name, e.g. 'Gaming'
+  emoji: string;  // e.g. '🎮'
+  color: string;  // hex, e.g. '#3b82f6'
+}
+
 export interface Subscription {
   id: string;
   name: string;
   logo?: string;
   url?: string;
-  category: SubscriptionCategory;
+  email?: string;
+  category: string; // SubscriptionCategory or any custom category value
   price: number;
   currency: string;
   billingCycle: BillingCycle;
@@ -24,7 +32,7 @@ export interface Subscription {
 export interface SubscriptionTemplate {
   name: string;
   url?: string;
-  category: SubscriptionCategory;
+  category: string;
   defaultPrice: number;
   currency: string;
   billingCycle: BillingCycle;
@@ -35,7 +43,7 @@ export const SUPPORTED_CURRENCIES = [
   'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF',
 ];
 
-export const CATEGORY_LABELS: Record<SubscriptionCategory, string> = {
+export const CATEGORY_LABELS: Record<string, string> = {
   work: 'Work',
   personal: 'Personal',
   saas: 'SaaS',
@@ -44,7 +52,7 @@ export const CATEGORY_LABELS: Record<SubscriptionCategory, string> = {
   other: 'Other',
 };
 
-export const CATEGORY_COLORS: Record<SubscriptionCategory, string> = {
+export const CATEGORY_COLORS: Record<string, string> = {
   work: '#3b82f6',
   personal: '#ec4899',
   saas: '#8b5cf6',

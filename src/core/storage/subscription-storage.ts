@@ -1,6 +1,7 @@
-import type { Subscription } from '@core/types/subscription.types';
+import type { Subscription, CustomCategory } from '@core/types/subscription.types';
 
 const KEY = 'subscriptions';
+const CUSTOM_CATS_KEY = 'subscription_categories';
 
 function getAll(): Promise<Subscription[]> {
   return new Promise((resolve) => {
@@ -16,8 +17,35 @@ function saveAll(subs: Subscription[]): Promise<void> {
   });
 }
 
+function getCustomCategories(): Promise<CustomCategory[]> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(CUSTOM_CATS_KEY, (r) => {
+      resolve((r[CUSTOM_CATS_KEY] as CustomCategory[]) ?? []);
+    });
+  });
+}
+
+function saveCustomCategories(cats: CustomCategory[]): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [CUSTOM_CATS_KEY]: cats }, resolve);
+  });
+}
+
 export const SubscriptionStorage = {
   getAll,
+  getCustomCategories,
+
+  async addCustomCategory(cat: CustomCategory): Promise<void> {
+    const all = await getCustomCategories();
+    if (!all.find((c) => c.value === cat.value)) {
+      await saveCustomCategories([...all, cat]);
+    }
+  },
+
+  async deleteCustomCategory(value: string): Promise<void> {
+    const all = await getCustomCategories();
+    await saveCustomCategories(all.filter((c) => c.value !== value));
+  },
 
   async save(sub: Subscription): Promise<void> {
     const all = await getAll();

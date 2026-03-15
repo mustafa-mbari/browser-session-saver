@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { X, Wand2 } from 'lucide-react';
-import type { Subscription, SubscriptionTemplate } from '@core/types/subscription.types';
+import { useState, useEffect } from 'react';
+import { X, Wand2, Plus } from 'lucide-react';
+import type { Subscription, SubscriptionTemplate, CustomCategory } from '@core/types/subscription.types';
 import {
   SUPPORTED_CURRENCIES, CATEGORY_LABELS,
 } from '@core/types/subscription.types';
 import { SubscriptionService } from '@core/services/subscription.service';
+import { SubscriptionStorage } from '@core/storage/subscription-storage';
 import { resolveFavIcon } from '@core/utils/favicon';
 import QuickAddTemplates from './QuickAddTemplates';
 
@@ -14,10 +15,15 @@ interface Props {
   onClose: () => void;
 }
 
+const SIDEPANEL_CAT_COLORS = [
+  '#3b82f6', '#ec4899', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#f97316', '#6b7280',
+];
+
 function getDefaultForm(): Partial<Subscription> {
   return {
     name: '',
     url: '',
+    email: '',
     category: 'personal',
     price: 0,
     currency: 'USD',
@@ -38,6 +44,25 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
   );
   const [tagInput, setTagInput] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [customCats, setCustomCats] = useState<CustomCategory[]>([]);
+  const [showAddCat, setShowAddCat] = useState(false);
+  const [newCatEmoji, setNewCatEmoji] = useState('');
+  const [newCatLabel, setNewCatLabel] = useState('');
+  const [newCatColor, setNewCatColor] = useState(SIDEPANEL_CAT_COLORS[0]);
+
+  useEffect(() => {
+    void SubscriptionStorage.getCustomCategories().then(setCustomCats);
+  }, []);
+
+  const handleAddCustomCat = async () => {
+    if (!newCatLabel.trim()) return;
+    const slug = newCatLabel.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || `cat_${Date.now()}`;
+    const cat: CustomCategory = { value: slug, label: newCatLabel.trim(), emoji: newCatEmoji.trim() || '📦', color: newCatColor };
+    await SubscriptionStorage.addCustomCategory(cat);
+    setCustomCats((prev) => [...prev, cat]);
+    set('category', cat.value);
+    setShowAddCat(false); setNewCatEmoji(''); setNewCatLabel(''); setNewCatColor(SIDEPANEL_CAT_COLORS[0]);
+  };
 
   const set = <K extends keyof Subscription>(key: K, value: Subscription[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -75,6 +100,7 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
       id: initial?.id ?? SubscriptionService.generateId(),
       name: form.name!.trim(),
       url: form.url?.trim() || undefined,
+      email: form.email?.trim() || undefined,
       logo: form.logo,
       category: form.category ?? 'personal',
       price: form.price ?? 0,
@@ -166,6 +192,17 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
           />
         </div>
 
+        <div className="flex flex-col gap-0.5">
+          <label className={labelCls}>Account Email</label>
+          <input
+            type="email"
+            className={inputCls}
+            value={form.email ?? ''}
+            onChange={(e) => set('email', e.target.value)}
+            placeholder="your@email.com (optional)"
+          />
+        </div>
+
         {/* Price + Currency */}
         <div className="flex gap-2">
           <div className="flex flex-col gap-0.5 flex-1">
@@ -227,17 +264,80 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
         {/* Category + Status */}
         <div className="flex gap-2">
           <div className="flex flex-col gap-0.5 flex-1">
-            <label className={labelCls}>Category</label>
+            <div className="flex items-center justify-between">
+              <label className={labelCls}>Category</label>
+              <button
+                type="button"
+                onClick={() => setShowAddCat((v) => !v)}
+                className="text-[10px] text-violet-500 hover:text-violet-400 transition-colors flex items-center gap-0.5"
+              >
+                <Plus size={9} /> Custom
+              </button>
+            </div>
             <select
               className={inputCls}
               style={selectStyle}
               value={form.category ?? 'personal'}
-              onChange={(e) => set('category', e.target.value as Subscription['category'])}
+              onChange={(e) => set('category', e.target.value)}
             >
-              {(Object.entries(CATEGORY_LABELS) as [Subscription['category'], string][]).map(([k, v]) => (
+              {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
+              {customCats.length > 0 && (
+                <optgroup label="Custom">
+                  {customCats.map((c) => (
+                    <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
+            {showAddCat && (
+              <div className="flex flex-col gap-1.5 mt-1 p-2 rounded-md bg-[var(--color-bg-secondary)] border border-[var(--color-border)]">
+                <div className="flex gap-1.5">
+                  <input
+                    className="w-10 text-center text-base border border-[var(--color-border)] rounded-md bg-[var(--color-bg-secondary)] text-[var(--color-text)] outline-none py-1"
+                    value={newCatEmoji}
+                    onChange={(e) => setNewCatEmoji(e.target.value)}
+                    placeholder="🎮"
+                    maxLength={2}
+                  />
+                  <input
+                    className={`${inputCls} flex-1`}
+                    value={newCatLabel}
+                    onChange={(e) => setNewCatLabel(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleAddCustomCat(); } }}
+                    placeholder="Name…"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-[var(--color-text-secondary)]">Color:</span>
+                  {SIDEPANEL_CAT_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setNewCatColor(c)}
+                      className="w-4 h-4 rounded-full"
+                      style={{ background: c, outline: newCatColor === c ? '2px solid currentColor' : '2px solid transparent', outlineOffset: '1px' }}
+                    />
+                  ))}
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => void handleAddCustomCat()}
+                    disabled={!newCatLabel.trim()}
+                    className="flex-1 py-1 rounded text-xs bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-40 transition-colors"
+                  >
+                    Add
+                  </button>
+                  <button
+                    onClick={() => { setShowAddCat(false); setNewCatEmoji(''); setNewCatLabel(''); }}
+                    className="px-2 py-1 rounded text-xs hover:bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-0.5 flex-1">
             <label className={labelCls}>Status</label>
