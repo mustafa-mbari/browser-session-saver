@@ -138,14 +138,14 @@ export default function SubscriptionCardBody({ category }: Props) {
           {/* Table header */}
           <div
             className="grid gap-x-2 px-1.5 pb-1 border-b border-white/8 text-[10px] font-semibold uppercase tracking-wider select-none"
-            style={{ gridTemplateColumns: '1fr 18px auto auto auto auto', color: 'var(--newtab-text-secondary)', opacity: 0.4 }}
+            style={{ gridTemplateColumns: '2fr 18px auto auto 1fr auto', justifyItems: 'start', color: 'var(--newtab-text-secondary)', opacity: 0.4 }}
           >
             <span>Name</span>
             <span />
             <span>Cycle</span>
             <span>Status</span>
-            <span className="text-right">Next Due</span>
-            <span className="text-right">Price</span>
+            <span className="justify-self-end text-right">Next Due</span>
+            <span className="justify-self-end text-right">Price</span>
           </div>
           {/* Table rows */}
           {upcoming.map((s) => {
@@ -157,7 +157,7 @@ export default function SubscriptionCardBody({ category }: Props) {
               <div
                 key={s.id}
                 className={`grid gap-x-2 items-center py-1 px-1.5 rounded-md hover:bg-white/8 transition-colors ${urgencyBorder[urgency]}`}
-                style={{ gridTemplateColumns: '1fr 18px auto auto auto auto', cursor: s.url ? 'pointer' : 'default' }}
+                style={{ gridTemplateColumns: '2fr 18px auto auto 1fr auto', justifyItems: 'start', cursor: s.url ? 'pointer' : 'default' }}
                 onClick={() => s.url && window.open(s.url, '_blank')}
               >
                 {/* Name */}
@@ -178,7 +178,7 @@ export default function SubscriptionCardBody({ category }: Props) {
                   {s.status}
                 </span>
                 {/* Date + days */}
-                <div className="flex flex-col items-end shrink-0">
+                <div className="flex flex-col items-end shrink-0 justify-self-end">
                   <span className="text-[10px] tabular-nums" style={{ color: 'var(--newtab-text-secondary)', opacity: 0.75 }}>
                     {dateLabel}
                   </span>
@@ -187,7 +187,7 @@ export default function SubscriptionCardBody({ category }: Props) {
                   </span>
                 </div>
                 {/* Price */}
-                <span className="text-xs font-medium text-right shrink-0 tabular-nums" style={{ color: 'var(--newtab-text)' }}>
+                <span className="text-xs font-medium text-right shrink-0 tabular-nums justify-self-end" style={{ color: 'var(--newtab-text)' }}>
                   {SubscriptionService.formatCurrency(s.price, s.currency)}
                 </span>
               </div>

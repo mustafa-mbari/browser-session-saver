@@ -93,7 +93,7 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 }
 
 // columns: Service | Category · Billing | Next Date | Payment | Price
-const LIST_COLS = '1fr auto auto auto auto';
+const LIST_COLS = '2fr 1.5fr 1fr 1fr auto';
 
 // ── Subscription row ────────────────────────────────────────────────────────
 
@@ -119,7 +119,7 @@ function SubRow({
     <div className={`rounded-lg bg-white/5 hover:bg-white/8 transition-colors ${urgencyBg[urgency]}`}>
       <div
         className="grid items-center gap-x-4 px-3 py-2.5 cursor-pointer"
-        style={{ gridTemplateColumns: LIST_COLS }}
+        style={{ gridTemplateColumns: LIST_COLS, justifyItems: 'start' }}
         onClick={() => setExpanded((v) => !v)}
       >
         {/* 1 · Service: favicon + name + urgency */}
@@ -152,7 +152,7 @@ function SubRow({
           {s.paymentMethod || '—'}
         </span>
         {/* 5 · Price + status */}
-        <div className="flex flex-col items-end gap-0.5 shrink-0">
+        <div className="flex flex-col items-end gap-0.5 shrink-0 justify-self-end">
           <span className="text-sm font-semibold tabular-nums" style={T}>{SubscriptionService.formatCurrency(s.price, s.currency)}</span>
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${statusStyle[s.status]}`}>{s.status}</span>
         </div>
@@ -317,6 +317,7 @@ function ListTab({
             className="grid gap-x-4 px-3 py-1.5 mb-0.5 border-b border-white/8 text-[10px] font-semibold uppercase tracking-wider select-none sticky top-0 z-10 shrink-0"
             style={{
               gridTemplateColumns: LIST_COLS,
+              justifyItems: 'start',
               color: 'var(--newtab-text-secondary)',
               opacity: 0.4,
               backgroundColor: 'rgba(14,14,28,0.88)',
@@ -327,7 +328,7 @@ function ListTab({
             <span>Category · Billing</span>
             <span>Next Date</span>
             <span>Payment</span>
-            <span className="text-right">Price</span>
+            <span className="justify-self-end">Price</span>
           </div>
         )}
         {filtered.length === 0 ? (
