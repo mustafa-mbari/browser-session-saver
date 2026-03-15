@@ -1,5 +1,5 @@
 import type { Session, Tab } from '@core/types/session.types';
-import { isValidSession, isValidUrl } from '@core/utils/validators';
+import { isValidSession, isValidTab, isValidImportUrl } from '@core/utils/validators';
 import { generateId } from '@core/utils/uuid';
 import { nowISO } from '@core/utils/date';
 import { CURRENT_SCHEMA_VERSION } from '@core/types/storage.types';
@@ -26,7 +26,7 @@ export function importFromJSON(jsonString: string): ImportResult {
           name: String(raw.name ?? 'Imported Session'),
           createdAt: String(raw.createdAt ?? now),
           updatedAt: now,
-          tabs: Array.isArray(raw.tabs) ? raw.tabs.map((t: Tab) => ({
+          tabs: Array.isArray(raw.tabs) ? raw.tabs.filter((t: unknown): t is Tab => isValidTab(t) && isValidImportUrl(String((t as Tab).url))).map((t: Tab) => ({
             id: generateId(),
             url: String(t.url),
             title: String(t.title ?? t.url),
@@ -79,7 +79,7 @@ export function importFromHTML(htmlString: string): ImportResult {
 
       links.forEach((link, index) => {
         const url = link.getAttribute('HREF') ?? '';
-        if (!isValidUrl(url)) return;
+        if (!isValidImportUrl(url)) return;
 
         tabs.push({
           id: generateId(),
@@ -136,7 +136,7 @@ export function importFromURLList(text: string): ImportResult {
 
   const tabs: Tab[] = [];
   lines.forEach((url, index) => {
-    if (isValidUrl(url)) {
+    if (isValidImportUrl(url)) {
       tabs.push({
         id: generateId(),
         url,

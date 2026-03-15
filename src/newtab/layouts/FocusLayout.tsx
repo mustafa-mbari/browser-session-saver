@@ -233,7 +233,7 @@ export default function FocusLayout() {
                 onReorderCategories={(cats) => { void handleReorderCategories(cats); }}
                 onReorderEntries={(catId, ids) => { void handleReorderEntries(catId, ids); }}
                 onImportNative={(boardId) => { void handleImportNative(boardId); }}
-                onResizeCategory={() => {}}
+                onResize={() => {}}
                 onRenameCard={() => {}}
                 onDuplicateCard={() => {}}
               />

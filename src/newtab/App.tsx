@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, lazy, Suspense } from 'react';
 import { useTheme } from '@shared/hooks/useTheme';
 import { useNewTabSettings } from '@newtab/hooks/useNewTabSettings';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
@@ -14,11 +14,13 @@ import BackgroundLayer from '@newtab/components/BackgroundLayer';
 import MinimalLayout from '@newtab/layouts/MinimalLayout';
 import FocusLayout from '@newtab/layouts/FocusLayout';
 import DashboardLayout from '@newtab/layouts/DashboardLayout';
-import SettingsPanel from '@newtab/components/SettingsPanel';
-import WallpaperPicker from '@newtab/components/WallpaperPicker';
-import KeyboardHelpModal from '@newtab/components/KeyboardHelpModal';
 import SubscriptionReminder from '@newtab/components/SubscriptionReminder';
 import SessionRestoreReminder from '@newtab/components/SessionRestoreReminder';
+
+// Heavy overlays — loaded only when opened
+const SettingsPanel = lazy(() => import('@newtab/components/SettingsPanel'));
+const WallpaperPicker = lazy(() => import('@newtab/components/WallpaperPicker'));
+const KeyboardHelpModal = lazy(() => import('@newtab/components/KeyboardHelpModal'));
 
 export default function App() {
   const { isLoading } = useNewTabSettings();
@@ -82,19 +84,17 @@ export default function App() {
         setQuickLinks(links);
         setTodoLists(lists);
 
-        // Load categories and entries for ALL boards
+        // Load categories and entries for the ACTIVE board only
         if (boards.length > 0) {
-          // Ensure activeBoardId is set to the first board if not already
           const storedSettings = await import('@core/services/newtab-settings.service')
             .then((m) => m.getNewTabSettings());
+          const activeBoardId = storedSettings.activeBoardId ?? boards[0].id;
           if (!storedSettings.activeBoardId) {
             store.updateSettings({ activeBoardId: boards[0].id });
           }
 
-          const allCats = await Promise.all(
-            boards.map((b) => BookmarkService.getCategories(newtabDB, b.id)),
-          );
-          let cats = allCats.flat();
+          const activeBoard = boards.find((b) => b.id === activeBoardId) ?? boards[0];
+          let cats = await BookmarkService.getCategories(newtabDB, activeBoard.id);
 
           // One-time migration: upgrade pre-9-column cards (rowSpan unset)
           // Old scale was 1-3; new scale is 1-9, so multiply colSpan × 3
@@ -165,30 +165,36 @@ export default function App() {
       {layoutMode === 'focus' && <FocusLayout />}
       {layoutMode === 'dashboard' && <DashboardLayout />}
       {isSettingsOpen && (
-        <SettingsPanel
-          settings={settings}
-          onUpdate={(updates) => store.updateSettings(updates)}
-          onClose={() => store.toggleSettings()}
-          onClearData={async () => {
-            await newtabDB.clearAll();
-            await updateNewTabSettings(DEFAULT_NEWTAB_SETTINGS);
-            window.location.reload();
-          }}
-        />
+        <Suspense fallback={null}>
+          <SettingsPanel
+            settings={settings}
+            onUpdate={(updates) => store.updateSettings(updates)}
+            onClose={() => store.toggleSettings()}
+            onClearData={async () => {
+              await newtabDB.clearAll();
+              await updateNewTabSettings(DEFAULT_NEWTAB_SETTINGS);
+              window.location.reload();
+            }}
+          />
+        </Suspense>
       )}
       {isWallpaperOpen && (
-        <WallpaperPicker
-          isOpen={isWallpaperOpen}
-          onClose={() => store.toggleWallpaper()}
-          settings={settings}
-          onUpdate={(updates) => store.updateSettings(updates)}
-        />
+        <Suspense fallback={null}>
+          <WallpaperPicker
+            isOpen={isWallpaperOpen}
+            onClose={() => store.toggleWallpaper()}
+            settings={settings}
+            onUpdate={(updates) => store.updateSettings(updates)}
+          />
+        </Suspense>
       )}
       {isKeyboardHelpOpen && (
-        <KeyboardHelpModal
-          isOpen={isKeyboardHelpOpen}
-          onClose={() => store.toggleKeyboardHelp()}
-        />
+        <Suspense fallback={null}>
+          <KeyboardHelpModal
+            isOpen={isKeyboardHelpOpen}
+            onClose={() => store.toggleKeyboardHelp()}
+          />
+        </Suspense>
       )}
       <SubscriptionReminder />
       <SessionRestoreReminder />

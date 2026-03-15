@@ -117,19 +117,28 @@ async function performAutoSave(trigger: AutoSaveTrigger): Promise<void> {
   _isSaving = true;
 
   try {
-    // Collect ALL tabs from ALL open windows into a single list
+    // Collect ALL tabs from ALL open windows in parallel
     const windows = await chrome.windows.getAll({ populate: false });
+    const windowResults = await Promise.all(
+      windows
+        .filter((win) => win.id != null)
+        .map(async (win) => {
+          const [chromeTabs, chromeGroups] = await Promise.all([
+            chrome.tabs.query({ windowId: win.id }),
+            chrome.tabGroups.query({ windowId: win.id }),
+          ]);
+          if (chromeTabs.length === 0) return null;
+          return captureTabGroups(chromeTabs, chromeGroups);
+        }),
+    );
+
     const allTabs: Tab[] = [];
     const allTabGroups: TabGroup[] = [];
-
-    for (const win of windows) {
-      if (!win.id) continue;
-      const chromeTabs = await chrome.tabs.query({ windowId: win.id });
-      if (chromeTabs.length === 0) continue;
-      const chromeGroups = await chrome.tabGroups.query({ windowId: win.id });
-      const { tabs, tabGroups } = captureTabGroups(chromeTabs, chromeGroups);
-      allTabs.push(...tabs);
-      allTabGroups.push(...tabGroups);
+    for (const result of windowResults) {
+      if (result) {
+        allTabs.push(...result.tabs);
+        allTabGroups.push(...result.tabGroups);
+      }
     }
 
     if (allTabs.length === 0) return;

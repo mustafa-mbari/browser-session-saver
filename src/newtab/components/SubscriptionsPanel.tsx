@@ -5,6 +5,7 @@ import { CATEGORY_LABELS, SUPPORTED_CURRENCIES, SUBSCRIPTION_TEMPLATES } from '@
 import { SubscriptionStorage } from '@core/storage/subscription-storage';
 import { SubscriptionService } from '@core/services/subscription.service';
 import { resolveFavIcon, getFaviconInitial } from '@core/utils/favicon';
+import { safeOpenUrl } from '@core/utils/safe-open';
 import { useRef } from 'react';
 
 // ── CSS variable helpers ────────────────────────────────────────────────────
@@ -206,7 +207,7 @@ function SubRow({
           {/* Actions */}
           <div className="flex flex-wrap gap-1.5 pt-1 border-t border-white/8">
             {s.url && (
-              <button onClick={() => window.open(s.url, '_blank')} className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition-colors" style={T}>
+              <button onClick={() => safeOpenUrl(s.url)} className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition-colors" style={T}>
                 Open site
               </button>
             )}

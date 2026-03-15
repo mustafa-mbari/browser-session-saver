@@ -12,7 +12,9 @@
       "Bash(cd:*)",
       "Bash(npx tsc:*)",
       "Bash(npx vite build)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npm test:*)",
+      "Bash(echo:*)"
     ]
   }
 }

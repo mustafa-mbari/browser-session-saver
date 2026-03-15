@@ -5,4 +5,5 @@ export interface IStorage {
   getAll(): Promise<Record<string, unknown>>;
   clear(): Promise<void>;
   getUsedBytes(): Promise<number>;
+  count(): Promise<number>;
 }

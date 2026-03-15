@@ -19,13 +19,18 @@ export interface SessionSort {
   direction: 'asc' | 'desc';
 }
 
+export interface GetSessionsResponse {
+  sessions: Session[];
+  totalCount: number;
+}
+
 export type Message =
   | { action: 'SAVE_SESSION'; payload: { windowId?: number; name?: string; closeAfter?: boolean; allWindows?: boolean } }
   | { action: 'RESTORE_SESSION'; payload: { sessionId: string; mode: RestoreMode } }
   | { action: 'DELETE_SESSION'; payload: { sessionId: string } }
   | {
       action: 'GET_SESSIONS';
-      payload: { filter?: SessionFilter; sort?: SessionSort };
+      payload: { filter?: SessionFilter; sort?: SessionSort; limit?: number; offset?: number };
     }
   | { action: 'GET_CURRENT_TABS'; payload: Record<string, never> }
   | {

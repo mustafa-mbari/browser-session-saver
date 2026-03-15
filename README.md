@@ -14,9 +14,9 @@ Save, restore, and manage your browser sessions with one click. Auto-save protec
 - **Import/Export** — Export as JSON, HTML bookmarks, Markdown, CSV, or plain text; import from JSON, HTML, or URL lists
 - **Dark Mode** — Light/dark/system theme support synced across all extension surfaces
 - **Dashboard** — Full-page management with 5 pages: Sessions (bulk merge/compare/export/delete, stats), Auto-Saves, Tab Groups, Import/Export, Settings
-- **Virtual Scrolling** — Handles 500+ sessions with smooth performance via @tanstack/react-virtual
+- **Virtual Scrolling** — Handles 500+ sessions with smooth performance via @tanstack/react-virtual; lists ≤30 items use plain DOM, >30 items use virtualizer (3-column grid for sessions, flat list with date headers for auto-saves)
 - **Scroll Position Capture** — Content script captures per-tab scroll position for full-fidelity session restore
-- **i18n** — English and Arabic with chrome.i18n support (265 message keys)
+- **i18n** — English and Arabic with chrome.i18n support (~282 message keys including tab groups, subscriptions, error boundaries, and auto-saves)
 - **New Tab Page Override** — Glassmorphism command center replacing Chrome's new tab, with bookmarks, quick links, to-do, session, subscription, and tab group widgets
 
 ## New Tab Page Features
@@ -32,7 +32,7 @@ The new tab page override (`chrome_url_overrides.newtab`) provides:
 - **Subscription Card** — Upcoming renewals, monthly spending total, overdue/due-soon indicators with color-coded urgency, inline SVG charts for spending analytics
 - **Tab Groups Card** — Live Chrome tab groups display with color-coded badges, click-to-focus, auto-refresh
 - **Subscription Reminder** — Glassmorphism toast notification for overdue or due-soon subscriptions with 24-hour snooze
-- **Sidebar Panels** — Sessions, Auto-Saves, Tab Groups, Import/Export, Subscriptions — full management views accessible from dashboard sidebar
+- **Sidebar Panels** — Sessions, Auto-Saves, Tab Groups, Import/Export, Subscriptions — full management views accessible from dashboard sidebar; panels are `React.lazy`-loaded for fast initial render
 - **Customizable Background** — 15 gradient presets, solid color picker, user image upload (up to 5MB stored in IndexedDB), blur/dimming/saturation/brightness/vignette controls
 - **Glassmorphism UI** — Frosted glass panels with `backdrop-filter: blur(16–24px) saturate(180%)`, smooth hover transitions
 - **Light/Dark/Auto Themes** — Synced across all extension surfaces via `chrome.storage.local`
@@ -54,7 +54,7 @@ The new tab page override (`chrome_url_overrides.newtab`) provides:
 | Icons | Lucide React |
 | Drag & Drop | @dnd-kit/core + @dnd-kit/sortable |
 | Virtual Lists | @tanstack/react-virtual |
-| Testing | Vitest + Testing Library |
+| Testing | Vitest + Testing Library (53 tests, 10 files) |
 
 ## Project Structure
 
@@ -86,8 +86,10 @@ src/
 │   │   ├── newtab-settings.service.ts   # NewTabSettings persistence
 │   │   ├── seed.service.ts              # First-launch default data
 │   │   └── migration.service.ts         # Version-based migration framework
+│   ├── constants/           # GROUP_COLORS (ChromeGroupColor → CSS hex)
 │   ├── storage/             # Storage adapters
 │   │   ├── storage.interface.ts           # IStorage interface
+│   │   ├── chrome-local-key-adapter.ts    # Generic ChromeLocalKeyAdapter<T>
 │   │   ├── chrome-storage.ts              # chrome.storage.local adapter
 │   │   ├── indexeddb.ts                   # IndexedDB adapter (session-saver db)
 │   │   ├── newtab-storage.ts              # NewTabDB (newtab-db, 7 stores)
@@ -116,19 +118,22 @@ src/
 │   ├── stores/              # newtab.store.ts (single Zustand store)
 │   ├── hooks/               # useNewTabSettings, useWallpaper, useClock,
 │   │                        # useKeyboardShortcuts, useBookmarkDnd
+│   ├── contexts/            # BookmarkBoardContext (board-level actions, eliminates prop-drilling)
 │   ├── layouts/             # MinimalLayout, FocusLayout, DashboardLayout
 │   └── components/          # SearchBar, ClockWidget, QuickLinksRow, BookmarkBoard,
-│                            # BookmarkCategoryCard, TodoWidget, SessionWidget,
-│                            # DashboardSidebar, TopNavTabs, WallpaperPicker,
-│                            # SettingsPanel, KeyboardHelpModal, AddQuickLinkModal,
-│                            # AddCardModal, BackgroundLayer, NewTabHeader,
-│                            # SubscriptionCardBody, TabGroupsCardBody,
-│                            # SubscriptionReminder, SessionsPanel, AutoSavesPanel,
-│                            # TabGroupsPanel, SubscriptionsPanel, ImportExportPanel,
+│                            # BookmarkCategoryCard, BookmarkCardBody, NoteCardBody,
+│                            # TodoCardBody, BookmarkEntryRow, ResizePopover,
+│                            # TodoWidget, SessionWidget, DashboardSidebar, TopNavTabs,
+│                            # WallpaperPicker, SettingsPanel, KeyboardHelpModal,
+│                            # AddQuickLinkModal, AddCardModal, BackgroundLayer,
+│                            # NewTabHeader, SubscriptionCardBody, TabGroupsCardBody,
+│                            # SubscriptionReminder, SessionsPanel*, AutoSavesPanel*,
+│                            # TabGroupsPanel*, SubscriptionsPanel*, ImportExportPanel,
 │                            # FrequentlyVisitedPanel, TabsPanel, ActivityPanel
+│                            # (* = React.lazy loaded)
 └── shared/
-    ├── components/          # Button, Modal, Toast, Badge, ContextMenu, EmptyState,
-    │                        # LoadingSpinner, Tooltip
+    ├── components/          # Button, Modal, Toast, Badge, ContextMenu (keyboard nav),
+    │                        # ErrorBoundary, EmptyState, LoadingSpinner, Tooltip
     ├── hooks/               # useSession, useTheme, useSearch, useMessaging,
     │                        # useKeyboard, useAutoSave
     ├── utils/               # i18n (t() wrapper for chrome.i18n.getMessage)
@@ -204,7 +209,7 @@ npm run format
 
 **Service Worker** handles all Chrome API interactions — tab queries, session save/restore, auto-save triggers, alarm management. Processes 15 typed message actions from UI surfaces.
 
-**Storage Layer** uses chrome.storage.local for settings/metadata and IndexedDB (`session-saver` database) for session data (large payloads). The newtab feature uses a separate `newtab-db` IndexedDB database for bookmarks, quick links, to-do items, and wallpaper blobs — never touched by the background service worker. Subscriptions and tab group templates are stored as flat keys in chrome.storage.local.
+**Storage Layer** uses chrome.storage.local for settings/metadata and IndexedDB (`session-saver` database) for session data (large payloads). The newtab feature uses a separate `newtab-db` IndexedDB database for bookmarks, quick links, to-do items, and wallpaper blobs — never touched by the background service worker. Subscriptions and tab group templates are stored as flat keys in chrome.storage.local via the generic `ChromeLocalKeyAdapter<T>` class.
 
 **Content Script** (`src/content/scroll-capture.ts`) runs in web pages to capture scroll position (`window.scrollX`, `window.scrollY`) for full-fidelity session restore.
 

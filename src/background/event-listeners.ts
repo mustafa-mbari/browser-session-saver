@@ -1,4 +1,4 @@
-import type { Message, MessageResponse, SessionDiffResponse, SaveSessionResponse } from '@core/types/messages.types';
+import type { Message, MessageResponse, SessionDiffResponse, SaveSessionResponse, GetSessionsResponse } from '@core/types/messages.types';
 import type { Session } from '@core/types/session.types';
 import type { Settings } from '@core/types/settings.types';
 import { STORAGE_KEYS } from '@core/types/storage.types';
@@ -193,10 +193,15 @@ async function handleDeleteSession(payload: {
 }
 
 async function handleGetSessions(
-  payload: { filter?: Parameters<typeof SessionService.getAllSessions>[0]; sort?: Parameters<typeof SessionService.getAllSessions>[1] },
-): Promise<MessageResponse<Session[]>> {
-  const sessions = await SessionService.getAllSessions(payload.filter, payload.sort);
-  return { success: true, data: sessions };
+  payload: { filter?: Parameters<typeof SessionService.getAllSessions>[0]; sort?: Parameters<typeof SessionService.getAllSessions>[1]; limit?: number; offset?: number },
+): Promise<MessageResponse<GetSessionsResponse>> {
+  const all = await SessionService.getAllSessions(payload.filter, payload.sort);
+  const totalCount = all.length;
+  const offset = payload.offset ?? 0;
+  const sessions = payload.limit
+    ? all.slice(offset, offset + payload.limit)
+    : offset > 0 ? all.slice(offset) : all;
+  return { success: true, data: { sessions, totalCount } };
 }
 
 async function handleGetCurrentTabs(): Promise<MessageResponse> {

@@ -11,29 +11,13 @@ import {
   Check,
   X,
   Monitor,
+  XCircle,
 } from 'lucide-react';
 import LoadingSpinner from '@shared/components/LoadingSpinner';
 import type { ChromeGroupColor } from '@core/types/session.types';
 import type { TabGroupTemplate } from '@core/types/tab-group.types';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
-
-// ── Constants ──────────────────────────────────────────────────────────────────
-
-const GROUP_COLORS: Record<string, string> = {
-  grey:   '#9aa0a6',
-  blue:   '#4a90d9',
-  red:    '#e06666',
-  yellow: '#f6b26b',
-  green:  '#6aa84f',
-  pink:   '#d16b8e',
-  purple: '#8e44ad',
-  cyan:   '#45b7d1',
-  orange: '#e69138',
-};
-
-const COLOR_OPTIONS: ChromeGroupColor[] = [
-  'grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange',
-];
+import { GROUP_COLORS, COLOR_OPTIONS } from '@core/constants/tab-group-colors';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -102,6 +86,7 @@ function LiveGroupCard({ group, onRefresh }: { group: LiveGroup; onRefresh: () =
   const [draftTitle, setDraftTitle] = useState(group.title);
   const [draftColor, setDraftColor] = useState<ChromeGroupColor>(group.color);
   const [saving, setSaving] = useState(false);
+  const [closing, setClosing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const accentColor = GROUP_COLORS[group.color] ?? '#9aa0a6';
 
@@ -131,6 +116,30 @@ function LiveGroupCard({ group, onRefresh }: { group: LiveGroup; onRefresh: () =
     if (tabIds.length > 0) {
       await chrome.tabs.ungroup(tabIds);
       onRefresh();
+    }
+  };
+
+  const handleCloseFromBrowser = async () => {
+    setClosing(true);
+    try {
+      const now = new Date().toISOString();
+      await TabGroupTemplateStorage.upsert({
+        key: `${group.title}-${group.color}`,
+        title: group.title,
+        color: group.color,
+        tabs: group.tabs.map((t) => ({
+          url: t.url ?? '',
+          title: t.title ?? '',
+          favIconUrl: t.favIconUrl ?? '',
+        })),
+        savedAt: now,
+        updatedAt: now,
+      });
+      const tabIds = group.tabs.map((t) => t.id!).filter(Boolean);
+      if (tabIds.length > 0) await chrome.tabs.remove(tabIds);
+      onRefresh();
+    } finally {
+      setClosing(false);
     }
   };
 
@@ -227,6 +236,17 @@ function LiveGroupCard({ group, onRefresh }: { group: LiveGroup; onRefresh: () =
               style={{ color: 'var(--newtab-text)' }}
             >
               {group.collapsed ? 'Expand' : 'Collapse'}
+            </button>
+            <button
+              onClick={() => void handleCloseFromBrowser()}
+              disabled={closing}
+              className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 transition-colors disabled:opacity-50"
+              title="Close from browser (saves & closes all tabs)"
+            >
+              {closing
+                ? <span className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin inline-block" />
+                : <XCircle size={11} />}
+              {!closing && 'Close'}
             </button>
             <button
               onClick={() => void handleUngroup()}

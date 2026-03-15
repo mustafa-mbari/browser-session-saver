@@ -7,6 +7,7 @@ import { SubscriptionStorage } from '@core/storage/subscription-storage';
 import { SubscriptionService } from '@core/services/subscription.service';
 import { resolveFavIcon, getFaviconInitial } from '@core/utils/favicon';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
+import { safeOpenUrl } from '@core/utils/safe-open';
 
 interface Props {
   category: BookmarkCategory;
@@ -158,7 +159,7 @@ export default function SubscriptionCardBody({ category }: Props) {
                 key={s.id}
                 className={`grid gap-x-2 items-center py-1 px-1.5 rounded-md hover:bg-white/8 transition-colors ${urgencyBorder[urgency]}`}
                 style={{ gridTemplateColumns: '2fr 18px auto auto 1fr auto', justifyItems: 'start', cursor: s.url ? 'pointer' : 'default' }}
-                onClick={() => s.url && window.open(s.url, '_blank')}
+                onClick={() => safeOpenUrl(s.url)}
               >
                 {/* Name */}
                 <div className="flex items-center gap-1.5 min-w-0">
@@ -204,7 +205,7 @@ export default function SubscriptionCardBody({ category }: Props) {
               <div
                 key={s.id}
                 className={`flex items-center gap-1.5 py-1 px-1.5 rounded-md bg-white/5 hover:bg-white/10 transition-colors ${urgencyBorder[urgency]}`}
-                onClick={() => s.url && window.open(s.url, '_blank')}
+                onClick={() => safeOpenUrl(s.url)}
                 style={{ cursor: s.url ? 'pointer' : 'default' }}
               >
                 <FaviconSmall url={s.url} name={s.name} />

@@ -1,9 +1,59 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { Clock, RotateCcw, Trash2, RefreshCw } from 'lucide-react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useSession } from '@shared/hooks/useSession';
 import { formatRelative } from '@core/utils/date';
 import Badge from '@shared/components/Badge';
 import LoadingSpinner from '@shared/components/LoadingSpinner';
+import type { Session } from '@core/types/session.types';
+
+interface AutoSaveRowProps {
+  session: Session;
+  triggerLabel: string;
+  onRestore: (id: string, mode: 'new_window') => void;
+  onDelete: (id: string) => void;
+}
+
+function AutoSaveRow({ session, triggerLabel, onRestore, onDelete }: AutoSaveRowProps) {
+  return (
+    <div className="glass-panel rounded-xl px-4 py-3 flex items-center gap-3 group">
+      <RefreshCw size={14} className="shrink-0 opacity-40" style={{ color: 'var(--newtab-text)' }} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate" style={{ color: 'var(--newtab-text)' }}>
+          {session.name}
+        </p>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--newtab-text-secondary)' }}>
+          {formatRelative(session.createdAt)} · {session.tabCount} tabs
+        </p>
+      </div>
+      <Badge variant="primary">{triggerLabel}</Badge>
+      <span
+        className="text-xs px-2 py-0.5 rounded-full shrink-0"
+        style={{ background: 'rgba(255,255,255,0.12)', color: 'var(--newtab-text-secondary)' }}
+      >
+        {session.tabCount} tabs
+      </span>
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          onClick={() => { void onRestore(session.id, 'new_window'); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/20"
+          style={{ background: 'rgba(255,255,255,0.10)', color: 'var(--newtab-text)' }}
+        >
+          <RotateCcw size={11} />
+          Restore
+        </button>
+        <button
+          onClick={() => { void onDelete(session.id); }}
+          className="p-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100 hover:bg-red-500/20"
+          style={{ color: 'rgba(255,100,100,0.8)' }}
+          aria-label="Delete"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function AutoSavesPanel() {
   const { sessions, loading, restoreSession, deleteSession } = useSession();
@@ -29,6 +79,28 @@ export default function AutoSavesPanel() {
     }
     return Array.from(groups.entries());
   }, [autoSaves]);
+
+  type FlatItem =
+    | { type: 'header'; date: string }
+    | { type: 'session'; session: (typeof autoSaves)[number] };
+
+  const flatItems = useMemo((): FlatItem[] => {
+    const items: FlatItem[] = [];
+    for (const [date, sessions] of grouped) {
+      items.push({ type: 'header', date });
+      for (const s of sessions) items.push({ type: 'session', session: s });
+    }
+    return items;
+  }, [grouped]);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: flatItems.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: (i) => (flatItems[i]?.type === 'header' ? 32 : 64),
+    overscan: 5,
+  });
 
   if (loading) {
     return (
@@ -74,7 +146,8 @@ export default function AutoSavesPanel() {
             Auto-saves appear when triggered by browser close, sleep, low battery, or timer
           </p>
         </div>
-      ) : (
+      ) : autoSaves.length <= 30 ? (
+        /* Small list — standard grouped render */
         <div className="flex flex-col gap-5">
           {grouped.map(([date, items]) => (
             <div key={date}>
@@ -87,50 +160,57 @@ export default function AutoSavesPanel() {
                     session.autoSaveTrigger.charAt(0).toUpperCase() +
                     session.autoSaveTrigger.slice(1).replace(/_/g, ' ');
                   return (
-                    <div
+                    <AutoSaveRow
                       key={session.id}
-                      className="glass-panel rounded-xl px-4 py-3 flex items-center gap-3 group"
-                    >
-                      <RefreshCw size={14} className="shrink-0 opacity-40" style={{ color: 'var(--newtab-text)' }} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate" style={{ color: 'var(--newtab-text)' }}>
-                          {session.name}
-                        </p>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--newtab-text-secondary)' }}>
-                          {formatRelative(session.createdAt)} · {session.tabCount} tabs
-                        </p>
-                      </div>
-                      <Badge variant="primary">{triggerLabel}</Badge>
-                      <span
-                        className="text-xs px-2 py-0.5 rounded-full shrink-0"
-                        style={{ background: 'rgba(255,255,255,0.12)', color: 'var(--newtab-text-secondary)' }}
-                      >
-                        {session.tabCount} tabs
-                      </span>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => { void restoreSession(session.id, 'new_window'); }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/20"
-                          style={{ background: 'rgba(255,255,255,0.10)', color: 'var(--newtab-text)' }}
-                        >
-                          <RotateCcw size={11} />
-                          Restore
-                        </button>
-                        <button
-                          onClick={() => { void deleteSession(session.id); }}
-                          className="p-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100 hover:bg-red-500/20"
-                          style={{ color: 'rgba(255,100,100,0.8)' }}
-                          aria-label="Delete"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
+                      session={session}
+                      triggerLabel={triggerLabel}
+                      onRestore={restoreSession}
+                      onDelete={deleteSession}
+                    />
                   );
                 })}
               </div>
             </div>
           ))}
+        </div>
+      ) : (
+        /* Large list — virtualised flat list with date headers */
+        <div
+          ref={scrollRef}
+          style={{ height: 'calc(100vh - 210px)', overflowY: 'auto' }}
+        >
+          <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
+            {virtualizer.getVirtualItems().map((vItem) => {
+              const item = flatItems[vItem.index];
+              return (
+                <div
+                  key={vItem.key}
+                  style={{ position: 'absolute', top: vItem.start, left: 0, right: 0, height: vItem.size }}
+                >
+                  {item.type === 'header' ? (
+                    <p
+                      className="text-xs font-semibold px-1 pt-3 pb-1"
+                      style={{ color: 'var(--newtab-text-secondary)', opacity: 0.7 }}
+                    >
+                      {item.date}
+                    </p>
+                  ) : (
+                    <div style={{ paddingBottom: 8 }}>
+                      <AutoSaveRow
+                        session={item.session}
+                        triggerLabel={
+                          item.session.autoSaveTrigger.charAt(0).toUpperCase() +
+                          item.session.autoSaveTrigger.slice(1).replace(/_/g, ' ')
+                        }
+                        onRestore={restoreSession}
+                        onDelete={deleteSession}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

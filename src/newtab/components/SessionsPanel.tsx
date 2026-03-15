@@ -1,5 +1,6 @@
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useMemo, useCallback, memo, useRef } from 'react';
 import { Search, RotateCcw, MoreVertical, Pin, Star, Download, Trash2, Lock } from 'lucide-react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useSession } from '@shared/hooks/useSession';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import { formatRelative } from '@core/utils/date';
@@ -7,13 +8,7 @@ import ContextMenu from '@shared/components/ContextMenu';
 import LoadingSpinner from '@shared/components/LoadingSpinner';
 import Tooltip from '@shared/components/Tooltip';
 import type { Session, TabGroup } from '@core/types/session.types';
-
-// ── Tab group color dots ───────────────────────────────────────────────────────
-
-const GROUP_COLORS: Record<string, string> = {
-  grey: '#9CA3AF', blue: '#3B82F6', red: '#EF4444', yellow: '#EAB308',
-  green: '#22C55E', pink: '#EC4899', purple: '#A855F7', cyan: '#06B6D4', orange: '#F97316',
-};
+import { GROUP_COLORS } from '@core/constants/tab-group-colors';
 
 function TabGroupPills({ groups }: { groups: TabGroup[] }) {
   if (groups.length === 0) return null;
@@ -202,6 +197,18 @@ export default function SessionsPanel() {
     }
   }, [sendMessage]);
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const COLS = 3;
+  const CARD_H = 92; // estimated px per session card (py-3 + 3 content rows)
+
+  const virtualizer = useVirtualizer({
+    count: sorted.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => CARD_H,
+    lanes: COLS,
+    overscan: 4,
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center pt-16">
@@ -247,7 +254,8 @@ export default function SessionsPanel() {
             <p className="text-sm mt-1 opacity-60">Save a session from the side panel to see it here</p>
           )}
         </div>
-      ) : (
+      ) : sorted.length <= 30 ? (
+        /* Small list — plain CSS grid */
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
           {sorted.map((session) => (
             <SessionRow
@@ -259,6 +267,38 @@ export default function SessionsPanel() {
               onExport={handleExport}
             />
           ))}
+        </div>
+      ) : (
+        /* Large list — virtualised 3-column grid */
+        <div
+          ref={scrollRef}
+          style={{ height: 'calc(100vh - 290px)', overflowY: 'auto' }}
+        >
+          <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
+            {virtualizer.getVirtualItems().map((vItem) => (
+              <div
+                key={vItem.key}
+                style={{
+                  position: 'absolute',
+                  top: vItem.start,
+                  left: `${(vItem.lane / COLS) * 100}%`,
+                  width: `${100 / COLS}%`,
+                  height: vItem.size,
+                  paddingRight: vItem.lane < COLS - 1 ? 4 : 0,
+                  paddingLeft: vItem.lane > 0 ? 4 : 0,
+                  paddingBottom: 8,
+                }}
+              >
+                <SessionRow
+                  session={sorted[vItem.index]}
+                  onRestore={handleRestore}
+                  onDelete={handleDelete}
+                  onUpdate={handleUpdate}
+                  onExport={handleExport}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

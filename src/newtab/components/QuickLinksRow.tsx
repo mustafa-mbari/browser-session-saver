@@ -13,6 +13,7 @@ import ContextMenu from '@shared/components/ContextMenu';
 import type { QuickLink } from '@core/types/newtab.types';
 import { useSortableItems } from '@newtab/hooks/useBookmarkDnd';
 import { getFaviconUrl, getFaviconInitial } from '@core/utils/favicon';
+import { safeOpenUrl } from '@core/utils/safe-open';
 
 function FaviconChip({ url, title }: { url: string; title: string }) {
   const [imgFailed, setImgFailed] = useState(false);
@@ -64,9 +65,9 @@ function QuickLinkChip({ link, onEdit, onDelete }: ChipProps) {
         {...attributes}
         {...listeners}
         className="flex flex-col items-center gap-1 group cursor-pointer"
-        onClick={() => window.open(link.url, '_self')}
+        onClick={() => safeOpenUrl(link.url, '_self')}
         onAuxClick={(e) => {
-          if (e.button === 1) window.open(link.url, '_blank');
+          if (e.button === 1) safeOpenUrl(link.url, '_blank');
         }}
       >
         <FaviconChip url={link.url} title={link.title} />

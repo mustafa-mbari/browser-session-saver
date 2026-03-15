@@ -1,6 +1,7 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { Search, ArrowDownUp } from 'lucide-react';
 import { useSidePanelStore, type FilterType, type SortField } from '../stores/sidepanel.store';
+import { debounce } from '@core/utils/debounce';
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
@@ -26,6 +27,8 @@ export default function SearchBar({ onSearch, placeholder = 'Search sessions... 
   const { activeFilter, setFilter, sortBy, setSort, setFocusSearch } = useSidePanelStore();
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const debouncedSearch = useMemo(() => debounce(onSearch, 200), [onSearch]);
+
   useEffect(() => {
     setFocusSearch(() => inputRef.current?.focus());
     return () => setFocusSearch(null);
@@ -43,7 +46,7 @@ export default function SearchBar({ onSearch, placeholder = 'Search sessions... 
           type="text"
           placeholder={placeholder}
           className="w-full pl-8 pr-3 py-1.5 text-sm rounded-btn bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[var(--color-text)] placeholder-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-          onChange={(e) => onSearch(e.target.value)}
+          onChange={(e) => debouncedSearch(e.target.value)}
           aria-label="Search"
         />
       </div>

@@ -262,5 +262,73 @@
   "searchTagHint": {
     "message": "Use #tag to filter by tag",
     "description": "Search bar hint for tag filtering"
+  },
+  "tabGroups": {
+    "message": "Tab Groups",
+    "description": "Tab groups section title"
+  },
+  "liveGroups": {
+    "message": "Live Groups",
+    "description": "Live browser tab groups tab label"
+  },
+  "savedGroups": {
+    "message": "Saved Groups",
+    "description": "Saved tab group templates tab label"
+  },
+  "restoreGroup": {
+    "message": "Restore Group",
+    "description": "Button to restore a saved tab group"
+  },
+  "saveGroupTemplate": {
+    "message": "Save as Template",
+    "description": "Button to save a live group as a template"
+  },
+  "noTabGroups": {
+    "message": "No tab groups",
+    "description": "Tab groups empty state title"
+  },
+  "noTabGroupsDesc": {
+    "message": "Group your tabs in Chrome to see them here",
+    "description": "Tab groups empty state description"
+  },
+  "subscriptions": {
+    "message": "Subscriptions",
+    "description": "Subscriptions section title"
+  },
+  "addSubscription": {
+    "message": "Add Subscription",
+    "description": "Button to add a new subscription"
+  },
+  "subscriptionsEmpty": {
+    "message": "No subscriptions yet",
+    "description": "Subscriptions list empty state"
+  },
+  "monthlySpend": {
+    "message": "Monthly Spend",
+    "description": "Subscriptions analytics chart title"
+  },
+  "purgeOldAutoSaves": {
+    "message": "Purge 7d+",
+    "description": "Button to delete auto-saves older than 7 days"
+  },
+  "noAutoSaves": {
+    "message": "No auto-saves yet",
+    "description": "Auto-saves panel empty state title"
+  },
+  "noAutoSavesDesc": {
+    "message": "Auto-saves appear when triggered by browser close, sleep, low battery, or timer",
+    "description": "Auto-saves panel empty state description"
+  },
+  "errorBoundaryTitle": {
+    "message": "Something went wrong",
+    "description": "Error boundary fallback heading"
+  },
+  "errorBoundaryDesc": {
+    "message": "An unexpected error occurred in this section.",
+    "description": "Error boundary fallback body"
+  },
+  "errorBoundaryReload": {
+    "message": "Reload",
+    "description": "Error boundary reload button label"
   }
 }

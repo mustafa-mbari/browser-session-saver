@@ -99,7 +99,7 @@ export async function upsertAutoSaveSession(
   const now = nowISO();
 
   // Always find THE single auto-save entry (newest first, any trigger type)
-  const all = await getAllSessions({ isAutoSave: true });
+  const all = await getAllSessions({ isAutoSave: true }, undefined, 1);
   const existing = all[0] ?? null;
 
   if (existing) {
@@ -171,6 +171,7 @@ export async function getSession(id: string): Promise<Session | null> {
 export async function getAllSessions(
   filter?: SessionFilter,
   sort?: SessionSort,
+  _limit?: number,
 ): Promise<Session[]> {
   const storage = getSessionStorage();
   const all = await storage.getAll();
@@ -186,7 +187,16 @@ export async function getAllSessions(
     sessions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
+  if (_limit && _limit > 0) {
+    sessions = sessions.slice(0, _limit);
+  }
+
   return sessions;
+}
+
+export async function countSessions(): Promise<number> {
+  const storage = getSessionStorage();
+  return storage.count();
 }
 
 export async function updateSession(
@@ -229,7 +239,7 @@ export async function duplicateSession(id: string): Promise<Session | null> {
 }
 
 export async function checkDuplicate(tabUrls: string[]): Promise<boolean> {
-  const sessions = await getAllSessions(undefined, { field: 'createdAt', direction: 'desc' });
+  const sessions = await getAllSessions(undefined, { field: 'createdAt', direction: 'desc' }, 1);
   if (sessions.length === 0) return false;
 
   const latest = sessions[0];
@@ -241,9 +251,8 @@ export async function checkDuplicate(tabUrls: string[]): Promise<boolean> {
 }
 
 async function enforceAutoSaveLimit(maxAutoSaves: number): Promise<void> {
-  const allSessions = await getAllSessions();
-  const autoSaves = allSessions
-    .filter((s) => s.isAutoSave && !s.isLocked)
+  const autoSaves = (await getAllSessions({ isAutoSave: true }))
+    .filter((s) => !s.isLocked)
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   const storage = getSessionStorage();

@@ -1,11 +1,16 @@
 import { useCallback } from 'react';
 import type { Message, MessageResponse } from '@core/types/messages.types';
 
+const MESSAGE_TIMEOUT_MS = 10_000;
+
 export function useMessaging() {
   const sendMessage = useCallback(
     async <T = unknown>(message: Message): Promise<MessageResponse<T>> => {
       try {
-        const response = await chrome.runtime.sendMessage(message);
+        const timeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Service worker timeout')), MESSAGE_TIMEOUT_MS),
+        );
+        const response = await Promise.race([chrome.runtime.sendMessage(message), timeout]);
         return response as MessageResponse<T>;
       } catch (error) {
         return { success: false, error: String(error) };

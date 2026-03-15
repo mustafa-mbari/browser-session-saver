@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { ArrowRight, Layers, RefreshCw } from 'lucide-react';
 import type { BookmarkCategory } from '@core/types/newtab.types';
+import type { ChromeGroupColor } from '@core/types/session.types';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
+import { GROUP_COLORS } from '@core/constants/tab-group-colors';
 
 interface LiveGroup {
   id: number;
@@ -11,18 +13,6 @@ interface LiveGroup {
   windowId: number;
   tabCount: number;
 }
-
-const GROUP_COLORS: Record<string, string> = {
-  grey: '#9aa0a6',
-  blue: '#4a90d9',
-  red: '#e06666',
-  yellow: '#f6b26b',
-  green: '#6aa84f',
-  pink: '#d16b8e',
-  purple: '#8e44ad',
-  cyan: '#45b7d1',
-  orange: '#e69138',
-};
 
 interface Props {
   category: BookmarkCategory;
@@ -120,7 +110,7 @@ export default function TabGroupsCardBody({ category }: Props) {
       {visibleGroups.length > 0 ? (
         <div className="flex flex-col gap-0.5">
           {visibleGroups.map((g) => {
-            const accentColor = GROUP_COLORS[g.color] ?? '#9aa0a6';
+            const accentColor = GROUP_COLORS[g.color as ChromeGroupColor] ?? '#9aa0a6';
             return (
               <div
                 key={g.id}

@@ -94,8 +94,22 @@ export class IndexedDBAdapter implements IStorage {
   }
 
   async getUsedBytes(): Promise<number> {
-    const all = await this.getAll();
-    const json = JSON.stringify(all);
-    return new Blob([json]).size;
+    try {
+      const estimate = await navigator.storage.estimate();
+      return estimate.usage ?? 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  async count(): Promise<number> {
+    const db = await this.openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.count();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
   }
 }

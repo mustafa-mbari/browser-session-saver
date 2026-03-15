@@ -30,8 +30,13 @@ npm run format   # Prettier
 - **Messaging**: Typed discriminated union `Message` type between service worker and UI via `chrome.runtime.sendMessage`; 15 action types defined in `messages.types.ts`
 - **Styling**: Tailwind CSS with CSS custom properties for theme tokens, dark mode via `class` strategy. Glassmorphism utilities (`.glass`, `.glass-panel`, `.glass-dark`, `.glass-hover`, `.vignette`) defined in `@layer utilities` in `globals.css`
 - **Components**: All shared components support dark mode and include ARIA attributes
-- **Tests**: Vitest with jsdom, Chrome API mocked in `tests/setup.ts`
-- **i18n**: `_locales/en/messages.json` (265 keys) and `_locales/ar/messages.json`; `t()` wrapper at `src/shared/utils/i18n.ts`
+- **Tests**: Vitest with jsdom, Chrome API mocked in `tests/setup.ts`; 53 tests across 10 files in `tests/unit/`
+- **i18n**: `_locales/en/messages.json` (~282 keys) and `_locales/ar/messages.json`; `t()` wrapper at `src/shared/utils/i18n.ts`
+- **Virtual scrolling**: `@tanstack/react-virtual` v3 used in `SessionsPanel` (3-column `lanes` grid) and `AutoSavesPanel` (flat list with headers); threshold ≤30 items uses plain DOM, >30 uses virtualizer
+- **Error boundaries**: `src/shared/components/ErrorBoundary.tsx` wraps all major UI sections; reports via `errorBoundaryTitle/Desc/Reload` i18n keys
+- **Generic storage adapter**: `src/core/storage/chrome-local-key-adapter.ts` — `ChromeLocalKeyAdapter<T>` shared by `SubscriptionStorage` and `TabGroupTemplateStorage`
+- **Shared color constants**: `src/core/constants/tab-group-colors.ts` — `GROUP_COLORS` map imported by `SessionsPanel` and newtab components
+- **ContextMenu accessibility**: keyboard navigation (Enter/Space to open, Escape, ArrowUp/Down, Home/End, Tab to close); roving tabindex pattern; `requestAnimationFrame` deferred focus
 - **View unions**:
   - `SidePanelView`: `'home' | 'session-detail' | 'tab-groups' | 'settings' | 'import-export' | 'subscriptions'`
   - `DashboardPage`: `'sessions' | 'auto-saves' | 'tab-groups' | 'import-export' | 'settings'`
@@ -46,8 +51,10 @@ npm run format   # Prettier
 - `src/core/types/subscription.types.ts` — Subscription, SubscriptionTemplate, BillingCycle, DueUrgency, SUPPORTED_CURRENCIES, SUBSCRIPTION_TEMPLATES (22 presets)
 - `src/core/types/tab-group.types.ts` — TabGroupTemplate, TabGroupTemplateTab
 - `src/core/storage/newtab-storage.ts` — Multi-store IndexedDB adapter (newtab-db v1); stores: quickLinks, boards, bookmarkCategories, bookmarkEntries, todoLists, todoItems, wallpaperImages
+- `src/core/storage/chrome-local-key-adapter.ts` — Generic `ChromeLocalKeyAdapter<T>` for storing arrays under a single key; used by subscription and tab-group-template storage
 - `src/core/storage/subscription-storage.ts` — Flat chrome.storage.local adapter; keys: `subscriptions` (Subscription[]), `subscription_categories` (CustomCategory[])
 - `src/core/storage/tab-group-template-storage.ts` — Static class adapter; key: `tab_group_templates` in chrome.storage.local
+- `src/core/constants/tab-group-colors.ts` — `GROUP_COLORS` map (ChromeGroupColor → CSS hex); imported by session and newtab components
 - `src/core/services/subscription.service.ts` — Urgency calculation, monthly normalization, analytics, CSV import/export, currency formatting
 - `src/background/event-listeners.ts` — Central message dispatcher (15 handlers)
 - `src/background/auto-save-engine.ts` — Auto-save trigger management; calls `upsertAutoSaveSession` so each trigger type maintains exactly one pinned entry (updated in place)
@@ -61,6 +68,15 @@ npm run format   # Prettier
 - `src/newtab/stores/newtab.store.ts` — Single Zustand store for all newtab state (settings, boards, categories, entries, quickLinks, todoLists, todoItems, UI flags)
 - `src/newtab/hooks/useNewTabSettings.ts` — Settings load/sync hook (reads `newtab_settings` key from chrome.storage.local)
 - `src/newtab/components/SubscriptionReminder.tsx` — Glassmorphism toast overlay for upcoming subscription renewals (24-hour snooze)
+- `src/newtab/components/BookmarkCardBody.tsx` — Bookmark card body (split from `BookmarkCategoryCard.tsx`)
+- `src/newtab/components/NoteCardBody.tsx` — Note card body (split from `BookmarkCategoryCard.tsx`)
+- `src/newtab/components/TodoCardBody.tsx` — Todo card body (split from `BookmarkCategoryCard.tsx`)
+- `src/newtab/components/BookmarkEntryRow.tsx` — Single bookmark entry row with drag handle (split from `BookmarkCategoryCard.tsx`)
+- `src/newtab/components/ResizePopover.tsx` — Card resize popover (split from `BookmarkCategoryCard.tsx`)
+- `src/newtab/components/SessionsPanel.tsx` — Sessions sidebar with virtualised 3-column grid (>30 sessions)
+- `src/newtab/components/AutoSavesPanel.tsx` — Auto-saves sidebar with virtualised flat list (>30 entries)
+- `src/newtab/contexts/BookmarkBoardContext.tsx` — React context for `BookmarkBoardActions`; eliminates prop-drilling in newtab board components
+- `src/shared/components/ErrorBoundary.tsx` — Class component error boundary wrapping all major UI sections
 - `src/core/services/newtab-settings.service.ts` — Read/write NewTabSettings via `getSettingsStorage()`
 
 ## New Tab Page Notes
@@ -72,8 +88,10 @@ npm run format   # Prettier
 - Glassmorphism CSS: `.glass` (16px blur), `.glass-panel` (24px blur), `.glass-dark` — defined in `globals.css @layer utilities`
 - `BackgroundLayer` renders behind all content (z-index 0); dimming overlay and vignette are separate child divs
 - Drag-and-drop: @dnd-kit/sortable with `horizontalListSortingStrategy` for quick links, `verticalListSortingStrategy` for bookmark entries, `rectSortingStrategy` for category grid
-- Six card types: bookmark, clock, note, todo, subscription, tab-groups — rendered by `BookmarkCategoryCard.tsx` with type-specific bodies
+- Six card types: bookmark, clock, note, todo, subscription, tab-groups — rendered by `BookmarkCategoryCard.tsx` dispatching to dedicated body components (`BookmarkCardBody`, `NoteCardBody`, `TodoCardBody`, `SubscriptionCardBody`, `TabGroupsCardBody`)
 - Top nav tabs: Quick Links, Frequently Visited, Tabs, Activity — plus sidebar panels for Sessions, Auto-Saves, Tab Groups, Import/Export, Subscriptions
+- Heavy sidebar panels (`SessionsPanel`, `AutoSavesPanel`, `TabGroupsPanel`, `SubscriptionsPanel`) are `React.lazy`-loaded to keep initial bundle small
+- `BookmarkBoardContext` provides board-level actions to deep children without prop-drilling; use `useBookmarkBoardActions()` hook inside the provider
 
 ## Subscriptions Feature Notes
 
@@ -107,7 +125,12 @@ npm run format   # Prettier
 ## Testing
 
 - Chrome APIs are mocked globally in `tests/setup.ts`
-- Unit tests in `tests/unit/` organized by module (utils, services)
+- Unit tests in `tests/unit/` organized by module (utils, services, storage, contexts)
+  - `tests/unit/utils/` — uuid, date, validators, debounce
+  - `tests/unit/services/` — search, export, import, session-count
+  - `tests/unit/storage/` — chrome-local-key-adapter
+  - `tests/unit/contexts/` — bookmark-board-context
+- 53 tests across 10 test files
 - Run `npm test` before committing
 
 ## Do Not

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Session } from '@core/types/session.types';
-import type { SessionFilter, SessionSort, RestoreMode } from '@core/types/messages.types';
+import type { SessionFilter, SessionSort, RestoreMode, GetSessionsResponse } from '@core/types/messages.types';
 import { useMessaging } from './useMessaging';
 import * as SessionService from '@core/services/session.service';
 
@@ -13,19 +13,21 @@ function notifySessionsChanged(): void {
 export function useSession() {
   const { sendMessage } = useMessaging();
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refreshSessions = useCallback(
-    async (filter?: SessionFilter, sort?: SessionSort) => {
+    async (filter?: SessionFilter, sort?: SessionSort, limit?: number, offset?: number) => {
       setLoading(true);
       setError(null);
-      const response = await sendMessage<Session[]>({
+      const response = await sendMessage<GetSessionsResponse>({
         action: 'GET_SESSIONS',
-        payload: { filter, sort },
+        payload: { filter, sort, limit, offset },
       });
       if (response.success && response.data) {
-        setSessions(response.data);
+        setSessions(response.data.sessions);
+        setTotalCount(response.data.totalCount);
       } else {
         setError(response.error ?? 'Failed to load sessions');
       }
@@ -120,6 +122,7 @@ export function useSession() {
       if (changes['_sessions_updated']) {
         const updated = await SessionService.getAllSessions();
         setSessions(updated);
+        setTotalCount(updated.length);
       }
     };
     chrome.storage.local.onChanged.addListener(handler);
@@ -128,6 +131,7 @@ export function useSession() {
 
   return {
     sessions,
+    totalCount,
     loading,
     error,
     saveSession,

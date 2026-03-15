@@ -25,4 +25,9 @@ export class ChromeStorageAdapter implements IStorage {
   async getUsedBytes(): Promise<number> {
     return chrome.storage.local.getBytesInUse(null);
   }
+
+  async count(): Promise<number> {
+    const all = await chrome.storage.local.get(null);
+    return Object.keys(all).length;
+  }
 }

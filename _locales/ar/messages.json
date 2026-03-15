@@ -115,5 +115,129 @@
   },
   "clearAllDataWarning": {
     "message": "سيتم حذف جميع الجلسات المحفوظة والحفظ التلقائي والإعدادات نهائياً. لا يمكن التراجع عن هذا الإجراء."
+  },
+  "tabs": {
+    "message": "$COUNT$ علامة تبويب",
+    "placeholders": { "count": { "content": "$1" } }
+  },
+  "groups": {
+    "message": "$COUNT$ مجموعة",
+    "placeholders": { "count": { "content": "$1" } }
+  },
+  "undoDelete": {
+    "message": "تراجع"
+  },
+  "addTag": {
+    "message": "+ أضف وسمًا"
+  },
+  "addNotes": {
+    "message": "أضف ملاحظات..."
+  },
+  "editTabs": {
+    "message": "تحرير"
+  },
+  "exportFormat_markdown": {
+    "message": "ماركداون"
+  },
+  "exportFormat_csv": {
+    "message": "CSV"
+  },
+  "exportFormat_text": {
+    "message": "نص"
+  },
+  "mergeSessions": {
+    "message": "دمج"
+  },
+  "compareSessions": {
+    "message": "مقارنة"
+  },
+  "duplicateWarning": {
+    "message": "تبدو الجلسة مطابقة لحفظ حديث"
+  },
+  "restoreSelectiveTabs": {
+    "message": "استعادة الجلسة"
+  },
+  "restoreMode_new_window": {
+    "message": "نافذة جديدة"
+  },
+  "restoreMode_current": {
+    "message": "استبدال"
+  },
+  "restoreMode_append": {
+    "message": "إضافة"
+  },
+  "tabsFailed": {
+    "message": "فشل فتح $COUNT$ علامة تبويب",
+    "placeholders": { "count": { "content": "$1" } }
+  },
+  "keyboardShortcutRestore": {
+    "message": "الانتقال إلى الجلسات (Ctrl+Shift+R)"
+  },
+  "keyboardShortcutDashboard": {
+    "message": "فتح لوحة التحكم (Ctrl+Shift+D)"
+  },
+  "keyboardShortcutSearch": {
+    "message": "التركيز على البحث (Ctrl+Shift+F)"
+  },
+  "keyboardShortcutExport": {
+    "message": "تصدير سريع (Ctrl+Shift+E)"
+  },
+  "bulkDelete": {
+    "message": "تم حذف $COUNT$ جلسة",
+    "placeholders": { "count": { "content": "$1" } }
+  },
+  "searchTagHint": {
+    "message": "استخدم #وسم للتصفية بالوسم"
+  },
+  "tabGroups": {
+    "message": "مجموعات التبويب"
+  },
+  "liveGroups": {
+    "message": "المجموعات النشطة"
+  },
+  "savedGroups": {
+    "message": "المجموعات المحفوظة"
+  },
+  "restoreGroup": {
+    "message": "استعادة المجموعة"
+  },
+  "saveGroupTemplate": {
+    "message": "حفظ كقالب"
+  },
+  "noTabGroups": {
+    "message": "لا توجد مجموعات تبويب"
+  },
+  "noTabGroupsDesc": {
+    "message": "قم بتجميع علامات التبويب في Chrome لرؤيتها هنا"
+  },
+  "subscriptions": {
+    "message": "الاشتراكات"
+  },
+  "addSubscription": {
+    "message": "إضافة اشتراك"
+  },
+  "subscriptionsEmpty": {
+    "message": "لا توجد اشتراكات بعد"
+  },
+  "monthlySpend": {
+    "message": "الإنفاق الشهري"
+  },
+  "purgeOldAutoSaves": {
+    "message": "حذف +7 أيام"
+  },
+  "noAutoSaves": {
+    "message": "لا يوجد حفظ تلقائي بعد"
+  },
+  "noAutoSavesDesc": {
+    "message": "يظهر الحفظ التلقائي عند الإغلاق أو السكون أو انخفاض البطارية أو المؤقت"
+  },
+  "errorBoundaryTitle": {
+    "message": "حدث خطأ ما"
+  },
+  "errorBoundaryDesc": {
+    "message": "حدث خطأ غير متوقع في هذا القسم."
+  },
+  "errorBoundaryReload": {
+    "message": "إعادة تحميل"
   }
 }

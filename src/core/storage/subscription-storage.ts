@@ -1,87 +1,60 @@
 import type { Subscription, CustomCategory } from '@core/types/subscription.types';
+import { ChromeLocalKeyAdapter } from './chrome-local-key-adapter';
 
-const KEY = 'subscriptions';
-const CUSTOM_CATS_KEY = 'subscription_categories';
-
-function getAll(): Promise<Subscription[]> {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(KEY, (result) => {
-      resolve((result[KEY] as Subscription[]) ?? []);
-    });
-  });
-}
-
-function saveAll(subs: Subscription[]): Promise<void> {
-  return new Promise((resolve) => {
-    chrome.storage.local.set({ [KEY]: subs }, resolve);
-  });
-}
-
-function getCustomCategories(): Promise<CustomCategory[]> {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(CUSTOM_CATS_KEY, (r) => {
-      resolve((r[CUSTOM_CATS_KEY] as CustomCategory[]) ?? []);
-    });
-  });
-}
-
-function saveCustomCategories(cats: CustomCategory[]): Promise<void> {
-  return new Promise((resolve) => {
-    chrome.storage.local.set({ [CUSTOM_CATS_KEY]: cats }, resolve);
-  });
-}
+const subsAdapter = new ChromeLocalKeyAdapter<Subscription>('subscriptions');
+const catsAdapter = new ChromeLocalKeyAdapter<CustomCategory>('subscription_categories');
 
 export const SubscriptionStorage = {
-  getAll,
-  getCustomCategories,
+  getAll: () => subsAdapter.getAll(),
+  getCustomCategories: () => catsAdapter.getAll(),
 
   async addCustomCategory(cat: CustomCategory): Promise<void> {
-    const all = await getCustomCategories();
+    const all = await catsAdapter.getAll();
     if (!all.find((c) => c.value === cat.value)) {
-      await saveCustomCategories([...all, cat]);
+      await catsAdapter.setAll([...all, cat]);
     }
   },
 
   async deleteCustomCategory(value: string): Promise<void> {
-    const all = await getCustomCategories();
-    await saveCustomCategories(all.filter((c) => c.value !== value));
+    const all = await catsAdapter.getAll();
+    await catsAdapter.setAll(all.filter((c) => c.value !== value));
   },
 
   async save(sub: Subscription): Promise<void> {
-    const all = await getAll();
+    const all = await subsAdapter.getAll();
     const idx = all.findIndex((s) => s.id === sub.id);
     if (idx >= 0) {
       all[idx] = sub;
     } else {
       all.push(sub);
     }
-    await saveAll(all);
+    await subsAdapter.setAll(all);
   },
 
   async update(id: string, updates: Partial<Subscription>): Promise<void> {
-    const all = await getAll();
+    const all = await subsAdapter.getAll();
     const idx = all.findIndex((s) => s.id === id);
     if (idx >= 0) {
       all[idx] = { ...all[idx], ...updates };
-      await saveAll(all);
+      await subsAdapter.setAll(all);
     }
   },
 
   async delete(id: string): Promise<void> {
-    const all = await getAll();
-    await saveAll(all.filter((s) => s.id !== id));
+    const all = await subsAdapter.getAll();
+    await subsAdapter.setAll(all.filter((s) => s.id !== id));
   },
 
   async deleteAll(): Promise<void> {
-    await saveAll([]);
+    await subsAdapter.setAll([]);
   },
 
   async importMany(subs: Subscription[]): Promise<void> {
-    const all = await getAll();
+    const all = await subsAdapter.getAll();
     const map = new Map(all.map((s) => [s.id, s]));
     for (const sub of subs) {
       map.set(sub.id, sub);
     }
-    await saveAll(Array.from(map.values()));
+    await subsAdapter.setAll(Array.from(map.values()));
   },
 };

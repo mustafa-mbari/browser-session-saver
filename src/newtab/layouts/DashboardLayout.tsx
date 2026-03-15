@@ -218,7 +218,7 @@ export default function DashboardLayout() {
         onReorderCategories: (cats: typeof categories) => { void handleReorderCategories(cats); },
         onReorderEntries: (catId: string, ids: string[]) => { void handleReorderEntries(catId, ids); },
         onImportNative: (boardId: string) => { void handleImportNative(boardId); },
-        onResizeCategory: (id: string, colSpan: SpanValue, rowSpan: SpanValue) => { void handleResizeCategory(id, colSpan, rowSpan); },
+        onResize: (id: string, colSpan: SpanValue, rowSpan: SpanValue) => { void handleResizeCategory(id, colSpan, rowSpan); },
         onUpdateNote: (id: string, content: string) => { void handleUpdateNote(id, content); },
         onRenameCard: (id: string, name: string) => { void handleRenameCard(id, name); },
         onDuplicateCard: (id: string) => { void handleDuplicateCard(id); },

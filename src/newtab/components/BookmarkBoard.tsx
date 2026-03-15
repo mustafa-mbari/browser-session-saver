@@ -15,28 +15,18 @@ import type {
   BookmarkEntry,
   CardDensity,
   CardType,
-  SpanValue,
 } from '@core/types/newtab.types';
 import { useSortableCategories } from '@newtab/hooks/useBookmarkDnd';
+import { BookmarkBoardContext, type BookmarkBoardActions } from '@newtab/contexts/BookmarkBoardContext';
 
-interface Props {
+interface Props extends BookmarkBoardActions {
   board: Board;
   categories: BookmarkCategory[];
   entries: BookmarkEntry[];
   density: CardDensity;
   onAddCategory: (boardId: string, cardType: CardType) => void;
-  onDeleteCategory: (id: string) => void;
-  onToggleCollapse: (id: string) => void;
-  onAddEntry: (categoryId: string, title: string, url: string) => void;
-  onDeleteEntry: (id: string) => void;
-  onRenameEntry: (id: string, title: string, url: string) => void;
   onReorderCategories: (newCategories: BookmarkCategory[]) => void;
-  onReorderEntries: (categoryId: string, orderedIds: string[]) => void;
   onImportNative: (boardId: string) => void;
-  onResizeCategory: (id: string, colSpan: SpanValue, rowSpan: SpanValue) => void;
-  onUpdateNote?: (id: string, content: string) => void;
-  onRenameCard: (id: string, name: string) => void;
-  onDuplicateCard: (id: string) => void;
 }
 
 export default function BookmarkBoard({
@@ -45,15 +35,16 @@ export default function BookmarkBoard({
   entries,
   density,
   onAddCategory,
-  onDeleteCategory,
-  onToggleCollapse,
+  onReorderCategories,
+  onImportNative,
+  // Actions forwarded via context
   onAddEntry,
   onDeleteEntry,
   onRenameEntry,
-  onReorderCategories,
+  onDeleteCategory,
+  onToggleCollapse,
   onReorderEntries,
-  onImportNative,
-  onResizeCategory,
+  onResize,
   onUpdateNote,
   onRenameCard,
   onDuplicateCard,
@@ -62,78 +53,76 @@ export default function BookmarkBoard({
   const { handleDragEnd } = useSortableCategories(categories, onReorderCategories);
   const [addCardOpen, setAddCardOpen] = useState(false);
 
+  const actions: BookmarkBoardActions = {
+    onAddEntry, onDeleteEntry, onRenameEntry, onDeleteCategory,
+    onToggleCollapse, onReorderEntries, onResize, onUpdateNote,
+    onRenameCard, onDuplicateCard,
+  };
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold" style={{ color: 'var(--newtab-text)' }}>
-          {board.icon} {board.name}
-        </h2>
-        <div className="flex gap-2">
-          <button
-            onClick={() => onImportNative(board.id)}
-            className="glass flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm hover:bg-white/20 transition-colors"
-            style={{ color: 'var(--newtab-text)' }}
-          >
-            <Download size={14} />
-            Import Bookmarks
-          </button>
-          <button
-            onClick={() => setAddCardOpen(true)}
-            className="glass flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm hover:bg-white/20 transition-colors"
-            style={{ color: 'var(--newtab-text)' }}
-            aria-label="Add Card"
-          >
-            <LayoutGrid size={14} />
-            Add Card
-          </button>
-        </div>
-      </div>
-
-      {categories.length === 0 ? (
-        <div className="text-center py-12 opacity-50" style={{ color: 'var(--newtab-text)' }}>
-          No cards yet. Add a card or import your bookmarks.
-        </div>
-      ) : (
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-          <SortableContext items={categories.map((c) => c.id)} strategy={rectSortingStrategy}>
-            <div
-              className="grid gap-3"
-              style={{ gridTemplateColumns: 'repeat(9, 1fr)', gridAutoRows: '60px' }}
+    <BookmarkBoardContext.Provider value={actions}>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold" style={{ color: 'var(--newtab-text)' }}>
+            {board.icon} {board.name}
+          </h2>
+          <div className="flex gap-2">
+            <button
+              onClick={() => onImportNative(board.id)}
+              className="glass flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm hover:bg-white/20 transition-colors"
+              style={{ color: 'var(--newtab-text)' }}
             >
-              {categories.map((cat) => {
-                const catEntries = entries.filter((e) => e.categoryId === cat.id);
-                return (
-                  <BookmarkCategoryCard
-                    key={cat.id}
-                    category={cat}
-                    entries={catEntries}
-                    density={density}
-                    colSpan={cat.colSpan ?? 3}
-                    rowSpan={cat.rowSpan ?? 3}
-                    onAddEntry={onAddEntry}
-                    onDeleteEntry={onDeleteEntry}
-                    onRenameEntry={onRenameEntry}
-                    onDeleteCategory={onDeleteCategory}
-                    onToggleCollapse={onToggleCollapse}
-                    onReorderEntries={onReorderEntries}
-                    onResize={onResizeCategory}
-                    onUpdateNote={onUpdateNote}
-                    onRenameCard={onRenameCard}
-                    onDuplicateCard={onDuplicateCard}
-                  />
-                );
-              })}
-            </div>
-          </SortableContext>
-        </DndContext>
-      )}
+              <Download size={14} />
+              Import Bookmarks
+            </button>
+            <button
+              onClick={() => setAddCardOpen(true)}
+              className="glass flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm hover:bg-white/20 transition-colors"
+              style={{ color: 'var(--newtab-text)' }}
+              aria-label="Add Card"
+            >
+              <LayoutGrid size={14} />
+              Add Card
+            </button>
+          </div>
+        </div>
 
-      <AddCardModal
-        isOpen={addCardOpen}
-        boardId={board.id}
-        onClose={() => setAddCardOpen(false)}
-        onAdd={(boardId, cardType) => { onAddCategory(boardId, cardType); }}
-      />
-    </div>
+        {categories.length === 0 ? (
+          <div className="text-center py-12 opacity-50" style={{ color: 'var(--newtab-text)' }}>
+            No cards yet. Add a card or import your bookmarks.
+          </div>
+        ) : (
+          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+            <SortableContext items={categories.map((c) => c.id)} strategy={rectSortingStrategy}>
+              <div
+                className="grid gap-3"
+                style={{ gridTemplateColumns: 'repeat(9, 1fr)', gridAutoRows: '60px' }}
+              >
+                {categories.map((cat) => {
+                  const catEntries = entries.filter((e) => e.categoryId === cat.id);
+                  return (
+                    <BookmarkCategoryCard
+                      key={cat.id}
+                      category={cat}
+                      entries={catEntries}
+                      density={density}
+                      colSpan={cat.colSpan ?? 3}
+                      rowSpan={cat.rowSpan ?? 3}
+                    />
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+
+        <AddCardModal
+          isOpen={addCardOpen}
+          boardId={board.id}
+          onClose={() => setAddCardOpen(false)}
+          onAdd={(boardId, cardType) => { onAddCategory(boardId, cardType); }}
+        />
+      </div>
+    </BookmarkBoardContext.Provider>
   );
 }

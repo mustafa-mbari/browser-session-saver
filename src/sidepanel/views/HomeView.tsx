@@ -1,5 +1,5 @@
-import { useMemo, useState, useCallback, useEffect } from 'react';
-import { ExternalLink, Download, Trash2, X, Layers, MoreVertical, Pin, Copy, RotateCcw, History } from 'lucide-react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import { ExternalLink, Download, Trash2, X, Layers, MoreVertical, Pin, Copy, RotateCcw, History, Edit2, Check, ChevronDown, ChevronRight, XCircle, Monitor, RefreshCw } from 'lucide-react';
 import { useSession } from '@shared/hooks/useSession';
 import { useSearch } from '@shared/hooks/useSearch';
 import { useSidePanelStore } from '../stores/sidepanel.store';
@@ -15,7 +15,9 @@ import ContextMenu from '@shared/components/ContextMenu';
 import { generateId } from '@core/utils/uuid';
 import type { SessionFilter } from '@core/types/messages.types';
 import { useMessaging } from '@shared/hooks/useMessaging';
-import type { Session, TabGroup } from '@core/types/session.types';
+import type { Session, ChromeGroupColor } from '@core/types/session.types';
+import type { TabGroupTemplate } from '@core/types/tab-group.types';
+import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
 import * as SessionService from '@core/services/session.service';
 import { formatRelative } from '@core/utils/date';
 
@@ -429,6 +431,20 @@ function CurrentTabsPanel({ query, onToast }: CurrentTabsPanelProps) {
 
 // ── Tab Groups Panel ──────────────────────────────────────────────────────────
 
+const TG_COLOR_MAP: Record<string, string> = {
+  grey: '#9aa0a6', blue: '#4a90d9', red: '#e06666', yellow: '#f6b26b',
+  green: '#6aa84f', pink: '#d16b8e', purple: '#8e44ad', cyan: '#45b7d1', orange: '#e69138',
+};
+
+interface TGLiveGroup {
+  id: number;
+  title: string;
+  color: ChromeGroupColor;
+  collapsed: boolean;
+  windowId: number;
+  tabs: chrome.tabs.Tab[];
+}
+
 interface TabGroupsPanelProps {
   sessions: Session[];
   loading: boolean;
@@ -436,129 +452,460 @@ interface TabGroupsPanelProps {
   onToast: (toast: Omit<ToastData, 'id'>) => void;
 }
 
-interface GroupInfo {
-  group: TabGroup;
-  sessionCount: number;
-  totalTabs: number;
-  urls: string[];
+// ── Home Live Group Row ────────────────────────────────────────────────────────
+
+function HomeLiveGroupRow({
+  group,
+  onRefresh,
+  onToast,
+}: {
+  group: TGLiveGroup;
+  onRefresh: () => Promise<void>;
+  onToast: (toast: Omit<ToastData, 'id'>) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(group.title);
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const accentColor = TG_COLOR_MAP[group.color] ?? '#9aa0a6';
+
+  const startEdit = useCallback(() => {
+    setDraftTitle(group.title);
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }, [group.title]);
+
+  const saveEdit = useCallback(async () => {
+    setBusy(true);
+    try {
+      await chrome.tabGroups.update(group.id, { title: draftTitle.trim() || group.title });
+      setEditing(false);
+      await onRefresh();
+    } finally {
+      setBusy(false);
+    }
+  }, [group.id, group.title, draftTitle, onRefresh]);
+
+  const handleClose = useCallback(async () => {
+    setBusy(true);
+    try {
+      const now = new Date().toISOString();
+      await TabGroupTemplateStorage.upsert({
+        key: `${group.title}-${group.color}`,
+        title: group.title,
+        color: group.color,
+        tabs: group.tabs.map((t) => ({ url: t.url ?? '', title: t.title ?? '', favIconUrl: t.favIconUrl ?? '' })),
+        savedAt: now,
+        updatedAt: now,
+      });
+      const tabIds = group.tabs.map((t) => t.id!).filter(Boolean);
+      if (tabIds.length > 0) await chrome.tabs.remove(tabIds);
+      await onRefresh();
+      onToast({ message: 'Group closed and saved', type: 'success' });
+    } finally {
+      setBusy(false);
+    }
+  }, [group, onRefresh, onToast]);
+
+  const handleFocus = useCallback(async () => {
+    const firstTab = group.tabs[0];
+    if (firstTab?.id) {
+      await chrome.windows.update(group.windowId, { focused: true });
+      await chrome.tabs.update(firstTab.id, { active: true });
+    }
+  }, [group.tabs, group.windowId]);
+
+  const handleUngroup = useCallback(async () => {
+    const tabIds = group.tabs.map((t) => t.id!).filter(Boolean);
+    if (tabIds.length > 0) {
+      await chrome.tabs.ungroup(tabIds);
+      await onRefresh();
+    }
+  }, [group.tabs, onRefresh]);
+
+  const menuItems = useMemo(() => [
+    { label: 'Rename',             icon: Edit2,    onClick: startEdit },
+    { label: 'Restore Here',       icon: Monitor,  onClick: () => void handleFocus() },
+    { label: 'Close from browser', icon: XCircle,  onClick: () => void handleClose() },
+    { label: 'Ungroup',            icon: Trash2,   onClick: () => void handleUngroup(), danger: true },
+  ], [startEdit, handleFocus, handleClose, handleUngroup]);
+
+  return (
+    <div className="border-b border-[var(--color-border)]">
+      <div className="flex items-center gap-2 px-3 py-2 hover:bg-[var(--color-bg-secondary)] transition-colors group">
+        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: accentColor }} />
+        {editing ? (
+          <>
+            <input
+              ref={inputRef}
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void saveEdit();
+                if (e.key === 'Escape') setEditing(false);
+              }}
+              className="flex-1 text-xs bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded px-2 py-0.5 text-[var(--color-text)] outline-none focus:border-blue-500"
+            />
+            <button onClick={() => void saveEdit()} disabled={busy} className="p-1 rounded text-blue-400 hover:bg-blue-500/20 disabled:opacity-50">
+              <Check size={12} />
+            </button>
+            <button onClick={() => setEditing(false)} className="p-1 rounded hover:bg-[var(--color-bg-secondary)]" style={{ color: 'var(--color-text-secondary)' }}>
+              <X size={12} />
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="flex-1 flex items-center gap-1 text-left min-w-0"
+            >
+              <span className="font-medium text-sm truncate">{group.title || 'Unnamed group'}</span>
+              {expanded
+                ? <ChevronDown size={11} className="shrink-0" style={{ color: 'var(--color-text-secondary)' }} />
+                : <ChevronRight size={11} className="shrink-0" style={{ color: 'var(--color-text-secondary)' }} />}
+            </button>
+            <span className="text-xs shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
+              {group.tabs.length}t
+            </span>
+            {busy ? (
+              <span className="w-5 h-5 flex items-center justify-center shrink-0">
+                <span className="w-3 h-3 border border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-text-secondary)' }} />
+              </span>
+            ) : (
+              <ContextMenu items={menuItems}>
+                <button
+                  className="p-0.5 rounded hover:bg-[var(--color-bg-secondary)] transition-colors shrink-0"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                  aria-label="More actions"
+                >
+                  <MoreVertical size={13} />
+                </button>
+              </ContextMenu>
+            )}
+          </>
+        )}
+      </div>
+      {expanded && !editing && (
+        <div className="border-t border-[var(--color-border)] max-h-36 overflow-auto" style={{ background: 'var(--color-bg-secondary)', opacity: 0.9 }}>
+          {group.tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => tab.id && void chrome.tabs.update(tab.id, { active: true })}
+              className="w-full flex items-center gap-2 px-5 py-1.5 hover:bg-[var(--color-bg-hover)] text-left transition-colors"
+            >
+              {tab.favIconUrl
+                ? <img src={tab.favIconUrl} alt="" className="w-3.5 h-3.5 rounded-sm shrink-0" />
+                : <div className="w-3.5 h-3.5 rounded-sm bg-white/10 shrink-0" />}
+              <span className="text-xs truncate flex-1" style={{ color: 'var(--color-text)' }}>
+                {tab.title || tab.url || 'New Tab'}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
-function TabGroupsPanel({ sessions, loading, query, onToast }: TabGroupsPanelProps) {
-  const q = query.toLowerCase();
+// ── Home Saved Group Row ──────────────────────────────────────────────────────
 
-  const groups = useMemo((): GroupInfo[] => {
-    const groupMap = new Map<string, GroupInfo>();
-    for (const session of sessions) {
-      for (const group of session.tabGroups) {
-        const key = `${group.title}-${group.color}`;
-        const groupTabUrls = session.tabs
-          .filter((t) => group.tabIds.includes(t.id))
-          .map((t) => t.url);
-        const existing = groupMap.get(key);
-        if (existing) {
-          existing.sessionCount++;
-          existing.totalTabs += group.tabIds.length;
-          for (const url of groupTabUrls) {
-            if (!existing.urls.includes(url)) existing.urls.push(url);
-          }
-        } else {
-          groupMap.set(key, {
-            group,
-            sessionCount: 1,
-            totalTabs: group.tabIds.length,
-            urls: groupTabUrls,
-          });
+function HomeSavedGroupRow({
+  template,
+  onRestore,
+  onDelete,
+  onRename,
+}: {
+  template: TabGroupTemplate;
+  onRestore: (t: TabGroupTemplate) => Promise<void>;
+  onDelete: (key: string) => Promise<void>;
+  onRename: (key: string, newTitle: string) => Promise<void>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(template.title);
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const accentColor = TG_COLOR_MAP[template.color] ?? '#9aa0a6';
+
+  const startEdit = useCallback(() => {
+    setDraftTitle(template.title);
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }, [template.title]);
+
+  const saveRename = useCallback(async () => {
+    const newTitle = draftTitle.trim();
+    if (!newTitle || newTitle === template.title) { setEditing(false); return; }
+    setBusy(true);
+    try {
+      await onRename(template.key, newTitle);
+      setEditing(false);
+    } finally {
+      setBusy(false);
+    }
+  }, [draftTitle, template.title, template.key, onRename]);
+
+  const menuItems = useMemo(() => [
+    {
+      label: 'Restore',
+      icon: RotateCcw,
+      onClick: () => {
+        setBusy(true);
+        void onRestore(template).finally(() => setBusy(false));
+      },
+    },
+    { label: 'Rename', icon: Edit2, onClick: startEdit },
+    {
+      label: 'Delete',
+      icon: Trash2,
+      onClick: () => {
+        setBusy(true);
+        void onDelete(template.key).finally(() => setBusy(false));
+      },
+      danger: true,
+    },
+  ], [template, onRestore, onDelete, startEdit]);
+
+  return (
+    <div className="border-b border-[var(--color-border)]">
+      <div className="flex items-center gap-2 px-3 py-2 hover:bg-[var(--color-bg-secondary)] transition-colors group">
+        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: accentColor }} />
+        {editing ? (
+          <>
+            <input
+              ref={inputRef}
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void saveRename();
+                if (e.key === 'Escape') setEditing(false);
+              }}
+              className="flex-1 text-xs bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded px-2 py-0.5 text-[var(--color-text)] outline-none focus:border-blue-500"
+            />
+            <button onClick={() => void saveRename()} disabled={busy} className="p-1 rounded text-blue-400 hover:bg-blue-500/20 disabled:opacity-50">
+              <Check size={12} />
+            </button>
+            <button onClick={() => setEditing(false)} className="p-1 rounded hover:bg-[var(--color-bg-secondary)]" style={{ color: 'var(--color-text-secondary)' }}>
+              <X size={12} />
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="flex-1 flex items-center gap-1 text-left min-w-0"
+            >
+              <span className="font-medium text-sm truncate">{template.title || 'Unnamed group'}</span>
+              {expanded
+                ? <ChevronDown size={11} className="shrink-0" style={{ color: 'var(--color-text-secondary)' }} />
+                : <ChevronRight size={11} className="shrink-0" style={{ color: 'var(--color-text-secondary)' }} />}
+            </button>
+            <span className="text-xs shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
+              {template.tabs.length}t
+            </span>
+            {busy ? (
+              <span className="w-5 h-5 flex items-center justify-center shrink-0">
+                <span className="w-3 h-3 border border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-text-secondary)' }} />
+              </span>
+            ) : (
+              <ContextMenu items={menuItems}>
+                <button
+                  className="p-0.5 rounded hover:bg-[var(--color-bg-secondary)] transition-colors shrink-0"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                  aria-label="More actions"
+                >
+                  <MoreVertical size={13} />
+                </button>
+              </ContextMenu>
+            )}
+          </>
+        )}
+      </div>
+      {expanded && !editing && (
+        <div className="border-t border-[var(--color-border)] max-h-36 overflow-auto" style={{ background: 'var(--color-bg-secondary)', opacity: 0.9 }}>
+          {template.tabs.slice(0, 20).map((tab, i) => (
+            <div key={i} className="flex items-center gap-2 px-5 py-1.5">
+              {tab.favIconUrl
+                ? <img src={tab.favIconUrl} alt="" className="w-3.5 h-3.5 rounded-sm shrink-0" />
+                : <div className="w-3.5 h-3.5 rounded-sm bg-white/10 shrink-0" />}
+              <span className="text-xs truncate flex-1" style={{ color: 'var(--color-text)' }}>
+                {tab.title || tab.url || 'Unknown'}
+              </span>
+            </div>
+          ))}
+          {template.tabs.length > 20 && (
+            <p className="text-xs text-center py-1 opacity-40" style={{ color: 'var(--color-text-secondary)' }}>
+              +{template.tabs.length - 20} more
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Tab Groups Panel (main) ────────────────────────────────────────────────────
+
+function TabGroupsPanel({ query, onToast }: TabGroupsPanelProps) {
+  const q = query.toLowerCase();
+  const [liveGroups, setLiveGroups] = useState<TGLiveGroup[]>([]);
+  const [templates, setTemplates] = useState<TabGroupTemplate[]>([]);
+  const [panelLoading, setPanelLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    setPanelLoading(true);
+    try {
+      const [groups, tabs, allTemplates] = await Promise.all([
+        chrome.tabGroups.query({}),
+        chrome.tabs.query({}),
+        TabGroupTemplateStorage.getAll(),
+      ]);
+      const tabsByGroup = new Map<number, chrome.tabs.Tab[]>();
+      for (const tab of tabs) {
+        if (tab.groupId && tab.groupId > 0) {
+          const arr = tabsByGroup.get(tab.groupId) ?? [];
+          arr.push(tab);
+          tabsByGroup.set(tab.groupId, arr);
         }
       }
+      const live: TGLiveGroup[] = groups.map((g) => ({
+        id: g.id,
+        title: g.title || 'Unnamed',
+        color: (g.color as ChromeGroupColor) ?? 'grey',
+        collapsed: g.collapsed,
+        windowId: g.windowId,
+        tabs: tabsByGroup.get(g.id) ?? [],
+      }));
+      setLiveGroups(live);
+      setTemplates(allTemplates.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+
+      // Auto-save live groups (skip groups with no Chrome title)
+      const now = new Date().toISOString();
+      const groupTitleById = new Map(groups.map((g) => [g.id, g.title ?? '']));
+      await Promise.all(
+        live
+          .filter((g) => g.tabs.length > 0 && groupTitleById.get(g.id) !== '')
+          .map((g) =>
+            TabGroupTemplateStorage.upsert({
+              key: `${g.title}-${g.color}`,
+              title: g.title,
+              color: g.color,
+              tabs: g.tabs.map((t) => ({ url: t.url ?? '', title: t.title ?? '', favIconUrl: t.favIconUrl ?? '' })),
+              savedAt: now,
+              updatedAt: now,
+            }),
+          ),
+      );
+    } catch { /* ignore */ } finally {
+      setPanelLoading(false);
     }
-    return Array.from(groupMap.values()).sort((a, b) => b.sessionCount - a.sessionCount);
-  }, [sessions]);
+  }, []);
 
-  const filtered = q
-    ? groups.filter((info) => (info.group.title ?? '').toLowerCase().includes(q))
-    : groups;
+  useEffect(() => { void refresh(); }, [refresh]);
 
-  const handleOpenAll = useCallback(async (info: GroupInfo) => {
-    if (info.urls.length === 0) {
-      onToast({ message: 'No tabs found for this group', type: 'warning' });
-      return;
+  const liveKeys = new Set(liveGroups.map((g) => `${g.title}-${g.color}`));
+  const offlineTemplates = templates.filter((t) => !liveKeys.has(t.key));
+
+  const filteredLive = liveGroups.filter((g) => !q || g.title.toLowerCase().includes(q));
+  const filteredSaved = offlineTemplates.filter((t) => !q || t.title.toLowerCase().includes(q));
+
+  const handleRestoreTemplate = useCallback(async (template: TabGroupTemplate) => {
+    const currentWindow = await chrome.windows.getCurrent();
+    const windowId = currentWindow.id!;
+    const tabIds: number[] = [];
+    for (const tab of template.tabs) {
+      const created = await chrome.tabs.create({ url: tab.url, windowId, active: false });
+      if (created.id) tabIds.push(created.id);
     }
-    for (const url of info.urls) {
-      await chrome.tabs.create({ url, active: false });
+    if (tabIds.length > 0) {
+      const gid = await chrome.tabs.group({ tabIds, createProperties: { windowId } });
+      await chrome.tabGroups.update(gid, { title: template.title, color: template.color });
+      await chrome.tabs.update(tabIds[0], { active: true });
     }
-    onToast({ message: `Opened ${info.urls.length} tab${info.urls.length !== 1 ? 's' : ''}`, type: 'success' });
-  }, [onToast]);
+    await refresh();
+  }, [refresh]);
 
-  const handleCopyName = useCallback((info: GroupInfo) => {
-    void navigator.clipboard.writeText(info.group.title ?? 'Unnamed group');
-    onToast({ message: 'Group name copied', type: 'success' });
-  }, [onToast]);
+  const handleDeleteTemplate = useCallback(async (key: string) => {
+    await TabGroupTemplateStorage.delete(key);
+    setTemplates((prev) => prev.filter((t) => t.key !== key));
+  }, []);
 
-  if (loading) return <LoadingSpinner />;
+  const handleRenameTemplate = useCallback(async (key: string, newTitle: string) => {
+    const all = await TabGroupTemplateStorage.getAll();
+    const existing = all.find((t) => t.key === key);
+    if (!existing) return;
+    const newKey = `${newTitle}-${existing.color}`;
+    await TabGroupTemplateStorage.upsert({ ...existing, key: newKey, title: newTitle });
+    if (newKey !== key) await TabGroupTemplateStorage.delete(key);
+    const updated = await TabGroupTemplateStorage.getAll();
+    setTemplates(updated.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+  }, []);
 
-  if (groups.length === 0) {
-    return (
-      <EmptyState
-        icon={Layers}
-        title="No tab groups"
-        description="Tab groups from your saved sessions will appear here."
-      />
-    );
-  }
-
-  if (filtered.length === 0) {
-    return (
-      <EmptyState
-        icon={Layers}
-        title="No results"
-        description={`No groups matching "${query}"`}
-      />
-    );
+  if (panelLoading) {
+    return <div className="flex items-center justify-center pt-8"><LoadingSpinner /></div>;
   }
 
   return (
-    <div className="flex-1 overflow-auto">
-      {filtered.map((info, index) => (
-        <div
-          key={`${info.group.title}-${info.group.color}-${index}`}
-          className="flex items-center gap-2 px-3 py-2.5 border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors group"
+    <div className="flex-1 overflow-auto flex flex-col">
+      {/* Refresh button */}
+      <div className="flex justify-end px-3 pt-1 pb-0.5">
+        <button
+          onClick={() => void refresh()}
+          className="p-1 rounded hover:bg-[var(--color-bg-secondary)] transition-colors"
+          style={{ color: 'var(--color-text-secondary)' }}
+          title="Refresh groups"
         >
-          <span
-            className="w-3 h-3 rounded-full shrink-0 mt-0.5"
-            style={{ backgroundColor: `var(--group-${info.group.color})` }}
-          />
-          <div className="flex-1 min-w-0">
-            <span className="font-medium text-sm truncate block">
-              {info.group.title || 'Unnamed group'}
-            </span>
-            <div className="flex items-center gap-3 mt-0.5 text-xs text-[var(--color-text-secondary)]">
-              <span>{info.totalTabs} tab{info.totalTabs !== 1 ? 's' : ''}</span>
-              <span>{info.sessionCount} session{info.sessionCount !== 1 ? 's' : ''}</span>
-            </div>
-          </div>
-          <ContextMenu
-            items={[
-              {
-                label: 'Open all tabs',
-                icon: RotateCcw,
-                onClick: () => handleOpenAll(info),
-              },
-              {
-                label: 'Copy name',
-                icon: Copy,
-                onClick: () => handleCopyName(info),
-              },
-            ]}
-          >
-            <button
-              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
-              aria-label="Group actions"
-            >
-              <MoreVertical size={14} />
-            </button>
-          </ContextMenu>
+          <RefreshCw size={12} />
+        </button>
+      </div>
+
+      {/* ── Live section ── */}
+      <div>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 border-y border-[var(--color-border)] bg-[var(--color-bg-secondary)]/60">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
+          <span className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>Live</span>
+          <span className="text-[10px] px-1 py-0.5 rounded-full bg-green-500/20 text-green-400 font-medium">{filteredLive.length}</span>
         </div>
-      ))}
+        {filteredLive.length === 0 ? (
+          <p className="text-xs px-3 py-3" style={{ color: 'var(--color-text-secondary)' }}>
+            {q ? 'No matching live groups.' : 'No active tab groups in browser.'}
+          </p>
+        ) : (
+          filteredLive.map((g) => (
+            <HomeLiveGroupRow key={g.id} group={g} onRefresh={refresh} onToast={onToast} />
+          ))
+        )}
+      </div>
+
+      {/* Section divider */}
+      <div className="border-t-2 border-[var(--color-border)]" />
+
+      {/* ── Not Open section ── */}
+      <div>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]/60">
+          <Layers size={11} style={{ color: 'var(--color-text-secondary)' }} className="shrink-0" />
+          <span className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>Not Open</span>
+          <span className="text-[10px] px-1 py-0.5 rounded-full bg-white/10 font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+            {filteredSaved.length}
+          </span>
+        </div>
+        {filteredSaved.length === 0 ? (
+          <p className="text-xs px-3 py-3" style={{ color: 'var(--color-text-secondary)' }}>
+            {q ? 'No matching saved groups.' : 'All saved groups are currently open.'}
+          </p>
+        ) : (
+          filteredSaved.map((t) => (
+            <HomeSavedGroupRow
+              key={t.key}
+              template={t}
+              onRestore={handleRestoreTemplate}
+              onDelete={handleDeleteTemplate}
+              onRename={handleRenameTemplate}
+            />
+          ))
+        )}
+      </div>
     </div>
   );
 }

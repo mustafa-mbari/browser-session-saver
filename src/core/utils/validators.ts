@@ -9,6 +9,17 @@ export function isValidUrl(url: string): boolean {
   }
 }
 
+/** Like isValidUrl but also rejects internal Chrome protocols — use in all import flows. */
+export function isValidImportUrl(url: string): boolean {
+  if (!isValidUrl(url)) return false;
+  try {
+    const { protocol } = new URL(url);
+    return !['chrome:', 'chrome-extension:'].includes(protocol);
+  } catch {
+    return false;
+  }
+}
+
 export function sanitizeUrl(url: string): string {
   if (!isValidUrl(url)) return '';
   return url.trim();
@@ -34,6 +45,7 @@ export function isValidSession(data: unknown): data is Session {
     typeof obj.name === 'string' &&
     typeof obj.createdAt === 'string' &&
     Array.isArray(obj.tabs) &&
+    (obj.tabs as unknown[]).every(isValidTab) &&
     typeof obj.tabCount === 'number'
   );
 }
