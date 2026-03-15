@@ -54,7 +54,7 @@ The new tab page override (`chrome_url_overrides.newtab`) provides:
 | Icons | Lucide React |
 | Drag & Drop | @dnd-kit/core + @dnd-kit/sortable |
 | Virtual Lists | @tanstack/react-virtual |
-| Testing | Vitest + Testing Library (53 tests, 10 files) |
+| Testing | Vitest + Testing Library (115 tests, 12 files) |
 
 ## Project Structure
 

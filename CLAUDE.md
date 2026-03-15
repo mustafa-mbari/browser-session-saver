@@ -30,7 +30,7 @@ npm run format   # Prettier
 - **Messaging**: Typed discriminated union `Message` type between service worker and UI via `chrome.runtime.sendMessage`; 15 action types defined in `messages.types.ts`
 - **Styling**: Tailwind CSS with CSS custom properties for theme tokens, dark mode via `class` strategy. Glassmorphism utilities (`.glass`, `.glass-panel`, `.glass-dark`, `.glass-hover`, `.vignette`) defined in `@layer utilities` in `globals.css`
 - **Components**: All shared components support dark mode and include ARIA attributes
-- **Tests**: Vitest with jsdom, Chrome API mocked in `tests/setup.ts`; 53 tests across 10 files in `tests/unit/`
+- **Tests**: Vitest with jsdom, Chrome API mocked in `tests/setup.ts`; 115 tests across 12 files in `tests/unit/`
 - **i18n**: `_locales/en/messages.json` (~282 keys), `_locales/ar/messages.json`, `_locales/de/messages.json`; `t()` wrapper at `src/shared/utils/i18n.ts`
 - **Virtual scrolling**: `@tanstack/react-virtual` v3 used in `SessionsPanel` (3-column `lanes` grid) and `AutoSavesPanel` (flat list with headers); threshold ≤30 items uses plain DOM, >30 uses virtualizer
 - **Error boundaries**: `src/shared/components/ErrorBoundary.tsx` wraps all major UI sections; reports via `errorBoundaryTitle/Desc/Reload` i18n keys
@@ -127,10 +127,10 @@ npm run format   # Prettier
 - Chrome APIs are mocked globally in `tests/setup.ts`
 - Unit tests in `tests/unit/` organized by module (utils, services, storage, contexts)
   - `tests/unit/utils/` — uuid, date, validators, debounce
-  - `tests/unit/services/` — search, export, import, session-count
+  - `tests/unit/services/` — search, export, import, session-count, session.service, subscription.service
   - `tests/unit/storage/` — chrome-local-key-adapter
   - `tests/unit/contexts/` — bookmark-board-context
-- 53 tests across 10 test files
+- 115 tests across 12 test files
 - Run `npm test` before committing
 
 ## Do Not
