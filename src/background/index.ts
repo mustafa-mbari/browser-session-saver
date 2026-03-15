@@ -1,6 +1,7 @@
 import { registerEventListeners } from './event-listeners';
 import { setupSidePanelController } from './side-panel-controller';
 import { initAutoSaveEngine } from './auto-save-engine';
+import { restoreTabGroupNamesOnStartup } from './tab-group-restore';
 import { migrateIfNeeded } from '@core/services/migration.service';
 import { getSettingsStorage } from '@core/storage/storage-factory';
 import { STORAGE_KEYS } from '@core/types/storage.types';
@@ -11,6 +12,10 @@ console.log('Session Saver service worker started');
 
 setupSidePanelController();
 registerEventListeners();
+
+chrome.runtime.onStartup.addListener(() => {
+  void restoreTabGroupNamesOnStartup();
+});
 
 (async () => {
   await migrateIfNeeded();

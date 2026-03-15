@@ -402,11 +402,14 @@ export default function TabGroupsView() {
       }));
       setLiveGroups(live);
 
-      // Auto-save live groups to template storage
+      // Auto-save live groups to template storage (skip groups with no Chrome title —
+      // they are reset-on-restart groups whose real names will be restored by the
+      // startup handler; saving them now would create junk "Unnamed-blue" entries).
       const now = new Date().toISOString();
+      const groupTitleById = new Map(groups.map((g) => [g.id, g.title ?? '']));
       await Promise.all(
         live
-          .filter((g) => g.tabs.length > 0)
+          .filter((g) => g.tabs.length > 0 && groupTitleById.get(g.id) !== '')
           .map((g) =>
             TabGroupTemplateStorage.upsert({
               key: `${g.title}-${g.color}`,
