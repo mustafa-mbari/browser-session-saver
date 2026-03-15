@@ -48,12 +48,7 @@ const NewTabHeader = forwardRef<HTMLInputElement, Props>(
       <header className="glass-dark shrink-0 flex items-center gap-3 px-4 py-1.5 border-b border-white/10">
         {/* Branding */}
         <div className="flex items-center gap-2 shrink-0">
-          <div
-            className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold"
-            style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
-          >
-            S
-          </div>
+          <img src="/icons/bs_logo.png" alt="Session Saver" className="w-6 h-6 rounded-md" />
           <span className="text-sm font-semibold whitespace-nowrap" style={{ color: 'var(--newtab-text)' }}>
             Session Saver
           </span>

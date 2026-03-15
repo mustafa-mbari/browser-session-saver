@@ -596,7 +596,10 @@ function SubForm({
     });
   };
 
-  const inputBase = 'w-full bg-white/8 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-violet-400/60 focus:bg-white/12 transition-all';
+  // inline style wins over browser UA stylesheet (which forces white bg on inputs/selects)
+  const inputBase = 'w-full border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-violet-400/60 transition-all';
+  const inputStyle: React.CSSProperties = { backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--newtab-text)' };
+  const selectStyle: React.CSSProperties = { ...inputStyle, colorScheme: 'dark' };
 
   if (showTemplates) {
     return (
@@ -710,8 +713,8 @@ function SubForm({
             <div className="flex flex-col gap-2">
               <div>
                 <input
-                  className={`${inputBase} text-sm font-medium ${nameError ? 'border-red-400/60 bg-red-500/5' : ''}`}
-                  style={T}
+                  className={`${inputBase} text-sm font-medium ${nameError ? 'border-red-400/60' : ''}`}
+                  style={{ ...inputStyle, ...(nameError ? { backgroundColor: 'rgba(239,68,68,0.08)' } : {}) }}
                   value={form.name ?? ''}
                   onChange={(e) => { set('name', e.target.value); setNameError(false); }}
                   placeholder="Service name *"
@@ -723,7 +726,7 @@ function SubForm({
               </div>
               <input
                 className={inputBase}
-                style={T}
+                style={inputStyle}
                 value={form.url ?? ''}
                 onChange={(e) => set('url', e.target.value)}
                 placeholder="Website URL (optional)"
@@ -735,22 +738,25 @@ function SubForm({
           <FormSection label="Pricing">
             {/* Amount + currency */}
             <div className="flex gap-2">
-              <div className="flex-1 flex items-center bg-white/8 border border-white/10 rounded-xl overflow-hidden focus-within:border-violet-400/60 focus-within:bg-white/12 transition-all">
-                <span className="pl-3.5 text-sm font-medium shrink-0" style={{ color: 'var(--newtab-text-secondary)', opacity: 0.4 }}>$</span>
+              <div
+                className="flex-1 flex items-center border border-white/10 rounded-xl overflow-hidden focus-within:border-violet-400/60 transition-all"
+                style={{ backgroundColor: 'rgba(255,255,255,0.07)' }}
+              >
+                <span className="pl-3.5 text-sm font-medium shrink-0" style={{ color: 'var(--newtab-text-secondary)', opacity: 0.45 }}>$</span>
                 <input
                   type="number"
                   min="0"
                   step="0.01"
                   className="flex-1 bg-transparent px-2 py-2.5 text-sm outline-none"
-                  style={T}
+                  style={{ color: 'var(--newtab-text)', colorScheme: 'dark' }}
                   value={form.price || ''}
                   onChange={(e) => set('price', parseFloat(e.target.value) || 0)}
                   placeholder="0.00"
                 />
               </div>
               <select
-                className="bg-white/8 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-violet-400/60 transition-all w-24 shrink-0"
-                style={T}
+                className="border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-violet-400/60 transition-all w-24 shrink-0"
+                style={selectStyle}
                 value={form.currency ?? 'USD'}
                 onChange={(e) => set('currency', e.target.value)}
               >
@@ -770,9 +776,9 @@ function SubForm({
                   className={`py-2 rounded-xl text-xs font-medium border transition-all ${
                     form.billingCycle === key
                       ? 'bg-violet-600 text-white border-violet-500/60 shadow-lg shadow-violet-900/30'
-                      : 'bg-white/5 border-white/10 hover:bg-white/12'
+                      : 'border-white/10 hover:border-white/20'
                   }`}
-                  style={form.billingCycle === key ? {} : TS}
+                  style={form.billingCycle === key ? {} : { ...TS, backgroundColor: 'rgba(255,255,255,0.05)' }}
                 >
                   {label}
                 </button>
@@ -785,7 +791,7 @@ function SubForm({
               <input
                 type="date"
                 className={inputBase}
-                style={T}
+                style={{ ...inputStyle, colorScheme: 'dark' }}
                 value={form.nextBillingDate ?? ''}
                 onChange={(e) => set('nextBillingDate', e.target.value)}
               />
@@ -802,9 +808,9 @@ function SubForm({
                   className={`flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium border transition-all ${
                     form.category === k
                       ? 'bg-violet-600/70 text-white border-violet-500/50'
-                      : 'bg-white/5 border-white/8 hover:bg-white/12'
+                      : 'border-white/10 hover:border-white/20'
                   }`}
-                  style={form.category === k ? {} : TS}
+                  style={form.category === k ? {} : { ...TS, backgroundColor: 'rgba(255,255,255,0.05)' }}
                 >
                   <span className="text-sm">{CATEGORY_ICONS[k]}</span>
                   <span className="truncate">{v}</span>
@@ -821,9 +827,9 @@ function SubForm({
                   key={key}
                   onClick={() => set('status', key)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                    form.status === key ? active : 'bg-white/5 border-white/8 hover:bg-white/12'
+                    form.status === key ? active : 'border-white/10 hover:border-white/20'
                   }`}
-                  style={form.status === key ? {} : TS}
+                  style={form.status === key ? {} : { ...TS, backgroundColor: 'rgba(255,255,255,0.05)' }}
                 >
                   {label}
                 </button>
@@ -836,19 +842,22 @@ function SubForm({
             <div className="flex gap-2">
               <input
                 className={`${inputBase} flex-1`}
-                style={T}
+                style={inputStyle}
                 value={form.paymentMethod ?? ''}
                 onChange={(e) => set('paymentMethod', e.target.value)}
                 placeholder="Payment method (Visa, PayPal…)"
               />
-              <div className="flex items-center gap-0.5 bg-white/8 border border-white/10 rounded-xl px-3 focus-within:border-violet-400/60 transition-all w-24 shrink-0">
+              <div
+                className="flex items-center gap-0.5 border border-white/10 rounded-xl px-3 focus-within:border-violet-400/60 transition-all w-24 shrink-0"
+                style={{ backgroundColor: 'rgba(255,255,255,0.07)' }}
+              >
                 <span className="text-xs shrink-0" style={{ color: 'var(--newtab-text-secondary)', opacity: 0.4 }}>🔔</span>
                 <input
                   type="number"
                   min="0"
                   max="30"
                   className="w-full bg-transparent px-1.5 py-2.5 text-sm outline-none"
-                  style={T}
+                  style={{ color: 'var(--newtab-text)', colorScheme: 'dark' }}
                   value={form.reminder ?? 3}
                   onChange={(e) => set('reminder', parseInt(e.target.value) || 0)}
                   title="Reminder days before renewal"
@@ -858,7 +867,7 @@ function SubForm({
             </div>
             <textarea
               className={`${inputBase} resize-none`}
-              style={T}
+              style={inputStyle}
               rows={2}
               value={form.notes ?? ''}
               onChange={(e) => set('notes', e.target.value)}

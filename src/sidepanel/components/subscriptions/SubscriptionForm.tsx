@@ -112,6 +112,7 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
 
   const inputCls = 'w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md px-3 py-1.5 text-sm text-[var(--color-text)] outline-none focus:border-violet-400 transition-colors';
   const labelCls = 'text-xs font-medium text-[var(--color-text-secondary)] mb-1';
+  const selectStyle: React.CSSProperties = { colorScheme: 'dark' };
 
   return (
     <div className="flex flex-col h-full">
@@ -183,6 +184,7 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
             <label className={labelCls}>Currency</label>
             <select
               className={inputCls}
+              style={selectStyle}
               value={form.currency ?? 'USD'}
               onChange={(e) => set('currency', e.target.value)}
             >
@@ -197,6 +199,7 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
             <label className={labelCls}>Billing Cycle</label>
             <select
               className={inputCls}
+              style={selectStyle}
               value={form.billingCycle ?? 'monthly'}
               onChange={(e) => {
                 const cycle = e.target.value as Subscription['billingCycle'];
@@ -227,6 +230,7 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
             <label className={labelCls}>Category</label>
             <select
               className={inputCls}
+              style={selectStyle}
               value={form.category ?? 'personal'}
               onChange={(e) => set('category', e.target.value as Subscription['category'])}
             >
@@ -239,6 +243,7 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
             <label className={labelCls}>Status</label>
             <select
               className={inputCls}
+              style={selectStyle}
               value={form.status ?? 'active'}
               onChange={(e) => set('status', e.target.value as Subscription['status'])}
             >
