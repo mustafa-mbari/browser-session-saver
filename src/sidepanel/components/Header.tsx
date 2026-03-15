@@ -1,4 +1,4 @@
-import { ArrowLeft, Settings, Sun, Moon } from 'lucide-react';
+import { ArrowLeft, Settings, Sun, Moon, CreditCard } from 'lucide-react';
 import { useSidePanelStore } from '../stores/sidepanel.store';
 import { useTheme } from '@shared/hooks/useTheme';
 import AutoSaveBadge from './AutoSaveBadge';
@@ -38,6 +38,18 @@ export default function Header() {
       <div className="flex items-center gap-2">
         <AutoSaveBadge />
         <button
+          onClick={() => navigateTo('subscriptions')}
+          className={`p-1.5 rounded transition-colors ${
+            currentView === 'subscriptions'
+              ? 'text-violet-500 bg-violet-50 dark:bg-violet-900/20'
+              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+          }`}
+          aria-label="Subscriptions"
+          title="Subscriptions (Ctrl+Shift+S)"
+        >
+          <CreditCard size={16} />
+        </button>
+        <button
           onClick={toggleTheme}
           className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           aria-label="Toggle theme"
@@ -62,6 +74,7 @@ function viewTitle(view: string): string {
     'tab-groups': 'Tab Groups',
     settings: 'Settings',
     'import-export': 'Import / Export',
+    subscriptions: 'Subscriptions',
   };
   return titles[view] ?? 'Session Saver';
 }

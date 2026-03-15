@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type SidePanelView = 'home' | 'session-detail' | 'tab-groups' | 'settings' | 'import-export';
+export type SidePanelView = 'home' | 'session-detail' | 'tab-groups' | 'settings' | 'import-export' | 'subscriptions';
 export type FilterType = 'all' | 'manual' | 'auto' | 'starred' | 'pinned';
 export type SortField = 'date' | 'name' | 'tabs';
 

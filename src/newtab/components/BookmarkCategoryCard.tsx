@@ -17,6 +17,7 @@ import { useSortableItems } from '@newtab/hooks/useBookmarkDnd';
 import { resolveFavIcon, getFaviconInitial } from '@core/utils/favicon';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
 import ClockWidget from '@newtab/components/ClockWidget';
+import SubscriptionCardBody from '@newtab/components/SubscriptionCardBody';
 import { generateId } from '@core/utils/uuid';
 
 // ── Bookmark entry row ─────────────────────────────────────────────────────────
@@ -702,6 +703,9 @@ export default function BookmarkCategoryCard({
           rawContent={category.noteContent ?? '[]'}
           onUpdate={(c) => onUpdateNote?.(category.id, c)}
         />
+      )}
+      {!category.collapsed && cardType === 'subscription' && (
+        <SubscriptionCardBody category={category} />
       )}
     </div>
   );

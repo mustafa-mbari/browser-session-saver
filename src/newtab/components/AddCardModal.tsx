@@ -35,6 +35,12 @@ const CARD_TYPES: CardTypeOption[] = [
     label: 'Note',
     description: 'A free-text notepad that auto-saves',
   },
+  {
+    type: 'subscription',
+    icon: '💳',
+    label: 'Subscriptions',
+    description: 'Track recurring payments and renewals',
+  },
 ];
 
 interface Props {

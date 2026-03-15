@@ -139,10 +139,11 @@ export default function FocusLayout() {
 
   const handleAddCategory = useCallback(async (boardId: string, cardType: CardType = 'bookmark') => {
     const defaults: Record<CardType, { name: string; icon: string; color: string }> = {
-      bookmark: { name: 'New Card', icon: '📁', color: '#6366f1' },
-      clock:    { name: 'Clock',    icon: '🕐', color: '#0ea5e9' },
-      note:     { name: 'Note',     icon: '📝', color: '#f59e0b' },
-      todo:     { name: 'To-Do',    icon: '✅', color: '#22c55e' },
+      bookmark:     { name: 'New Card',      icon: '📁', color: '#6366f1' },
+      clock:        { name: 'Clock',         icon: '🕐', color: '#0ea5e9' },
+      note:         { name: 'Note',          icon: '📝', color: '#f59e0b' },
+      todo:         { name: 'To-Do',         icon: '✅', color: '#22c55e' },
+      subscription: { name: 'Subscriptions', icon: '💳', color: '#8b5cf6' },
     };
     const cat = await BookmarkService.saveCategory(newtabDB, {
       boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, colSpan: 1, cardType,

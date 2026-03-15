@@ -17,6 +17,7 @@ import DashboardLayout from '@newtab/layouts/DashboardLayout';
 import SettingsPanel from '@newtab/components/SettingsPanel';
 import WallpaperPicker from '@newtab/components/WallpaperPicker';
 import KeyboardHelpModal from '@newtab/components/KeyboardHelpModal';
+import SubscriptionReminder from '@newtab/components/SubscriptionReminder';
 
 export default function App() {
   const { isLoading } = useNewTabSettings();
@@ -170,6 +171,7 @@ export default function App() {
           onClose={() => store.toggleKeyboardHelp()}
         />
       )}
+      <SubscriptionReminder />
     </div>
   );
 }

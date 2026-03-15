@@ -20,8 +20,8 @@ import type { Session, TabGroup } from '@core/types/session.types';
 type HomeTab = 'session' | 'tab' | 'tab-group';
 
 const HOME_TABS: { key: HomeTab; label: string }[] = [
-  { key: 'session', label: 'Session' },
-  { key: 'tab', label: 'Tab' },
+  { key: 'session',   label: 'Session' },
+  { key: 'tab',       label: 'Tab' },
   { key: 'tab-group', label: 'Tab Group' },
 ];
 

@@ -13,6 +13,7 @@ export default function App() {
     'Ctrl+Shift+D': () => chrome.tabs.create({ url: chrome.runtime.getURL('src/dashboard/index.html') }),
     'Ctrl+Shift+F': () => focusSearch?.(),
     'Ctrl+Shift+E': () => navigateTo('import-export'),
+    'Ctrl+Shift+S': () => navigateTo('subscriptions'),
   });
 
   return (

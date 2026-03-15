@@ -11,6 +11,7 @@ import SessionsPanel from '@newtab/components/SessionsPanel';
 import AutoSavesPanel from '@newtab/components/AutoSavesPanel';
 import TabGroupsPanel from '@newtab/components/TabGroupsPanel';
 import ImportExportPanel from '@newtab/components/ImportExportPanel';
+import SubscriptionsPanel from '@newtab/components/SubscriptionsPanel';
 import AddQuickLinkModal from '@newtab/components/AddQuickLinkModal';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
 import { newtabDB } from '@core/storage/newtab-storage';
@@ -117,10 +118,11 @@ export default function DashboardLayout() {
 
   const handleAddCategory = useCallback(async (boardId: string, cardType: CardType = 'bookmark') => {
     const defaults: Record<CardType, { name: string; icon: string; color: string }> = {
-      bookmark: { name: 'New Card', icon: '📁', color: '#6366f1' },
-      clock:    { name: 'Clock',    icon: '🕐', color: '#0ea5e9' },
-      note:     { name: 'Note',     icon: '📝', color: '#f59e0b' },
-      todo:     { name: 'To-Do',    icon: '✅', color: '#22c55e' },
+      bookmark:     { name: 'New Card',      icon: '📁', color: '#6366f1' },
+      clock:        { name: 'Clock',         icon: '🕐', color: '#0ea5e9' },
+      note:         { name: 'Note',          icon: '📝', color: '#f59e0b' },
+      todo:         { name: 'To-Do',         icon: '✅', color: '#22c55e' },
+      subscription: { name: 'Subscriptions', icon: '💳', color: '#8b5cf6' },
     };
     const cat = await BookmarkService.saveCategory(newtabDB, {
       boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, colSpan: 1, cardType,
@@ -222,7 +224,7 @@ export default function DashboardLayout() {
     : null;
 
   // Determine if current view is a "sessions management" view
-  const isSessionView = ['sessions', 'auto-saves', 'tab-groups', 'import-export'].includes(activeView);
+  const isSessionView = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions'].includes(activeView);
 
   return (
     <div className="relative z-10 h-screen flex flex-col overflow-hidden">
@@ -304,6 +306,9 @@ export default function DashboardLayout() {
               {activeView === 'auto-saves' && <AutoSavesPanel />}
               {activeView === 'tab-groups' && <TabGroupsPanel />}
               {activeView === 'import-export' && <ImportExportPanel />}
+
+              {/* Subscriptions */}
+              {activeView === 'subscriptions' && <SubscriptionsPanel />}
             </div>
           </div>
         </div>

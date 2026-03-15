@@ -12,6 +12,7 @@ import {
   ArrowDownUp,
   RefreshCw,
   Trash2,
+  CreditCard,
 } from 'lucide-react';
 import Tooltip from '@shared/components/Tooltip';
 import ContextMenu from '@shared/components/ContextMenu';
@@ -271,6 +272,18 @@ export default function DashboardSidebar({
             </button>
           </Tooltip>
         ))}
+        <div className="w-full border-t border-white/10 my-1" />
+        <Tooltip content="Subscriptions" position="right">
+          <button
+            onClick={() => onViewChange('subscriptions')}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+              activeView === 'subscriptions' ? 'bg-white/20' : 'hover:bg-white/10'
+            }`}
+            aria-label="Subscriptions"
+          >
+            <CreditCard size={14} style={{ color: 'var(--newtab-text-secondary)' }} />
+          </button>
+        </Tooltip>
       </div>
     );
   }
@@ -362,6 +375,19 @@ export default function DashboardSidebar({
             />
           </div>
         )}
+      </div>
+
+      {/* ── SUBSCRIPTIONS ── */}
+      <div className="mt-1">
+        <SectionLabel label="Subscriptions" />
+        <div className="flex flex-col gap-0.5 px-2">
+          <NavItem
+            icon={<CreditCard size={13} />}
+            label="Manage Subscriptions"
+            active={activeView === 'subscriptions'}
+            onClick={() => onViewChange('subscriptions')}
+          />
+        </div>
       </div>
 
       {/* ── NATIVE BOOKMARKS ── */}

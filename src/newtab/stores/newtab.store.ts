@@ -21,7 +21,8 @@ export type NewTabView =
   | 'sessions'
   | 'auto-saves'
   | 'tab-groups'
-  | 'import-export';
+  | 'import-export'
+  | 'subscriptions';
 
 interface NewTabState {
   settings: NewTabSettings;
