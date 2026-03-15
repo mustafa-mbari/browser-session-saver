@@ -1,0 +1,249 @@
+{
+  "extName": {
+    "message": "Session Saver"
+  },
+  "extDescription": {
+    "message": "Speichern, wiederherstellen und verwalten Sie Ihre Browser-Sitzungen mit einem Klick. Die automatische Speicherung schützt Ihre Tabs vor dem Herunterfahren, Ruhezustand oder niedrigem Akkustand."
+  },
+  "saveSession": {
+    "message": "Sitzung speichern"
+  },
+  "saveAndClose": {
+    "message": "Speichern und schließen"
+  },
+  "allWindows": {
+    "message": "Alle Fenster"
+  },
+  "restoreSession": {
+    "message": "Wiederherstellen"
+  },
+  "deleteSession": {
+    "message": "Löschen"
+  },
+  "exportSessions": {
+    "message": "Exportieren"
+  },
+  "importSessions": {
+    "message": "Importieren"
+  },
+  "settings": {
+    "message": "Einstellungen"
+  },
+  "searchPlaceholder": {
+    "message": "Sitzungen suchen..."
+  },
+  "noSessions": {
+    "message": "Keine Sitzungen gespeichert"
+  },
+  "noSessionsDesc": {
+    "message": "Speichern Sie Ihre aktuellen Tabs, um zu beginnen. Sitzungen werden hier angezeigt."
+  },
+  "autoSaveActive": {
+    "message": "Automatisches Speichern aktiv"
+  },
+  "autoSavePaused": {
+    "message": "Automatisches Speichern pausiert"
+  },
+  "sessionRestored": {
+    "message": "Sitzung wiederhergestellt"
+  },
+  "sessionDeleted": {
+    "message": "Sitzung gelöscht"
+  },
+  "sessionSaved": {
+    "message": "Sitzung gespeichert"
+  },
+  "filterAll": {
+    "message": "Alle"
+  },
+  "filterManual": {
+    "message": "Manuell"
+  },
+  "filterAuto": {
+    "message": "Automatisch"
+  },
+  "filterStarred": {
+    "message": "Markiert"
+  },
+  "filterPinned": {
+    "message": "Angeheftet"
+  },
+  "openDashboard": {
+    "message": "Dashboard öffnen"
+  },
+  "openSidePanel": {
+    "message": "Seitenleiste öffnen"
+  },
+  "enableAutoSave": {
+    "message": "Automatisches Speichern aktivieren"
+  },
+  "saveInterval": {
+    "message": "Speicherintervall"
+  },
+  "maxAutoSaves": {
+    "message": "Max. automatische Speicherungen"
+  },
+  "saveOnBrowserClose": {
+    "message": "Beim Schließen des Browsers speichern"
+  },
+  "saveOnLowBattery": {
+    "message": "Bei niedrigem Akkustand speichern"
+  },
+  "saveOnSleep": {
+    "message": "Bei Ruhezustand / Hibernate speichern"
+  },
+  "saveOnNetworkDisconnect": {
+    "message": "Bei Netzwerktrennung speichern"
+  },
+  "theme": {
+    "message": "Design"
+  },
+  "themeSystem": {
+    "message": "System"
+  },
+  "themeLight": {
+    "message": "Hell"
+  },
+  "themeDark": {
+    "message": "Dunkel"
+  },
+  "confirmDelete": {
+    "message": "Möchten Sie diese Sitzung wirklich löschen?"
+  },
+  "clearAllData": {
+    "message": "Alle Sitzungsdaten löschen"
+  },
+  "clearAllDataWarning": {
+    "message": "Dadurch werden alle gespeicherten Sitzungen, automatischen Speicherungen und Einstellungen dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."
+  },
+  "tabs": {
+    "message": "$COUNT$ Tab$PLURAL$",
+    "placeholders": {
+      "count": { "content": "$1" },
+      "plural": { "content": "$2" }
+    }
+  },
+  "groups": {
+    "message": "$COUNT$ Gruppen",
+    "placeholders": { "count": { "content": "$1" } }
+  },
+  "undoDelete": {
+    "message": "Rückgängig"
+  },
+  "addTag": {
+    "message": "+ Schlagwort hinzufügen"
+  },
+  "addNotes": {
+    "message": "Notizen hinzufügen..."
+  },
+  "editTabs": {
+    "message": "Bearbeiten"
+  },
+  "exportFormat_markdown": {
+    "message": "Markdown"
+  },
+  "exportFormat_csv": {
+    "message": "CSV"
+  },
+  "exportFormat_text": {
+    "message": "Text"
+  },
+  "mergeSessions": {
+    "message": "Zusammenführen"
+  },
+  "compareSessions": {
+    "message": "Vergleichen"
+  },
+  "duplicateWarning": {
+    "message": "Sitzung sieht identisch mit einer kürzlichen Speicherung aus"
+  },
+  "restoreSelectiveTabs": {
+    "message": "Sitzung wiederherstellen"
+  },
+  "restoreMode_new_window": {
+    "message": "Neues Fenster"
+  },
+  "restoreMode_current": {
+    "message": "Ersetzen"
+  },
+  "restoreMode_append": {
+    "message": "Anhängen"
+  },
+  "tabsFailed": {
+    "message": "$COUNT$ Tab$PLURAL$ konnte nicht geöffnet werden",
+    "placeholders": {
+      "count": { "content": "$1" },
+      "plural": { "content": "$2" }
+    }
+  },
+  "keyboardShortcutRestore": {
+    "message": "Zu Sitzungen wechseln (Ctrl+Shift+R)"
+  },
+  "keyboardShortcutDashboard": {
+    "message": "Dashboard öffnen (Ctrl+Shift+D)"
+  },
+  "keyboardShortcutSearch": {
+    "message": "Suche fokussieren (Ctrl+Shift+F)"
+  },
+  "keyboardShortcutExport": {
+    "message": "Schnellexport (Ctrl+Shift+E)"
+  },
+  "bulkDelete": {
+    "message": "$COUNT$ Sitzungen gelöscht",
+    "placeholders": { "count": { "content": "$1" } }
+  },
+  "searchTagHint": {
+    "message": "Verwenden Sie #Schlagwort zum Filtern"
+  },
+  "tabGroups": {
+    "message": "Tab-Gruppen"
+  },
+  "liveGroups": {
+    "message": "Aktive Gruppen"
+  },
+  "savedGroups": {
+    "message": "Gespeicherte Gruppen"
+  },
+  "restoreGroup": {
+    "message": "Gruppe wiederherstellen"
+  },
+  "saveGroupTemplate": {
+    "message": "Als Vorlage speichern"
+  },
+  "noTabGroups": {
+    "message": "Keine Tab-Gruppen"
+  },
+  "noTabGroupsDesc": {
+    "message": "Gruppieren Sie Ihre Tabs in Chrome, um sie hier zu sehen"
+  },
+  "subscriptions": {
+    "message": "Abonnements"
+  },
+  "addSubscription": {
+    "message": "Abonnement hinzufügen"
+  },
+  "subscriptionsEmpty": {
+    "message": "Noch keine Abonnements"
+  },
+  "monthlySpend": {
+    "message": "Monatliche Ausgaben"
+  },
+  "purgeOldAutoSaves": {
+    "message": "+7 Tage löschen"
+  },
+  "noAutoSaves": {
+    "message": "Noch keine automatischen Speicherungen"
+  },
+  "noAutoSavesDesc": {
+    "message": "Automatische Speicherungen erscheinen beim Schließen des Browsers, Ruhezustand, niedrigem Akkustand oder Timer"
+  },
+  "errorBoundaryTitle": {
+    "message": "Etwas ist schiefgelaufen"
+  },
+  "errorBoundaryDesc": {
+    "message": "In diesem Abschnitt ist ein unerwarteter Fehler aufgetreten."
+  },
+  "errorBoundaryReload": {
+    "message": "Neu laden"
+  }
+}
