@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Session Saver is a Chrome extension (Manifest V3) that saves, restores, and manages browser sessions. The primary UI is a Chrome Side Panel built with React 18 + TypeScript + Tailwind CSS. It also includes a New Tab Page Override with glassmorphism UI, bookmark management, to-do, and session widgets.
+Session Saver is a Chrome extension (Manifest V3) that saves, restores, and manages browser sessions. It includes a Chrome Side Panel (primary UI), New Tab Page Override with glassmorphism UI, a full-page Dashboard, a Popup for quick actions, and a content script for scroll position capture — all built with React 18 + TypeScript + Tailwind CSS.
 
 ## Commands
 
@@ -19,31 +19,48 @@ npm run format   # Prettier
 - **Background service worker** (`src/background/`) — all Chrome API calls, auto-save engine, message handling
 - **Core layer** (`src/core/`) — framework-agnostic types, services, storage, utilities
 - **UI surfaces** — Side Panel (`src/sidepanel/`), Popup (`src/popup/`), Dashboard (`src/dashboard/`), New Tab (`src/newtab/`)
-- **Shared** (`src/shared/`) — reusable components, hooks, styles used by all UI surfaces
+- **Content script** (`src/content/`) — scroll position capture via `CAPTURE_SCROLL` message listener
+- **Shared** (`src/shared/`) — reusable components, hooks, styles, i18n utilities used by all UI surfaces
 
 ## Key Conventions
 
 - **Path aliases**: `@core/*`, `@shared/*`, `@background/*`, `@sidepanel/*`, `@popup/*`, `@dashboard/*`, `@newtab/*`
 - **State management**: Zustand stores per UI surface (sidepanel.store.ts, dashboard.store.ts, newtab.store.ts)
 - **Storage**: chrome.storage.local for settings, IndexedDB for sessions — abstracted via `IStorage` interface; newtab uses a separate `newtab-db` (NewTabDB class in `src/core/storage/newtab-storage.ts`) for bookmarks/todos/wallpapers
-- **Messaging**: Typed discriminated union `Message` type between service worker and UI via `chrome.runtime.sendMessage`
+- **Messaging**: Typed discriminated union `Message` type between service worker and UI via `chrome.runtime.sendMessage`; 15 action types defined in `messages.types.ts`
 - **Styling**: Tailwind CSS with CSS custom properties for theme tokens, dark mode via `class` strategy. Glassmorphism utilities (`.glass`, `.glass-panel`, `.glass-dark`, `.glass-hover`, `.vignette`) defined in `@layer utilities` in `globals.css`
 - **Components**: All shared components support dark mode and include ARIA attributes
 - **Tests**: Vitest with jsdom, Chrome API mocked in `tests/setup.ts`
+- **i18n**: `_locales/en/messages.json` (265 keys) and `_locales/ar/messages.json`; `t()` wrapper at `src/shared/utils/i18n.ts`
+- **View unions**:
+  - `SidePanelView`: `'home' | 'session-detail' | 'tab-groups' | 'settings' | 'import-export' | 'subscriptions'`
+  - `DashboardPage`: `'sessions' | 'auto-saves' | 'tab-groups' | 'import-export' | 'settings'`
+  - `CardType`: `'bookmark' | 'clock' | 'note' | 'todo' | 'subscription' | 'tab-groups'`
 
 ## Important Files
 
-- `public/manifest.json` — Chrome Manifest V3 with permissions, side_panel, and `chrome_url_overrides.newtab`; includes `topSites`, `bookmarks`, `optional_permissions: [history]`, `host_permissions: [chrome://favicon/*]`
-- `src/core/types/session.types.ts` — Core data model (Session, Tab, TabGroup)
-- `src/core/types/newtab.types.ts` — New tab data models: Board, BookmarkCategory, BookmarkEntry, QuickLink, TodoItem, TodoList, NewTabSettings, GRADIENT_PRESETS
-- `src/core/types/messages.types.ts` — Message protocol between SW and UI
+- `public/manifest.json` — Chrome Manifest V3 with permissions (`tabs`, `tabGroups`, `storage`, `alarms`, `idle`, `sidePanel`, `activeTab`, `topSites`, `bookmarks`), `optional_permissions: [history]`, side_panel, and `chrome_url_overrides.newtab`
+- `src/core/types/session.types.ts` — Core data model (Session, Tab, TabGroup, AutoSaveTrigger, ChromeGroupColor)
+- `src/core/types/newtab.types.ts` — New tab data models: Board, BookmarkCategory, BookmarkEntry, QuickLink, TodoItem, TodoList, NewTabSettings, CardType, GRADIENT_PRESETS
+- `src/core/types/messages.types.ts` — Message protocol between SW and UI (15 action types)
+- `src/core/types/subscription.types.ts` — Subscription, SubscriptionTemplate, BillingCycle, DueUrgency, SUPPORTED_CURRENCIES, SUBSCRIPTION_TEMPLATES (22 presets)
+- `src/core/types/tab-group.types.ts` — TabGroupTemplate, TabGroupTemplateTab
 - `src/core/storage/newtab-storage.ts` — Multi-store IndexedDB adapter (newtab-db v1); stores: quickLinks, boards, bookmarkCategories, bookmarkEntries, todoLists, todoItems, wallpaperImages
-- `src/background/event-listeners.ts` — Central message dispatcher
+- `src/core/storage/subscription-storage.ts` — Flat chrome.storage.local adapter; keys: `subscriptions` (Subscription[]), `subscription_categories` (CustomCategory[])
+- `src/core/storage/tab-group-template-storage.ts` — Static class adapter; key: `tab_group_templates` in chrome.storage.local
+- `src/core/services/subscription.service.ts` — Urgency calculation, monthly normalization, analytics, CSV import/export, currency formatting
+- `src/background/event-listeners.ts` — Central message dispatcher (15 handlers)
 - `src/background/auto-save-engine.ts` — Auto-save trigger management; calls `upsertAutoSaveSession` so each trigger type maintains exactly one pinned entry (updated in place)
-- `src/sidepanel/views/HomeView.tsx` — Primary user-facing view
+- `src/content/scroll-capture.ts` — Content script listening for `CAPTURE_SCROLL` messages, returns `{x, y}` scroll position
+- `src/sidepanel/views/HomeView.tsx` — Primary user-facing view with sessions, current tabs, and tab groups tabs
+- `src/sidepanel/views/SubscriptionsView.tsx` — Subscription management with List/Calendar/Analytics tabs
+- `src/sidepanel/views/TabGroupsView.tsx` — Live and saved tab groups management
+- `src/dashboard/App.tsx` — Dashboard root with 5 pages and sidebar navigation
+- `src/dashboard/stores/dashboard.store.ts` — Dashboard Zustand store with `DashboardPage` union type
 - `src/newtab/App.tsx` — New Tab root component: data loading, layout selection, overlay management
 - `src/newtab/stores/newtab.store.ts` — Single Zustand store for all newtab state (settings, boards, categories, entries, quickLinks, todoLists, todoItems, UI flags)
 - `src/newtab/hooks/useNewTabSettings.ts` — Settings load/sync hook (reads `newtab_settings` key from chrome.storage.local)
+- `src/newtab/components/SubscriptionReminder.tsx` — Glassmorphism toast overlay for upcoming subscription renewals (24-hour snooze)
 - `src/core/services/newtab-settings.service.ts` — Read/write NewTabSettings via `getSettingsStorage()`
 
 ## New Tab Page Notes
@@ -55,6 +72,37 @@ npm run format   # Prettier
 - Glassmorphism CSS: `.glass` (16px blur), `.glass-panel` (24px blur), `.glass-dark` — defined in `globals.css @layer utilities`
 - `BackgroundLayer` renders behind all content (z-index 0); dimming overlay and vignette are separate child divs
 - Drag-and-drop: @dnd-kit/sortable with `horizontalListSortingStrategy` for quick links, `verticalListSortingStrategy` for bookmark entries, `rectSortingStrategy` for category grid
+- Six card types: bookmark, clock, note, todo, subscription, tab-groups — rendered by `BookmarkCategoryCard.tsx` with type-specific bodies
+- Top nav tabs: Quick Links, Frequently Visited, Tabs, Activity — plus sidebar panels for Sessions, Auto-Saves, Tab Groups, Import/Export, Subscriptions
+
+## Subscriptions Feature Notes
+
+- Storage: `subscriptions` key in `chrome.storage.local` via `SubscriptionStorage` functions in `src/core/storage/subscription-storage.ts`
+- Custom categories: `subscription_categories` key in `chrome.storage.local`
+- NOT using IndexedDB, NOT going through background service worker
+- Sidepanel view: `'subscriptions'` in `SidePanelView` union, navigated via CreditCard button in Header
+- Sidepanel sub-components in `src/sidepanel/components/subscriptions/`: SubscriptionForm, SubscriptionList, SubscriptionRow, SubscriptionCalendar, SubscriptionAnalytics, SubscriptionSummaryStrip, QuickAddTemplates
+- Newtab integration: `SubscriptionCardBody` card type, `SubscriptionsPanel` sidebar view, `SubscriptionReminder` toast on new tab load
+- Service: `src/core/services/subscription.service.ts` — urgency levels (overdue/today/urgent/soon/safe), monthly normalization, category breakdown, CSV round-trip
+
+## Tab Groups Feature Notes
+
+- Storage: `tab_group_templates` key in `chrome.storage.local` via `TabGroupTemplateStorage` static class in `src/core/storage/tab-group-template-storage.ts`
+- Types: `TabGroupTemplate` and `TabGroupTemplateTab` in `src/core/types/tab-group.types.ts`
+- Live groups queried via `chrome.tabGroups.query({})` + `chrome.tabs.query({})` — available in all extension pages
+- Sidepanel view: `'tab-groups'` in `SidePanelView` union — `src/sidepanel/views/TabGroupsView.tsx` with live/saved sections
+- Dashboard page: `'tab-groups'` in `DashboardPage` — `src/dashboard/pages/TabGroupsPage.tsx`
+- Newtab: `TabGroupsCardBody` card type, `TabGroupsPanel` sidebar view
+- Auto-save: live groups automatically saved as templates when viewed
+- `ChromeGroupColor` type from `src/core/types/session.types.ts` (9 colors: grey, blue, red, yellow, green, pink, purple, cyan, orange)
+
+## Dashboard Notes
+
+- 5 pages: Sessions, Auto-Saves, Tab Groups, Import/Export, Settings
+- Zustand store: `src/dashboard/stores/dashboard.store.ts` with `DashboardPage` type
+- Sidebar navigation: `src/dashboard/components/Sidebar.tsx`
+- Sessions page features: StatsWidget, search with debounce, session list with checkboxes, session detail panel, bulk toolbar (merge/export/delete), diff modal for session comparison
+- Full-page management UI at `src/dashboard/index.html`
 
 ## Testing
 
@@ -67,5 +115,7 @@ npm run format   # Prettier
 - Do not add `popup` to `action.default_popup` in manifest — Side Panel opens via `openPanelOnActionClick`
 - Do not use `chrome.storage.sync` — all data is local only
 - Do not import from `@background/` in UI code — communicate via messages only
+- Do not import from `@background/` in content script — it only listens for `CAPTURE_SCROLL`
 - Do not modify the `session-saver` IndexedDB — newtab data uses the separate `newtab-db` (NewTabDB class)
 - Do not merge NewTabSettings into the existing Settings type — it lives under its own storage key
+- Do not put subscriptions or tab-group templates in IndexedDB — they use flat `chrome.storage.local` keys
