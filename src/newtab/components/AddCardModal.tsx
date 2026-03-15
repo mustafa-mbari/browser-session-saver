@@ -41,6 +41,12 @@ const CARD_TYPES: CardTypeOption[] = [
     label: 'Subscriptions',
     description: 'Track recurring payments and renewals',
   },
+  {
+    type: 'tab-groups',
+    icon: '🗂️',
+    label: 'Tab Groups',
+    description: 'View and manage your live browser tab groups',
+  },
 ];
 
 interface Props {

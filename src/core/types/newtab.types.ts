@@ -1,5 +1,5 @@
 export type LayoutMode = 'minimal' | 'focus' | 'dashboard';
-export type CardType = 'bookmark' | 'clock' | 'note' | 'todo' | 'subscription';
+export type CardType = 'bookmark' | 'clock' | 'note' | 'todo' | 'subscription' | 'tab-groups';
 export type CardDensity = 'comfortable' | 'compact';
 export type SearchEngine = 'google' | 'bing' | 'duckduckgo' | 'brave' | 'custom';
 export type ClockFormat = '12h' | '24h';

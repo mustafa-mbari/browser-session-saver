@@ -18,6 +18,7 @@ import { resolveFavIcon, getFaviconInitial } from '@core/utils/favicon';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
 import ClockWidget from '@newtab/components/ClockWidget';
 import SubscriptionCardBody from '@newtab/components/SubscriptionCardBody';
+import TabGroupsCardBody from '@newtab/components/TabGroupsCardBody';
 import { generateId } from '@core/utils/uuid';
 
 // ── Bookmark entry row ─────────────────────────────────────────────────────────
@@ -706,6 +707,9 @@ export default function BookmarkCategoryCard({
       )}
       {!category.collapsed && cardType === 'subscription' && (
         <SubscriptionCardBody category={category} />
+      )}
+      {!category.collapsed && cardType === 'tab-groups' && (
+        <TabGroupsCardBody category={category} />
       )}
     </div>
   );

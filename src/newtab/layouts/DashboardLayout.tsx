@@ -123,6 +123,7 @@ export default function DashboardLayout() {
       note:         { name: 'Note',          icon: '📝', color: '#f59e0b' },
       todo:         { name: 'To-Do',         icon: '✅', color: '#22c55e' },
       subscription: { name: 'Subscriptions', icon: '💳', color: '#8b5cf6' },
+      'tab-groups':  { name: 'Tab Groups',    icon: '🗂️', color: '#06b6d4' },
     };
     const cat = await BookmarkService.saveCategory(newtabDB, {
       boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, colSpan: 1, cardType,
