@@ -86,6 +86,20 @@ export function useSession() {
     [sendMessage],
   );
 
+  const updateSessionTabs = useCallback(
+    async (sessionId: string) => {
+      const response = await sendMessage<{ addedCount: number; removedCount: number }>({
+        action: 'UPDATE_SESSION_TABS',
+        payload: { sessionId },
+      });
+      if (response.success) {
+        notifySessionsChanged();
+      }
+      return response;
+    },
+    [sendMessage],
+  );
+
   // Initial load
   useEffect(() => {
     refreshSessions();
@@ -120,6 +134,7 @@ export function useSession() {
     restoreSession,
     deleteSession,
     updateSession,
+    updateSessionTabs,
     refreshSessions,
   };
 }

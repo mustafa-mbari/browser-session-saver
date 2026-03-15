@@ -1,5 +1,5 @@
 import { memo, useState, useCallback, useMemo, useRef } from 'react';
-import { MoreVertical, RotateCcw, Trash2, Edit, Pin, Star, Download, Lock } from 'lucide-react';
+import { MoreVertical, RotateCcw, RefreshCw, Trash2, Edit, Pin, Star, Download, Lock } from 'lucide-react';
 import type { Session } from '@core/types/session.types';
 import type { ToastData } from '@shared/components/Toast';
 import { formatRelative } from '@core/utils/date';
@@ -16,7 +16,7 @@ interface SessionCardProps {
 
 export default memo(function SessionCard({ session, onToast }: SessionCardProps) {
   const { navigateTo, isSelectionMode, selectedSessionIds, toggleSelection } = useSidePanelStore();
-  const { restoreSession, deleteSession, updateSession } = useSession();
+  const { restoreSession, deleteSession, updateSession, updateSessionTabs } = useSession();
   const { sendMessage } = useMessaging();
   const [restoring, setRestoring] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -102,6 +102,22 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
       onClick: () => navigateTo('session-detail', session.id),
     },
     {
+      label: 'Update',
+      icon: RefreshCw,
+      onClick: async () => {
+        const res = await updateSessionTabs(session.id);
+        if (res.success && res.data) {
+          const { addedCount } = res.data;
+          onToast?.({
+            message: addedCount > 0 ? `${addedCount} new tab${addedCount !== 1 ? 's' : ''} added` : 'Already up to date',
+            type: 'success',
+          });
+        } else {
+          onToast?.({ message: res.error ?? 'Failed to update', type: 'error' });
+        }
+      },
+    },
+    {
       label: 'Export',
       icon: Download,
       onClick: async () => {
@@ -131,7 +147,7 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
       onClick: handleDelete,
       danger: true,
     },
-  ], [session, updateSession, navigateTo, sendMessage, handleDelete]);
+  ], [session, updateSession, updateSessionTabs, navigateTo, sendMessage, handleDelete]);
 
   const isSelected = selectedSessionIds.has(session.id);
 

@@ -15,6 +15,8 @@ registerEventListeners();
 
 chrome.runtime.onStartup.addListener(() => {
   void restoreTabGroupNamesOnStartup();
+  // Signal to the New Tab page and sidepanel that a restore prompt should be shown.
+  chrome.storage.local.set({ session_restore_prompt: { shownAt: Date.now() } });
 });
 
 (async () => {

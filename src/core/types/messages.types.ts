@@ -40,7 +40,8 @@ export type Message =
   | { action: 'UNDELETE_SESSION'; payload: { session: Session } }
   | { action: 'MERGE_SESSIONS'; payload: { sessionIds: string[]; targetName: string } }
   | { action: 'DIFF_SESSIONS'; payload: { sessionIdA: string; sessionIdB: string } }
-  | { action: 'RESTORE_SELECTED_TABS'; payload: { sessionId: string; tabIds: string[]; mode: RestoreMode } };
+  | { action: 'RESTORE_SELECTED_TABS'; payload: { sessionId: string; tabIds: string[]; mode: RestoreMode } }
+  | { action: 'UPDATE_SESSION_TABS'; payload: { sessionId: string } };
 
 export interface MessageResponse<T = unknown> {
   success: boolean;

@@ -18,6 +18,7 @@ import SettingsPanel from '@newtab/components/SettingsPanel';
 import WallpaperPicker from '@newtab/components/WallpaperPicker';
 import KeyboardHelpModal from '@newtab/components/KeyboardHelpModal';
 import SubscriptionReminder from '@newtab/components/SubscriptionReminder';
+import SessionRestoreReminder from '@newtab/components/SessionRestoreReminder';
 
 export default function App() {
   const { isLoading } = useNewTabSettings();
@@ -190,6 +191,7 @@ export default function App() {
         />
       )}
       <SubscriptionReminder />
+      <SessionRestoreReminder />
     </div>
   );
 }

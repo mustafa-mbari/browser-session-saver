@@ -52,6 +52,8 @@ async function handleMessage(message: Message): Promise<MessageResponse> {
       return handleDiffSessions(message.payload);
     case 'RESTORE_SELECTED_TABS':
       return handleRestoreSelectedTabs(message.payload);
+    case 'UPDATE_SESSION_TABS':
+      return handleUpdateSessionTabs(message.payload);
     default:
       return { success: false, error: 'Unknown action' };
   }
@@ -420,6 +422,52 @@ async function handleRestoreSelectedTabs(payload: {
     success: true,
     data: failedUrls.length > 0 ? { failedUrls } : undefined,
   };
+}
+
+async function handleUpdateSessionTabs(payload: {
+  sessionId: string;
+}): Promise<MessageResponse<{ addedCount: number; removedCount: number }>> {
+  const session = await SessionService.getSession(payload.sessionId);
+  if (!session) return { success: false, error: 'Session not found' };
+
+  const windowId = await getCurrentWindowId();
+  const [chromeTabs, chromeGroups] = await Promise.all([
+    chrome.tabs.query({ windowId }),
+    chrome.tabGroups.query({ windowId }),
+  ]);
+
+  const { tabs: currentTabs, tabGroups: currentTabGroups } = captureTabGroups(chromeTabs, chromeGroups);
+
+  const settingsStorage = getSettingsStorage();
+  const settings = (await settingsStorage.get<Settings>(STORAGE_KEYS.SETTINGS)) ?? DEFAULT_SETTINGS;
+
+  const existingUrls = new Set(session.tabs.map((t) => t.url));
+  const currentUrls = new Set(currentTabs.map((t) => t.url));
+
+  // Always add new tabs
+  const newTabs = currentTabs.filter((t) => !existingUrls.has(t.url));
+  let finalTabs = [...session.tabs, ...newTabs];
+  let removedCount = 0;
+
+  // Optionally remove tabs no longer open
+  if (settings.removeClosedTabsOnUpdate) {
+    const beforeLen = finalTabs.length;
+    finalTabs = finalTabs.filter((t) => currentUrls.has(t.url));
+    removedCount = beforeLen - finalTabs.length;
+  }
+
+  // Merge tab groups (add new ones by title+color key)
+  const existingGroupKeys = new Set(session.tabGroups.map((g) => `${g.title}-${g.color}`));
+  const newGroups = currentTabGroups.filter((g) => !existingGroupKeys.has(`${g.title}-${g.color}`));
+  const finalGroups = [...session.tabGroups, ...newGroups];
+
+  await SessionService.updateSession(payload.sessionId, {
+    tabs: finalTabs,
+    tabGroups: finalGroups,
+    tabCount: finalTabs.length,
+  });
+
+  return { success: true, data: { addedCount: newTabs.length, removedCount } };
 }
 
 async function getCurrentWindowId(): Promise<number> {

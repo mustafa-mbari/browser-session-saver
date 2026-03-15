@@ -114,6 +114,12 @@ export default function SettingsView() {
           checked={settings.closeTabsAfterSave}
           onChange={(v) => updateSetting('closeTabsAfterSave', v)}
         />
+        <Toggle
+          label="Remove closed tabs when updating a session"
+          checked={settings.removeClosedTabsOnUpdate ?? false}
+          onChange={(v) => updateSetting('removeClosedTabsOnUpdate', v)}
+          description="Off (default): updating a session only adds new tabs. On: also removes session tabs no longer open in the current window."
+        />
       </Section>
 
       {/* Data */}

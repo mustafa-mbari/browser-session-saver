@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
-import { ExternalLink, Download, Trash2, X, Layers, MoreVertical, Pin, Copy, RotateCcw } from 'lucide-react';
+import { ExternalLink, Download, Trash2, X, Layers, MoreVertical, Pin, Copy, RotateCcw, History } from 'lucide-react';
 import { useSession } from '@shared/hooks/useSession';
 import { useSearch } from '@shared/hooks/useSearch';
 import { useSidePanelStore } from '../stores/sidepanel.store';
@@ -16,6 +16,11 @@ import { generateId } from '@core/utils/uuid';
 import type { SessionFilter } from '@core/types/messages.types';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import type { Session, TabGroup } from '@core/types/session.types';
+import * as SessionService from '@core/services/session.service';
+import { formatRelative } from '@core/utils/date';
+
+const PROMPT_KEY = 'session_restore_prompt';
+const PROMPT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 type HomeTab = 'session' | 'tab' | 'tab-group';
 
@@ -34,11 +39,47 @@ const SEARCH_PLACEHOLDERS: Record<HomeTab, string> = {
 export default function HomeView() {
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>('session');
   const [searchQuery, setSearchQuery] = useState('');
-  const { sessions, loading, deleteSession } = useSession();
+  const { sessions, loading, deleteSession, restoreSession } = useSession();
   const { activeFilter, sortBy, sortDirection, selectedSessionIds, isSelectionMode, clearSelection } = useSidePanelStore();
   const { sendMessage } = useMessaging();
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [restorePromptSession, setRestorePromptSession] = useState<Session | null>(null);
+  const [restorePromptDismissed, setRestorePromptDismissed] = useState(false);
+  const [restoringPrompt, setRestoringPrompt] = useState(false);
+
+  useEffect(() => {
+    async function checkRestorePrompt() {
+      const record = await new Promise<{ shownAt: number } | undefined>((resolve) =>
+        chrome.storage.local.get(PROMPT_KEY, (r) =>
+          resolve((r as Record<string, { shownAt: number } | undefined>)[PROMPT_KEY]),
+        ),
+      );
+      if (!record || Date.now() - record.shownAt > PROMPT_MAX_AGE_MS) return;
+      const autoSaves = await SessionService.getAllSessions({ isAutoSave: true });
+      if (autoSaves.length > 0) setRestorePromptSession(autoSaves[0]);
+    }
+    void checkRestorePrompt();
+  }, []);
+
+  const dismissRestorePrompt = useCallback(() => {
+    chrome.storage.local.remove(PROMPT_KEY);
+    setRestorePromptDismissed(true);
+  }, []);
+
+  const handleRestorePrompt = useCallback(async () => {
+    if (!restorePromptSession) return;
+    setRestoringPrompt(true);
+    const result = await restoreSession(restorePromptSession.id, 'new_window');
+    setRestoringPrompt(false);
+    const id = generateId();
+    if (result.success) {
+      setToasts((prev) => [...prev, { id, message: 'Session restored in new window', type: 'success' as const }]);
+    } else {
+      setToasts((prev) => [...prev, { id, message: result.error ?? 'Failed to restore', type: 'error' as const }]);
+    }
+    dismissRestorePrompt();
+  }, [restorePromptSession, restoreSession, dismissRestorePrompt]);
 
   const handleTabChange = useCallback((tab: HomeTab) => {
     setActiveHomeTab(tab);
@@ -169,6 +210,39 @@ export default function HomeView() {
         placeholder={SEARCH_PLACEHOLDERS[activeHomeTab]}
         showFilters={activeHomeTab === 'session'}
       />
+
+      {/* Startup restore banner */}
+      {activeHomeTab === 'session' && !restorePromptDismissed && restorePromptSession && (
+        <div className="mx-3 mb-1 px-3 py-2 rounded-lg border border-blue-400/30 bg-blue-500/10 flex items-center gap-2">
+          <History size={14} className="text-blue-400 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-[var(--color-text)] truncate">
+              Restore last session?
+            </p>
+            <p className="text-[10px] text-[var(--color-text-secondary)]">
+              {restorePromptSession.tabCount} tab{restorePromptSession.tabCount !== 1 ? 's' : ''} · {formatRelative(restorePromptSession.updatedAt)}
+            </p>
+          </div>
+          <button
+            onClick={() => void handleRestorePrompt()}
+            disabled={restoringPrompt}
+            className="px-2 py-1 text-xs font-medium bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-md transition-colors shrink-0"
+          >
+            {restoringPrompt ? (
+              <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin inline-block" />
+            ) : (
+              'Restore'
+            )}
+          </button>
+          <button
+            onClick={dismissRestorePrompt}
+            className="p-0.5 rounded hover:bg-blue-500/20 text-[var(--color-text-secondary)] shrink-0"
+            aria-label="Dismiss"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
 
       {/* Tab Content */}
       {activeHomeTab === 'session' && (
