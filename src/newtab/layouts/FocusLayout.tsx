@@ -147,7 +147,7 @@ export default function FocusLayout() {
       'tab-groups':  { name: 'Tab Groups',    icon: '🗂️', color: '#06b6d4' },
     };
     const cat = await BookmarkService.saveCategory(newtabDB, {
-      boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, colSpan: 1, cardType,
+      boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, colSpan: 3, rowSpan: 3, cardType,
     });
     store.setCategories([...categories, cat]);
   }, [categories, store]);

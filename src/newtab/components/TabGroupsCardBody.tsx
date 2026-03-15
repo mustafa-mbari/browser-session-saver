@@ -68,7 +68,7 @@ export default function TabGroupsCardBody({ category }: Props) {
   }, [loadGroups]);
 
   const colSpan = category.colSpan ?? 1;
-  const visibleGroups = liveGroups.slice(0, colSpan === 3 ? 10 : colSpan === 2 ? 6 : 3);
+  const visibleGroups = liveGroups.slice(0, colSpan >= 7 ? 10 : colSpan >= 4 ? 6 : 3);
   const totalTabs = liveGroups.reduce((s, g) => s + g.tabCount, 0);
 
   if (loading) {

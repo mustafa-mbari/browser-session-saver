@@ -1,4 +1,5 @@
 export type LayoutMode = 'minimal' | 'focus' | 'dashboard';
+export type SpanValue = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 export type CardType = 'bookmark' | 'clock' | 'note' | 'todo' | 'subscription' | 'tab-groups';
 export type CardDensity = 'comfortable' | 'compact';
 export type SearchEngine = 'google' | 'bing' | 'duckduckgo' | 'brave' | 'custom';
@@ -23,8 +24,8 @@ export interface BookmarkCategory {
   color: string;
   bookmarkIds: string[];
   collapsed: boolean;
-  colSpan?: 1 | 2 | 3;
-  rowSpan?: 1 | 2 | 3;
+  colSpan?: SpanValue;
+  rowSpan?: SpanValue;
   cardType?: CardType;
   noteContent?: string;
   createdAt: string;

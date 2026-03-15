@@ -5,7 +5,7 @@ import { useNewTabStore } from '@newtab/stores/newtab.store';
 import { useKeyboardShortcuts } from '@newtab/hooks/useKeyboardShortcuts';
 import { newtabDB } from '@core/storage/newtab-storage';
 import { updateNewTabSettings } from '@core/services/newtab-settings.service';
-import { DEFAULT_NEWTAB_SETTINGS } from '@core/types/newtab.types';
+import { DEFAULT_NEWTAB_SETTINGS, type SpanValue } from '@core/types/newtab.types';
 import * as BookmarkService from '@core/services/bookmark.service';
 import * as QuickLinksService from '@core/services/quicklinks.service';
 import * as TodoService from '@core/services/todo.service';
@@ -93,7 +93,25 @@ export default function App() {
           const allCats = await Promise.all(
             boards.map((b) => BookmarkService.getCategories(newtabDB, b.id)),
           );
-          const cats = allCats.flat();
+          let cats = allCats.flat();
+
+          // One-time migration: upgrade pre-9-column cards (rowSpan unset)
+          // Old scale was 1-3; new scale is 1-9, so multiply colSpan × 3
+          const legacyCats = cats.filter((c) => c.rowSpan == null);
+          if (legacyCats.length > 0) {
+            await Promise.all(
+              legacyCats.map((c) => {
+                const newCol = Math.min((c.colSpan ?? 1) * 3, 9) as SpanValue;
+                return BookmarkService.updateCategory(newtabDB, c.id, { colSpan: newCol, rowSpan: 3 });
+              }),
+            );
+            cats = cats.map((c) =>
+              c.rowSpan == null
+                ? { ...c, colSpan: Math.min((c.colSpan ?? 1) * 3, 9) as SpanValue, rowSpan: 3 as SpanValue }
+                : c,
+            );
+          }
+
           store.setCategories(cats);
 
           if (cats.length > 0) {

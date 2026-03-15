@@ -18,7 +18,7 @@ import { newtabDB } from '@core/storage/newtab-storage';
 import * as QuickLinksService from '@core/services/quicklinks.service';
 import * as BookmarkService from '@core/services/bookmark.service';
 import { getFaviconUrl } from '@core/utils/favicon';
-import type { QuickLink, CardType } from '@core/types/newtab.types';
+import type { QuickLink, CardType, SpanValue } from '@core/types/newtab.types';
 
 export default function DashboardLayout() {
   const store = useNewTabStore();
@@ -126,12 +126,12 @@ export default function DashboardLayout() {
       'tab-groups':  { name: 'Tab Groups',    icon: '🗂️', color: '#06b6d4' },
     };
     const cat = await BookmarkService.saveCategory(newtabDB, {
-      boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, colSpan: 1, cardType,
+      boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, colSpan: 3, rowSpan: 3, cardType,
     });
     store.setCategories([...categories, cat]);
   }, [categories, store]);
 
-  const handleResizeCategory = useCallback(async (id: string, colSpan: 1 | 2 | 3, rowSpan: 1 | 2 | 3) => {
+  const handleResizeCategory = useCallback(async (id: string, colSpan: SpanValue, rowSpan: SpanValue) => {
     await BookmarkService.updateCategory(newtabDB, id, { colSpan, rowSpan });
     store.setCategories(categories.map((c) => (c.id === id ? { ...c, colSpan, rowSpan } : c)));
   }, [categories, store]);
@@ -157,7 +157,8 @@ export default function DashboardLayout() {
       color: cat.color,
       bookmarkIds: [],
       collapsed: false,
-      colSpan: cat.colSpan ?? 1,
+      colSpan: cat.colSpan ?? 3,
+      rowSpan: cat.rowSpan ?? 3,
       cardType: cat.cardType,
       noteContent: cat.noteContent,
     });
@@ -217,7 +218,7 @@ export default function DashboardLayout() {
         onReorderCategories: (cats: typeof categories) => { void handleReorderCategories(cats); },
         onReorderEntries: (catId: string, ids: string[]) => { void handleReorderEntries(catId, ids); },
         onImportNative: (boardId: string) => { void handleImportNative(boardId); },
-        onResizeCategory: (id: string, colSpan: 1 | 2 | 3, rowSpan: 1 | 2 | 3) => { void handleResizeCategory(id, colSpan, rowSpan); },
+        onResizeCategory: (id: string, colSpan: SpanValue, rowSpan: SpanValue) => { void handleResizeCategory(id, colSpan, rowSpan); },
         onUpdateNote: (id: string, content: string) => { void handleUpdateNote(id, content); },
         onRenameCard: (id: string, name: string) => { void handleRenameCard(id, name); },
         onDuplicateCard: (id: string) => { void handleDuplicateCard(id); },

@@ -12,7 +12,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronDown, ChevronRight, Columns2, Copy, GripVertical, MoreHorizontal, Pencil, Plus, Trash2, Check } from 'lucide-react';
 import ContextMenu from '@shared/components/ContextMenu';
-import type { BookmarkCategory, BookmarkEntry, CardDensity } from '@core/types/newtab.types';
+import type { BookmarkCategory, BookmarkEntry, CardDensity, SpanValue } from '@core/types/newtab.types';
 import { useSortableItems } from '@newtab/hooks/useBookmarkDnd';
 import { resolveFavIcon, getFaviconInitial } from '@core/utils/favicon';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
@@ -427,17 +427,19 @@ function BookmarkCardBody({
 
 // ── Resize popover (3×3 grid picker) ──────────────────────────────────────────
 
+const SPANS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
+
 interface ResizePopoverProps {
-  colSpan: 1 | 2 | 3;
-  rowSpan: 1 | 2 | 3;
+  colSpan: SpanValue;
+  rowSpan: SpanValue;
   anchorRect: DOMRect;
-  onResize: (col: 1 | 2 | 3, row: 1 | 2 | 3) => void;
+  onResize: (col: SpanValue, row: SpanValue) => void;
   onClose: () => void;
 }
 
 function ResizePopover({ colSpan, rowSpan, anchorRect, onResize, onClose }: ResizePopoverProps) {
-  const [hoverCol, setHoverCol] = useState(colSpan);
-  const [hoverRow, setHoverRow] = useState(rowSpan);
+  const [hoverCol, setHoverCol] = useState<SpanValue>(colSpan);
+  const [hoverRow, setHoverRow] = useState<SpanValue>(rowSpan);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -461,12 +463,12 @@ function ResizePopover({ colSpan, rowSpan, anchorRect, onResize, onClose }: Resi
         <span style={{ color: 'var(--newtab-text)' }}>{hoverCol}w × {hoverRow}h</span>
       </p>
       <div
-        className="grid gap-1.5"
-        style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}
+        className="grid gap-1"
+        style={{ gridTemplateColumns: 'repeat(9, 1fr)' }}
         onMouseLeave={() => { setHoverCol(colSpan); setHoverRow(rowSpan); }}
       >
-        {([1, 2, 3] as const).flatMap((row) =>
-          ([1, 2, 3] as const).map((col) => {
+        {SPANS.flatMap((row) =>
+          SPANS.map((col) => {
             const filled = col <= hoverCol && row <= hoverRow;
             const current = col === colSpan && row === rowSpan;
             return (
@@ -475,7 +477,7 @@ function ResizePopover({ colSpan, rowSpan, anchorRect, onResize, onClose }: Resi
                 onMouseEnter={() => { setHoverCol(col); setHoverRow(row); }}
                 onClick={() => { onResize(col, row); onClose(); }}
                 aria-label={`${col}×${row}`}
-                className={`w-9 h-9 rounded-md border-2 transition-all duration-75 ${
+                className={`w-4 h-4 rounded border transition-all duration-75 ${
                   filled
                     ? 'bg-indigo-500/70 border-indigo-400/90'
                     : current
@@ -501,15 +503,15 @@ interface Props {
   category: BookmarkCategory;
   entries: BookmarkEntry[];
   density: CardDensity;
-  colSpan: 1 | 2 | 3;
-  rowSpan: 1 | 2 | 3;
+  colSpan: SpanValue;
+  rowSpan: SpanValue;
   onAddEntry: (categoryId: string, title: string, url: string) => void;
   onDeleteEntry: (id: string) => void;
   onRenameEntry: (id: string, title: string, url: string) => void;
   onDeleteCategory: (id: string) => void;
   onToggleCollapse: (id: string) => void;
   onReorderEntries: (categoryId: string, orderedIds: string[]) => void;
-  onResize: (id: string, colSpan: 1 | 2 | 3, rowSpan: 1 | 2 | 3) => void;
+  onResize: (id: string, colSpan: SpanValue, rowSpan: SpanValue) => void;
   onUpdateNote?: (id: string, content: string) => void;
   onRenameCard: (id: string, name: string) => void;
   onDuplicateCard: (id: string) => void;
@@ -680,36 +682,40 @@ export default function BookmarkCategoryCard({
         />
       )}
 
-      {/* Body — varies by card type */}
-      {!category.collapsed && cardType === 'bookmark' && (
-        <BookmarkCardBody
-          category={category}
-          entries={entries}
-          density={density}
-          onAddEntry={onAddEntry}
-          onDeleteEntry={onDeleteEntry}
-          onRenameEntry={onRenameEntry}
-          onReorderEntries={onReorderEntries}
-        />
-      )}
-      {!category.collapsed && cardType === 'clock' && <ClockCardBody />}
-      {!category.collapsed && cardType === 'note' && (
-        <NoteCardBody
-          content={category.noteContent ?? ''}
-          onUpdate={(c) => onUpdateNote?.(category.id, c)}
-        />
-      )}
-      {!category.collapsed && cardType === 'todo' && (
-        <TodoCardBody
-          rawContent={category.noteContent ?? '[]'}
-          onUpdate={(c) => onUpdateNote?.(category.id, c)}
-        />
-      )}
-      {!category.collapsed && cardType === 'subscription' && (
-        <SubscriptionCardBody category={category} />
-      )}
-      {!category.collapsed && cardType === 'tab-groups' && (
-        <TabGroupsCardBody category={category} />
+      {/* Body — scrollable, fills remaining card height */}
+      {!category.collapsed && (
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {cardType === 'bookmark' && (
+            <BookmarkCardBody
+              category={category}
+              entries={entries}
+              density={density}
+              onAddEntry={onAddEntry}
+              onDeleteEntry={onDeleteEntry}
+              onRenameEntry={onRenameEntry}
+              onReorderEntries={onReorderEntries}
+            />
+          )}
+          {cardType === 'clock' && <ClockCardBody />}
+          {cardType === 'note' && (
+            <NoteCardBody
+              content={category.noteContent ?? ''}
+              onUpdate={(c) => onUpdateNote?.(category.id, c)}
+            />
+          )}
+          {cardType === 'todo' && (
+            <TodoCardBody
+              rawContent={category.noteContent ?? '[]'}
+              onUpdate={(c) => onUpdateNote?.(category.id, c)}
+            />
+          )}
+          {cardType === 'subscription' && (
+            <SubscriptionCardBody category={category} />
+          )}
+          {cardType === 'tab-groups' && (
+            <TabGroupsCardBody category={category} />
+          )}
+        </div>
       )}
     </div>
   );

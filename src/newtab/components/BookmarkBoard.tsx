@@ -15,6 +15,7 @@ import type {
   BookmarkEntry,
   CardDensity,
   CardType,
+  SpanValue,
 } from '@core/types/newtab.types';
 import { useSortableCategories } from '@newtab/hooks/useBookmarkDnd';
 
@@ -32,7 +33,7 @@ interface Props {
   onReorderCategories: (newCategories: BookmarkCategory[]) => void;
   onReorderEntries: (categoryId: string, orderedIds: string[]) => void;
   onImportNative: (boardId: string) => void;
-  onResizeCategory: (id: string, colSpan: 1 | 2 | 3, rowSpan: 1 | 2 | 3) => void;
+  onResizeCategory: (id: string, colSpan: SpanValue, rowSpan: SpanValue) => void;
   onUpdateNote?: (id: string, content: string) => void;
   onRenameCard: (id: string, name: string) => void;
   onDuplicateCard: (id: string) => void;
@@ -96,8 +97,8 @@ export default function BookmarkBoard({
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
           <SortableContext items={categories.map((c) => c.id)} strategy={rectSortingStrategy}>
             <div
-              className="grid gap-4"
-              style={{ gridTemplateColumns: 'repeat(3, 1fr)', gridAutoRows: 'minmax(180px, auto)' }}
+              className="grid gap-3"
+              style={{ gridTemplateColumns: 'repeat(9, 1fr)', gridAutoRows: '60px' }}
             >
               {categories.map((cat) => {
                 const catEntries = entries.filter((e) => e.categoryId === cat.id);
@@ -107,8 +108,8 @@ export default function BookmarkBoard({
                     category={cat}
                     entries={catEntries}
                     density={density}
-                    colSpan={cat.colSpan ?? 1}
-                    rowSpan={cat.rowSpan ?? 1}
+                    colSpan={cat.colSpan ?? 3}
+                    rowSpan={cat.rowSpan ?? 3}
                     onAddEntry={onAddEntry}
                     onDeleteEntry={onDeleteEntry}
                     onRenameEntry={onRenameEntry}

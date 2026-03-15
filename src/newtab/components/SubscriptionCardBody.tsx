@@ -97,7 +97,7 @@ export default function SubscriptionCardBody({ category }: Props) {
   const upcoming = [...subscriptions]
     .filter((s) => s.status !== 'canceled')
     .sort((a, b) => a.nextBillingDate.localeCompare(b.nextBillingDate))
-    .slice(0, colSpan === 3 ? 10 : colSpan === 2 ? 7 : 3);
+    .slice(0, colSpan >= 7 ? 10 : colSpan >= 4 ? 7 : 3);
 
   if (loading) {
     return (
@@ -132,8 +132,8 @@ export default function SubscriptionCardBody({ category }: Props) {
         </span>
       </div>
 
-      {/* Upcoming renewals — table for 2w+, compact rows for 1w */}
-      {upcoming.length > 0 && colSpan >= 2 ? (
+      {/* Upcoming renewals — table for 6w+, compact rows for smaller */}
+      {upcoming.length > 0 && colSpan >= 6 ? (
         <div className="flex flex-col">
           {/* Table header */}
           <div
