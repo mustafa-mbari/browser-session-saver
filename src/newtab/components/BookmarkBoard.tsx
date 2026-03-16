@@ -80,17 +80,17 @@ export default function BookmarkBoard({
               onClick={() => setAddCardOpen(true)}
               className="glass flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm hover:bg-white/20 transition-colors"
               style={{ color: 'var(--newtab-text)' }}
-              aria-label="Add Card"
+              aria-label="Add Widget"
             >
               <LayoutGrid size={14} />
-              Add Card
+              Add Widget
             </button>
           </div>
         </div>
 
         {categories.length === 0 ? (
           <div className="text-center py-12 opacity-50" style={{ color: 'var(--newtab-text)' }}>
-            No cards yet. Add a card or import your bookmarks.
+            No widgets yet. Add a widget or import your bookmarks.
           </div>
         ) : (
           <DndContext sensors={sensors} onDragEnd={handleDragEnd}>

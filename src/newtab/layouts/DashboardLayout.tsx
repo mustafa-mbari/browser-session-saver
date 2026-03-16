@@ -119,7 +119,7 @@ export default function DashboardLayout() {
 
   const handleAddCategory = useCallback(async (boardId: string, cardType: CardType = 'bookmark') => {
     const defaults: Record<CardType, { name: string; icon: string; color: string }> = {
-      bookmark:     { name: 'New Card',      icon: '📁', color: '#6366f1' },
+      bookmark:     { name: 'New Widget',      icon: '📁', color: '#6366f1' },
       clock:        { name: 'Clock',         icon: '🕐', color: '#0ea5e9' },
       note:         { name: 'Note',          icon: '📝', color: '#f59e0b' },
       todo:         { name: 'To-Do',         icon: '✅', color: '#22c55e' },

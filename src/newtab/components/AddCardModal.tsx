@@ -68,11 +68,11 @@ export default function AddCardModal({ isOpen, boardId, onClose, onAdd }: Props)
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Add Card"
+      title="Add Widget"
       actions={
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" onClick={handleAdd}>Add Card</Button>
+          <Button variant="primary" onClick={handleAdd}>Add Widget</Button>
         </>
       }
     >

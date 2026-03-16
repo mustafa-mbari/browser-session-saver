@@ -83,7 +83,7 @@ export default function BookmarkCategoryCard({
   const menuItems = [
     { label: 'Rename',    icon: Pencil, onClick: () => { setDraftName(category.name); setIsRenaming(true); } },
     { label: 'Duplicate', icon: Copy,   onClick: () => onDuplicateCard(category.id) },
-    { label: 'Delete Card', icon: Trash2, onClick: () => onDeleteCategory(category.id), danger: true },
+    { label: 'Delete Widget', icon: Trash2, onClick: () => onDeleteCategory(category.id), danger: true },
   ];
 
   return (
@@ -157,7 +157,7 @@ export default function BookmarkCategoryCard({
           ref={resizeBtnRef}
           onClick={openResize}
           className="p-0.5 rounded hover:bg-white/10 transition-colors shrink-0"
-          aria-label="Resize card"
+          aria-label="Resize widget"
           title={`${colSpan}w × ${rowSpan}h`}
         >
           <Columns2 size={14} style={{ color: 'var(--newtab-text-secondary)' }} />
@@ -166,7 +166,7 @@ export default function BookmarkCategoryCard({
         <ContextMenu items={menuItems}>
           <button
             className="p-0.5 rounded hover:bg-white/10 transition-colors shrink-0"
-            aria-label="Card options"
+            aria-label="Widget options"
           >
             <MoreHorizontal size={14} style={{ color: 'var(--newtab-text-secondary)' }} />
           </button>
