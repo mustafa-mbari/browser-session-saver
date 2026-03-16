@@ -96,13 +96,13 @@ export default function App() {
         </button>
         <button
           onClick={() => {
-            chrome.tabs.create({ url: chrome.runtime.getURL('src/dashboard/index.html') });
+            chrome.tabs.create({ url: chrome.runtime.getURL('src/newtab/index.html') + '?view=sessions' });
             window.close();
           }}
           className="flex items-center gap-1 text-xs text-primary hover:underline"
         >
           <ExternalLink size={12} />
-          Dashboard
+          Session Manager
         </button>
       </div>
     </div>

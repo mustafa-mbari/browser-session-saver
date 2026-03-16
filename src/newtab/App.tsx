@@ -4,7 +4,7 @@ import { useNewTabSettings } from '@newtab/hooks/useNewTabSettings';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
 import { useKeyboardShortcuts } from '@newtab/hooks/useKeyboardShortcuts';
 import { newtabDB } from '@core/storage/newtab-storage';
-import { updateNewTabSettings } from '@core/services/newtab-settings.service';
+import { updateNewTabSettings, getNewTabSettings } from '@core/services/newtab-settings.service';
 import { DEFAULT_NEWTAB_SETTINGS, type SpanValue } from '@core/types/newtab.types';
 import * as BookmarkService from '@core/services/bookmark.service';
 import * as QuickLinksService from '@core/services/quicklinks.service';
@@ -43,6 +43,20 @@ export default function App() {
   const todoRef = useRef<HTMLInputElement>(null);
 
   useKeyboardShortcuts({ focusSearchRef: searchRef, focusTodoRef: todoRef });
+
+  // Navigate to a specific view when opened with ?view=<name>
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view');
+    if (!viewParam) return;
+    const mgmtViews = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions'];
+    store.setActiveView(viewParam as Parameters<typeof store.setActiveView>[0]);
+    if (mgmtViews.includes(viewParam) && store.settings.layoutMode !== 'dashboard') {
+      store.setLayoutMode('dashboard');
+    }
+  // Only run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -86,8 +100,7 @@ export default function App() {
 
         // Load categories and entries for the ACTIVE board only
         if (boards.length > 0) {
-          const storedSettings = await import('@core/services/newtab-settings.service')
-            .then((m) => m.getNewTabSettings());
+          const storedSettings = await getNewTabSettings();
           const activeBoardId = storedSettings.activeBoardId ?? boards[0].id;
           if (!storedSettings.activeBoardId) {
             store.updateSettings({ activeBoardId: boards[0].id });
