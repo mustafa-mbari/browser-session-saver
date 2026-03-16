@@ -8,7 +8,7 @@ import {
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Plus } from 'lucide-react';
-import type { BookmarkCategory, BookmarkEntry, CardDensity } from '@core/types/newtab.types';
+import type { BookmarkCategory, BookmarkEntry, CardDensity, SpanValue } from '@core/types/newtab.types';
 import { useSortableItems } from '@newtab/hooks/useBookmarkDnd';
 import BookmarkEntryRow from '@newtab/components/BookmarkEntryRow';
 
@@ -20,10 +20,12 @@ interface BookmarkCardBodyProps {
   onDeleteEntry: (id: string) => void;
   onRenameEntry: (id: string, title: string, url: string) => void;
   onReorderEntries: (categoryId: string, orderedIds: string[]) => void;
+  colSpan: SpanValue;
+  rowSpan: SpanValue;
 }
 
 export default function BookmarkCardBody({
-  category, entries, density, onAddEntry, onDeleteEntry, onRenameEntry, onReorderEntries,
+  category, entries, density, onAddEntry, onDeleteEntry, onRenameEntry, onReorderEntries, rowSpan,
 }: BookmarkCardBodyProps) {
   const [addUrl, setAddUrl] = useState('');
   const [addTitle, setAddTitle] = useState('');
@@ -54,7 +56,7 @@ export default function BookmarkCardBody({
   return (
     <div className="flex flex-col px-1 pb-1">
       {entries.length > 30 ? (
-        <div ref={scrollRef} style={{ height: Math.min(entries.length * rowHeight, 320), overflow: 'auto' }}>
+        <div ref={scrollRef} style={{ height: Math.min(entries.length * rowHeight, Math.max(80, rowSpan * 60 - 60)), overflow: 'auto' }}>
           <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
             <SortableContext items={entries.map((e) => e.id)} strategy={verticalListSortingStrategy}>
               <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>

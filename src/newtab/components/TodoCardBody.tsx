@@ -1,12 +1,15 @@
 import { useMemo, useState, useCallback } from 'react';
 import { Plus, Trash2, Check } from 'lucide-react';
 import { generateId } from '@core/utils/uuid';
+import type { SpanValue } from '@core/types/newtab.types';
 
 interface TodoCardItem { id: string; text: string; done: boolean; }
 
 interface TodoCardBodyProps {
   rawContent: string;
   onUpdate: (content: string) => void;
+  colSpan: SpanValue;
+  rowSpan: SpanValue;
 }
 
 export default function TodoCardBody({ rawContent, onUpdate }: TodoCardBodyProps) {

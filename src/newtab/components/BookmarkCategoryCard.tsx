@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { ChevronDown, ChevronRight, Columns2, Copy, GripVertical, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import ContextMenu from '@shared/components/ContextMenu';
 import type { BookmarkCategory, BookmarkEntry, CardDensity, SpanValue } from '@core/types/newtab.types';
+import { WIDGET_CONFIG } from '@core/config/widget-config';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
 import { useBookmarkBoardActions } from '@newtab/contexts/BookmarkBoardContext';
 import BookmarkCardBody from '@newtab/components/BookmarkCardBody';
@@ -47,6 +48,7 @@ export default function BookmarkCategoryCard({
   } = useBookmarkBoardActions();
 
   const cardType = category.cardType ?? 'bookmark';
+  const sizeConfig = WIDGET_CONFIG[cardType];
 
   const [isRenaming, setIsRenaming] = useState(false);
   const [draftName, setDraftName] = useState(category.name);
@@ -175,6 +177,7 @@ export default function BookmarkCategoryCard({
         <ResizePopover
           colSpan={colSpan}
           rowSpan={rowSpan}
+          sizeConfig={sizeConfig}
           anchorRect={resizeAnchor}
           onResize={(col, row) => onResize(category.id, col, row)}
           onClose={() => setResizeOpen(false)}
@@ -193,30 +196,36 @@ export default function BookmarkCategoryCard({
               onDeleteEntry={onDeleteEntry}
               onRenameEntry={onRenameEntry}
               onReorderEntries={onReorderEntries}
+              colSpan={colSpan}
+              rowSpan={rowSpan}
             />
           )}
           {cardType === 'clock' && (
-            <div className="px-4 py-4 flex items-center justify-center">
-              <ClockWidget clockFormat={settings.clockFormat} />
+            <div className="px-4 py-4 flex items-center justify-center h-full">
+              <ClockWidget clockFormat={settings.clockFormat} colSpan={colSpan} rowSpan={rowSpan} />
             </div>
           )}
           {cardType === 'note' && (
             <NoteCardBody
               content={category.noteContent ?? ''}
               onUpdate={(c) => onUpdateNote?.(category.id, c)}
+              colSpan={colSpan}
+              rowSpan={rowSpan}
             />
           )}
           {cardType === 'todo' && (
             <TodoCardBody
               rawContent={category.noteContent ?? '[]'}
               onUpdate={(c) => onUpdateNote?.(category.id, c)}
+              colSpan={colSpan}
+              rowSpan={rowSpan}
             />
           )}
           {cardType === 'subscription' && (
-            <SubscriptionCardBody category={category} />
+            <SubscriptionCardBody category={category} colSpan={colSpan} rowSpan={rowSpan} />
           )}
           {cardType === 'tab-groups' && (
-            <TabGroupsCardBody category={category} />
+            <TabGroupsCardBody category={category} colSpan={colSpan} rowSpan={rowSpan} />
           )}
         </div>
       )}

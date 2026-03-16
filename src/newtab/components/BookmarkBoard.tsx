@@ -16,6 +16,7 @@ import type {
   CardDensity,
   CardType,
 } from '@core/types/newtab.types';
+import { WIDGET_CONFIG, clampSize } from '@core/config/widget-config';
 import { useSortableCategories } from '@newtab/hooks/useBookmarkDnd';
 import { BookmarkBoardContext, type BookmarkBoardActions } from '@newtab/contexts/BookmarkBoardContext';
 
@@ -99,6 +100,13 @@ export default function BookmarkBoard({
                 style={{ gridTemplateColumns: 'repeat(9, 1fr)', gridAutoRows: '60px' }}
               >
                 {categories.map((cat) => {
+                  const cardType = cat.cardType ?? 'bookmark';
+                  const cfg = WIDGET_CONFIG[cardType];
+                  const { colSpan, rowSpan } = clampSize(
+                    cardType,
+                    cat.colSpan ?? cfg.defaultW,
+                    cat.rowSpan ?? cfg.defaultH,
+                  );
                   const catEntries = entries.filter((e) => e.categoryId === cat.id);
                   return (
                     <BookmarkCategoryCard
@@ -106,8 +114,8 @@ export default function BookmarkBoard({
                       category={cat}
                       entries={catEntries}
                       density={density}
-                      colSpan={cat.colSpan ?? 3}
-                      rowSpan={cat.rowSpan ?? 3}
+                      colSpan={colSpan}
+                      rowSpan={rowSpan}
                     />
                   );
                 })}

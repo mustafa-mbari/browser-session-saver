@@ -8,7 +8,7 @@ Save, restore, and manage your browser sessions with one click. Auto-save protec
 - **Auto-Save Engine** — Automatically saves before browser close, system sleep, low battery, periodic timer, and window close; one pinned entry per trigger type, updated in place instead of accumulating
 - **Tab Group Support** — Full-fidelity save/restore of Chrome tab groups with colors, names, and collapsed state
 - **Tab Groups Management** — Dedicated UI for viewing live Chrome tab groups, saving templates, auto-saving groups, and restoring with color/name fidelity
-- **Subscriptions Tracker** — Track recurring subscriptions with calendar view, analytics dashboard, spending breakdown by category, CSV import/export, and reminder toast on new tab
+- **Subscriptions Tracker** — Track recurring subscriptions with calendar view, analytics dashboard, spending breakdown by category, CSV import/export, and reminder toast on start-tab
 - **Side Panel UI** — Primary interface docked to the browser for always-accessible session management
 - **Search & Filter** — Full-text search across session names, tags, URLs, and titles; `#tag` syntax for tag-based filtering
 - **Import/Export** — Export as JSON, HTML bookmarks, Markdown, CSV, or plain text; import from JSON, HTML, or URL lists
@@ -17,26 +17,27 @@ Save, restore, and manage your browser sessions with one click. Auto-save protec
 - **Virtual Scrolling** — Handles 500+ sessions with smooth performance via @tanstack/react-virtual; lists ≤30 items use plain DOM, >30 items use virtualizer (3-column grid for sessions, flat list with date headers for auto-saves)
 - **Scroll Position Capture** — Content script captures per-tab scroll position for full-fidelity session restore
 - **i18n** — English and Arabic with chrome.i18n support (~282 message keys including tab groups, subscriptions, error boundaries, and auto-saves)
-- **New Tab Page Override** — Glassmorphism command center replacing Chrome's new tab, with bookmarks, quick links, to-do, session, subscription, and tab group widgets
+- **Start-Tab** — Glassmorphism command center replacing Chrome's new tab, with bookmarks, quick links, to-do, session, subscription, and tab group widgets
 
-## New Tab Page Features
+## Start-Tab Features
 
-The new tab page override (`chrome_url_overrides.newtab`) provides:
+The start-tab (`chrome_url_overrides.newtab`) provides:
 
 - **Three Layout Modes** — Minimal (clock + search only), Focus (+ quick links + to-do + sessions), Dashboard (full layout with collapsible sidebar)
-- **Bookmark Manager** — Multiple boards, glass category cards with drag-and-drop reorder (cards + entries), virtual scrolling for 200+ bookmarks, native Chrome bookmarks import
-- **Six Card Types** — Bookmark (category with entries), Clock (analog/digital), Note (text), To-Do (task list), Subscription (billing tracker), Tab Groups (live group display)
+- **Bookmark Manager** — Multiple boards, glass widgets with drag-and-drop reorder (widgets + entries), virtual scrolling for 200+ bookmarks, native Chrome bookmarks import
+- **Six Widget Types** — Bookmark (category with entries), Clock (analog/digital), Note (text), To-Do (task list), Subscription (billing tracker), Tab Groups (live group display)
+- **Widget Sizing System** — Central widget configuration registry with per-type min/max/default sizes, resize popover with constraint enforcement, responsive widget content
 - **Quick Links Row** — Top sites auto-populated from `chrome.topSites`, drag-and-drop reorder, favicon chips, right-click edit/delete, `+` to add manually
 - **To-Do Widget** — Multiple lists, priorities (High/Medium/Low), due dates with overdue highlighting, drag reorder, IndexedDB persistence
 - **Session Widget** — Last 5 sessions with one-click restore
-- **Subscription Card** — Upcoming renewals, monthly spending total, overdue/due-soon indicators with color-coded urgency, inline SVG charts for spending analytics
-- **Tab Groups Card** — Live Chrome tab groups display with color-coded badges, click-to-focus, auto-refresh
+- **Subscription Widget** — Upcoming renewals, monthly spending total, overdue/due-soon indicators with color-coded urgency, inline SVG charts for spending analytics
+- **Tab Groups Widget** — Live Chrome tab groups display with color-coded badges, click-to-focus, auto-refresh
 - **Subscription Reminder** — Glassmorphism toast notification for overdue or due-soon subscriptions with 24-hour snooze
 - **Sidebar Panels** — Sessions, Auto-Saves, Tab Groups, Import/Export, Subscriptions — full management views accessible from dashboard sidebar; panels are `React.lazy`-loaded for fast initial render
 - **Customizable Background** — 15 gradient presets, solid color picker, user image upload (up to 5MB stored in IndexedDB), blur/dimming/saturation/brightness/vignette controls
 - **Glassmorphism UI** — Frosted glass panels with `backdrop-filter: blur(16–24px) saturate(180%)`, smooth hover transitions
 - **Light/Dark/Auto Themes** — Synced across all extension surfaces via `chrome.storage.local`
-- **Card Density** — Compact (28px rows) or Comfortable (38px rows) for the bookmark grid
+- **Widget Density** — Compact (28px rows) or Comfortable (38px rows) for the bookmark grid
 - **Global Keyboard Shortcuts** — Fully wired; `?` opens the full cheat sheet modal
 - **Top Nav Tabs** — Quick Links / Frequently Visited / Tabs / Activity views
 
@@ -54,7 +55,7 @@ The new tab page override (`chrome_url_overrides.newtab`) provides:
 | Icons | Lucide React |
 | Drag & Drop | @dnd-kit/core + @dnd-kit/sortable |
 | Virtual Lists | @tanstack/react-virtual |
-| Testing | Vitest + Testing Library (115 tests, 12 files) |
+| Testing | Vitest + Testing Library (186 tests, 18 files) |
 
 ## Project Structure
 
@@ -72,6 +73,7 @@ src/
 │   │   ├── tab-group.types.ts     # TabGroupTemplate, TabGroupTemplateTab
 │   │   ├── settings.types.ts      # Settings, AutoSaveSettings
 │   │   └── storage.types.ts       # StorageMetadata, schema version
+│   ├── config/              # Widget configuration registry (widget-config.ts)
 │   ├── services/            # Business logic
 │   │   ├── session.service.ts           # Session CRUD, upsert auto-save, merge, diff
 │   │   ├── subscription.service.ts      # Urgency, analytics, CSV import/export, currency formatting
@@ -112,7 +114,7 @@ src/
 │   │                        # ImportExportPage, SettingsPage
 │   ├── components/          # Sidebar, SessionDetail, StatsWidget, BulkToolbar
 │   └── stores/              # dashboard.store.ts
-├── newtab/                  # New Tab page override
+├── newtab/                  # Start-tab (new tab page override)
 │   ├── App.tsx              # Root: data loading, layout router, overlays
 │   ├── index.html/tsx       # Entry point
 │   ├── stores/              # newtab.store.ts (single Zustand store)
@@ -125,7 +127,7 @@ src/
 │                            # TodoCardBody, BookmarkEntryRow, ResizePopover,
 │                            # TodoWidget, SessionWidget, DashboardSidebar, TopNavTabs,
 │                            # WallpaperPicker, SettingsPanel, KeyboardHelpModal,
-│                            # AddQuickLinkModal, AddCardModal, BackgroundLayer,
+│                            # AddQuickLinkModal, AddWidgetModal, BackgroundLayer,
 │                            # NewTabHeader, SubscriptionCardBody, TabGroupsCardBody,
 │                            # SubscriptionReminder, SessionsPanel*, AutoSavesPanel*,
 │                            # TabGroupsPanel*, SubscriptionsPanel*, ImportExportPanel,
@@ -187,7 +189,7 @@ npm run format
 | `Ctrl+Shift+F` | Focus Search |
 | `Ctrl+Shift+E` | Quick Export |
 
-### New Tab Page
+### Start-Tab
 
 | Shortcut | Action |
 |----------|--------|
@@ -209,13 +211,13 @@ npm run format
 
 **Service Worker** handles all Chrome API interactions — tab queries, session save/restore, auto-save triggers, alarm management. Processes 15 typed message actions from UI surfaces.
 
-**Storage Layer** uses chrome.storage.local for settings/metadata and IndexedDB (`session-saver` database) for session data (large payloads). The newtab feature uses a separate `newtab-db` IndexedDB database for bookmarks, quick links, to-do items, and wallpaper blobs — never touched by the background service worker. Subscriptions and tab group templates are stored as flat keys in chrome.storage.local via the generic `ChromeLocalKeyAdapter<T>` class.
+**Storage Layer** uses chrome.storage.local for settings/metadata and IndexedDB (`session-saver` database) for session data (large payloads). The start-tab feature uses a separate `newtab-db` IndexedDB database for bookmarks, quick links, to-do items, and wallpaper blobs — never touched by the background service worker. Subscriptions and tab group templates are stored as flat keys in chrome.storage.local via the generic `ChromeLocalKeyAdapter<T>` class.
 
 **Content Script** (`src/content/scroll-capture.ts`) runs in web pages to capture scroll position (`window.scrollX`, `window.scrollY`) for full-fidelity session restore.
 
 **Message Protocol** — typed discriminated union messages (15 action types) between UI surfaces and service worker via `chrome.runtime.sendMessage`.
 
-**UI Surfaces** — Side Panel (primary, 6 views), Popup (quick actions), Dashboard (5 pages), New Tab (glassmorphism command center with 3 layout modes). All share components via `src/shared/`.
+**UI Surfaces** — Side Panel (primary, 6 views), Popup (quick actions), Dashboard (5 pages), Start-Tab (glassmorphism command center with 3 layout modes). All share components via `src/shared/`.
 
 ## License
 

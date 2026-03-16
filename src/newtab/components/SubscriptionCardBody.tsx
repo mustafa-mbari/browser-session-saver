@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Plus, ArrowRight } from 'lucide-react';
-import type { BookmarkCategory } from '@core/types/newtab.types';
+import type { BookmarkCategory, SpanValue } from '@core/types/newtab.types';
 import type { Subscription, CustomCategory } from '@core/types/subscription.types';
 import { CATEGORY_LABELS } from '@core/types/subscription.types';
 import { SubscriptionStorage } from '@core/storage/subscription-storage';
@@ -11,6 +11,8 @@ import { safeOpenUrl } from '@core/utils/safe-open';
 
 interface Props {
   category: BookmarkCategory;
+  colSpan: SpanValue;
+  rowSpan: SpanValue;
 }
 
 
@@ -70,7 +72,7 @@ function FaviconSmall({ url, name }: { url?: string; name: string }) {
   );
 }
 
-export default function SubscriptionCardBody({ category }: Props) {
+export default function SubscriptionCardBody({ colSpan }: Props) {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [customCats, setCustomCats] = useState<CustomCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +89,7 @@ export default function SubscriptionCardBody({ category }: Props) {
     });
   }, []);
 
-  const colSpan = category.colSpan ?? 1;
+  // colSpan is received as a prop — already clamped by the parent
   const currency = subscriptions.find((s) => s.status === 'active')?.currency
     ?? subscriptions[0]?.currency ?? 'USD';
 

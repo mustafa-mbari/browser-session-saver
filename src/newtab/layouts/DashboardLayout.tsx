@@ -19,6 +19,7 @@ import * as QuickLinksService from '@core/services/quicklinks.service';
 import * as BookmarkService from '@core/services/bookmark.service';
 import { getFaviconUrl } from '@core/utils/favicon';
 import type { QuickLink, CardType, SpanValue } from '@core/types/newtab.types';
+import { getDefaultSize, clampSize } from '@core/config/widget-config';
 
 export default function DashboardLayout() {
   const store = useNewTabStore();
@@ -126,14 +127,17 @@ export default function DashboardLayout() {
       'tab-groups':  { name: 'Tab Groups',    icon: '🗂️', color: '#06b6d4' },
     };
     const cat = await BookmarkService.saveCategory(newtabDB, {
-      boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, colSpan: 3, rowSpan: 3, cardType,
+      boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, ...getDefaultSize(cardType), cardType,
     });
     store.setCategories([...categories, cat]);
   }, [categories, store]);
 
   const handleResizeCategory = useCallback(async (id: string, colSpan: SpanValue, rowSpan: SpanValue) => {
-    await BookmarkService.updateCategory(newtabDB, id, { colSpan, rowSpan });
-    store.setCategories(categories.map((c) => (c.id === id ? { ...c, colSpan, rowSpan } : c)));
+    const cat = categories.find((c) => c.id === id);
+    if (!cat) return;
+    const clamped = clampSize(cat.cardType ?? 'bookmark', colSpan, rowSpan);
+    await BookmarkService.updateCategory(newtabDB, id, clamped);
+    store.setCategories(categories.map((c) => (c.id === id ? { ...c, ...clamped } : c)));
   }, [categories, store]);
 
   const handleUpdateNote = useCallback(async (id: string, noteContent: string) => {
@@ -157,8 +161,7 @@ export default function DashboardLayout() {
       color: cat.color,
       bookmarkIds: [],
       collapsed: false,
-      colSpan: cat.colSpan ?? 3,
-      rowSpan: cat.rowSpan ?? 3,
+      ...clampSize(cat.cardType ?? 'bookmark', cat.colSpan ?? 3, cat.rowSpan ?? 3),
       cardType: cat.cardType,
       noteContent: cat.noteContent,
     });

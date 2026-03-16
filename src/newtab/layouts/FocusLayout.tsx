@@ -19,6 +19,7 @@ import * as BookmarkService from '@core/services/bookmark.service';
 import * as TodoService from '@core/services/todo.service';
 import { useState } from 'react';
 import type { QuickLink, CardType } from '@core/types/newtab.types';
+import { getDefaultSize } from '@core/config/widget-config';
 
 export default function FocusLayout() {
   const store = useNewTabStore();
@@ -147,7 +148,7 @@ export default function FocusLayout() {
       'tab-groups':  { name: 'Tab Groups',    icon: '🗂️', color: '#06b6d4' },
     };
     const cat = await BookmarkService.saveCategory(newtabDB, {
-      boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, colSpan: 3, rowSpan: 3, cardType,
+      boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, ...getDefaultSize(cardType), cardType,
     });
     store.setCategories([...categories, cat]);
   }, [categories, store]);

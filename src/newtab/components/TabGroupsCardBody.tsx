@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { ArrowRight, Layers, RefreshCw } from 'lucide-react';
-import type { BookmarkCategory } from '@core/types/newtab.types';
+import type { BookmarkCategory, SpanValue } from '@core/types/newtab.types';
 import type { ChromeGroupColor } from '@core/types/session.types';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
 import { GROUP_COLORS } from '@core/constants/tab-group-colors';
@@ -16,9 +16,11 @@ interface LiveGroup {
 
 interface Props {
   category: BookmarkCategory;
+  colSpan: SpanValue;
+  rowSpan: SpanValue;
 }
 
-export default function TabGroupsCardBody({ category }: Props) {
+export default function TabGroupsCardBody({ colSpan }: Props) {
   const [liveGroups, setLiveGroups] = useState<LiveGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const setActiveView = useNewTabStore((s) => s.setActiveView);
@@ -57,7 +59,7 @@ export default function TabGroupsCardBody({ category }: Props) {
     void loadGroups();
   }, [loadGroups]);
 
-  const colSpan = category.colSpan ?? 1;
+  // colSpan is received as a prop — already clamped by the parent
   const visibleGroups = liveGroups.slice(0, colSpan >= 7 ? 10 : colSpan >= 4 ? 6 : 3);
   const totalTabs = liveGroups.reduce((s, g) => s + g.tabCount, 0);
 

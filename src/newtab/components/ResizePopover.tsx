@@ -1,20 +1,25 @@
 import { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { SpanValue } from '@core/types/newtab.types';
+import type { WidgetSizeConfig } from '@core/config/widget-config';
 
 const SPANS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 
 export interface ResizePopoverProps {
   colSpan: SpanValue;
   rowSpan: SpanValue;
+  sizeConfig: WidgetSizeConfig;
   anchorRect: DOMRect;
   onResize: (col: SpanValue, row: SpanValue) => void;
   onClose: () => void;
 }
 
-export default function ResizePopover({ colSpan, rowSpan, anchorRect, onResize, onClose }: ResizePopoverProps) {
-  const [hoverCol, setHoverCol] = useState<SpanValue>(colSpan);
-  const [hoverRow, setHoverRow] = useState<SpanValue>(rowSpan);
+export default function ResizePopover({ colSpan, rowSpan, sizeConfig, anchorRect, onResize, onClose }: ResizePopoverProps) {
+  const clampedCol = Math.max(sizeConfig.minW, Math.min(sizeConfig.maxW, colSpan)) as SpanValue;
+  const clampedRow = Math.max(sizeConfig.minH, Math.min(sizeConfig.maxH, rowSpan)) as SpanValue;
+
+  const [hoverCol, setHoverCol] = useState<SpanValue>(clampedCol);
+  const [hoverRow, setHoverRow] = useState<SpanValue>(clampedRow);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,20 +45,30 @@ export default function ResizePopover({ colSpan, rowSpan, anchorRect, onResize, 
       <div
         className="grid gap-1"
         style={{ gridTemplateColumns: 'repeat(9, 1fr)' }}
-        onMouseLeave={() => { setHoverCol(colSpan); setHoverRow(rowSpan); }}
+        onMouseLeave={() => { setHoverCol(clampedCol); setHoverRow(clampedRow); }}
       >
         {SPANS.flatMap((row) =>
           SPANS.map((col) => {
-            const filled = col <= hoverCol && row <= hoverRow;
-            const current = col === colSpan && row === rowSpan;
+            const outOfRange =
+              col < sizeConfig.minW || col > sizeConfig.maxW ||
+              row < sizeConfig.minH || row > sizeConfig.maxH;
+            const filled = !outOfRange && col <= hoverCol && row <= hoverRow;
+            const current = col === clampedCol && row === clampedRow;
             return (
               <button
                 key={`${col}-${row}`}
-                onMouseEnter={() => { setHoverCol(col); setHoverRow(row); }}
-                onClick={() => { onResize(col, row); onClose(); }}
-                aria-label={`${col}×${row}`}
+                disabled={outOfRange}
+                onMouseEnter={() => {
+                  if (!outOfRange) { setHoverCol(col); setHoverRow(row); }
+                }}
+                onClick={() => {
+                  if (!outOfRange) { onResize(col, row); onClose(); }
+                }}
+                aria-label={outOfRange ? `${col}×${row} (not available)` : `${col}×${row}`}
                 className={`w-4 h-4 rounded border transition-all duration-75 ${
-                  filled
+                  outOfRange
+                    ? 'bg-white/[0.03] border-white/[0.05] opacity-25 cursor-not-allowed'
+                    : filled
                     ? 'bg-indigo-500/70 border-indigo-400/90'
                     : current
                     ? 'bg-white/10 border-white/50'
@@ -65,7 +80,7 @@ export default function ResizePopover({ colSpan, rowSpan, anchorRect, onResize, 
         )}
       </div>
       <p className="text-[10px] text-center mt-2 opacity-40" style={{ color: 'var(--newtab-text)' }}>
-        width × height
+        {sizeConfig.minW}–{sizeConfig.maxW}w × {sizeConfig.minH}–{sizeConfig.maxH}h
       </p>
     </div>,
     document.body,
