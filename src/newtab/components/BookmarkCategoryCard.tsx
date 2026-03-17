@@ -214,6 +214,7 @@ export default function BookmarkCategoryCard({
               quoteIndex={category.quoteIndex}
               quoteChangedAt={category.quoteChangedAt}
               onRefreshQuote={(idx, at) => onRefreshQuote?.(category.id, idx, at)}
+              language={settings.language}
               colSpan={colSpan}
               rowSpan={rowSpan}
             />

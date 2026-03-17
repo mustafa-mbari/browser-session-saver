@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
-import type { SpanValue } from '@core/types/newtab.types';
-import { MOTIVATIONAL_QUOTES } from '@core/data/motivational-quotes';
+import type { AppLanguage, SpanValue } from '@core/types/newtab.types';
+import { getQuotesForLanguage } from '@core/data/motivational-quotes';
 
 const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
 
-function getActiveQuoteIndex(quoteIndex?: number, quoteChangedAt?: string): number {
+function getActiveQuoteIndex(quotes: readonly string[], quoteIndex?: number, quoteChangedAt?: string): number {
   if (quoteIndex !== undefined && quoteChangedAt) {
     if (Date.now() - new Date(quoteChangedAt).getTime() < FOUR_HOURS_MS) {
-      return quoteIndex;
+      return quoteIndex % quotes.length;
     }
   }
-  return Math.floor(Date.now() / FOUR_HOURS_MS) % MOTIVATIONAL_QUOTES.length;
+  return Math.floor(Date.now() / FOUR_HOURS_MS) % quotes.length;
 }
 
 interface NoteCardBodyProps {
@@ -20,6 +20,7 @@ interface NoteCardBodyProps {
   quoteIndex?: number;
   quoteChangedAt?: string;
   onRefreshQuote?: (index: number, changedAt: string) => void;
+  language?: AppLanguage;
   colSpan: SpanValue;
   rowSpan: SpanValue;
 }
@@ -30,6 +31,7 @@ export default function NoteCardBody({
   quoteIndex,
   quoteChangedAt,
   onRefreshQuote,
+  language = 'en',
 }: NoteCardBodyProps) {
   const [draft, setDraft] = useState(content);
   const [tick, setTick] = useState(0);
@@ -50,12 +52,15 @@ export default function NoteCardBody({
     if (draft !== content) onUpdate(draft);
   };
 
+  const quotes = getQuotesForLanguage(language);
+  const isRtl = language === 'ar';
+
   const handleRefresh = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const current = getActiveQuoteIndex(quoteIndex, quoteChangedAt);
-    let next = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
-    if (MOTIVATIONAL_QUOTES.length > 1) {
-      while (next === current) next = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
+    const current = getActiveQuoteIndex(quotes, quoteIndex, quoteChangedAt);
+    let next = Math.floor(Math.random() * quotes.length);
+    if (quotes.length > 1) {
+      while (next === current) next = Math.floor(Math.random() * quotes.length);
     }
     onRefreshQuote?.(next, new Date().toISOString());
   };
@@ -63,7 +68,7 @@ export default function NoteCardBody({
   // tick is read so the linter/bundler doesn't strip it — it forces re-render each minute
   void tick;
 
-  const activeQuote = MOTIVATIONAL_QUOTES[getActiveQuoteIndex(quoteIndex, quoteChangedAt)];
+  const activeQuote = quotes[getActiveQuoteIndex(quotes, quoteIndex, quoteChangedAt)];
   const isEmpty = draft === '';
 
   if (isEmpty) {
@@ -75,16 +80,37 @@ export default function NoteCardBody({
       >
         {/* Quote display */}
         <p
-          className="text-sm italic px-4 py-3 pr-9 leading-relaxed select-none pointer-events-none"
-          style={{ color: 'var(--newtab-text-secondary)', opacity: 0.65 }}
+          className="text-sm italic leading-relaxed select-none pointer-events-none"
+          style={{
+            color: 'var(--newtab-text-secondary)',
+            opacity: 0.65,
+            padding: isRtl ? '12px 36px 12px 16px' : '12px 36px 12px 16px',
+            direction: isRtl ? 'rtl' : 'ltr',
+            textAlign: isRtl ? 'right' : 'left',
+          }}
         >
           {activeQuote}
         </p>
 
-        {/* Refresh button */}
+        {/* Invisible textarea to capture typing — rendered before button so button stays on top */}
+        <textarea
+          ref={textareaRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={handleBlur}
+          className="absolute inset-0 w-full h-full bg-transparent outline-none resize-none text-sm px-4 py-3 opacity-0 focus:opacity-100"
+          style={{
+            color: 'var(--newtab-text)',
+            caretColor: 'var(--newtab-text)',
+            direction: isRtl ? 'rtl' : 'ltr',
+          }}
+          aria-label="Note"
+        />
+
+        {/* Refresh button — z-10 keeps it above the textarea overlay */}
         <button
           onClick={handleRefresh}
-          className="absolute top-2 right-2 p-1 rounded hover:bg-white/10 transition-colors"
+          className={`absolute top-2 z-10 p-1 rounded hover:bg-white/10 transition-colors ${isRtl ? 'left-2' : 'right-2'}`}
           aria-label="Show another quote"
           title="New quote"
           style={{ opacity: 0.5 }}
@@ -93,17 +119,6 @@ export default function NoteCardBody({
         >
           <RefreshCw size={13} style={{ color: 'var(--newtab-text-secondary)' }} />
         </button>
-
-        {/* Invisible textarea to capture typing */}
-        <textarea
-          ref={textareaRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={handleBlur}
-          className="absolute inset-0 w-full h-full bg-transparent outline-none resize-none text-sm px-4 py-3 opacity-0 focus:opacity-100"
-          style={{ color: 'var(--newtab-text)', caretColor: 'var(--newtab-text)' }}
-          aria-label="Note"
-        />
       </div>
     );
   }
@@ -116,7 +131,11 @@ export default function NoteCardBody({
       onBlur={handleBlur}
       placeholder="Write your note here…"
       className="w-full h-full bg-transparent outline-none resize-none text-sm px-4 py-3 placeholder-white/30"
-      style={{ color: 'var(--newtab-text)', minHeight: '80px' }}
+      style={{
+        color: 'var(--newtab-text)',
+        minHeight: '80px',
+        direction: isRtl ? 'rtl' : 'ltr',
+      }}
     />
   );
 }

@@ -1,4 +1,5 @@
 import { forwardRef, useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Paintbrush, Settings, Sun, Moon, Monitor, Clock, Globe } from 'lucide-react';
 import SearchBar from '@newtab/components/SearchBar';
 import { useTheme } from '@shared/hooks/useTheme';
@@ -31,16 +32,30 @@ const NewTabHeader = forwardRef<HTMLInputElement, Props>(
   ({ settings, onOpenSettings, onOpenWallpaper, onToggleClock, onLanguageChange }, searchRef) => {
     const { theme, setTheme } = useTheme();
     const [langOpen, setLangOpen] = useState(false);
-    const langRef = useRef<HTMLDivElement>(null);
+    const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+    const langBtnRef = useRef<HTMLButtonElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
     const currentLang = settings.language ?? 'auto';
+
+    const openDropdown = () => {
+      if (langBtnRef.current) {
+        const rect = langBtnRef.current.getBoundingClientRect();
+        setDropdownPos({
+          top: rect.bottom + 4,
+          right: window.innerWidth - rect.right,
+        });
+      }
+      setLangOpen((o) => !o);
+    };
 
     // Close dropdown when clicking outside
     useEffect(() => {
       if (!langOpen) return;
       const handler = (e: MouseEvent) => {
-        if (langRef.current && !langRef.current.contains(e.target as Node)) {
-          setLangOpen(false);
-        }
+        const target = e.target as Node;
+        const insideBtn = langBtnRef.current?.contains(target);
+        const insideMenu = dropdownRef.current?.contains(target);
+        if (!insideBtn && !insideMenu) setLangOpen(false);
       };
       document.addEventListener('mousedown', handler);
       return () => document.removeEventListener('mousedown', handler);
@@ -85,48 +100,55 @@ const NewTabHeader = forwardRef<HTMLInputElement, Props>(
           </button>
 
           {/* Language switcher */}
-          <div ref={langRef} className="relative">
-            <button
-              onClick={() => setLangOpen((o) => !o)}
-              className="p-1.5 rounded-lg hover:bg-white/15 transition-colors flex items-center gap-1"
-              aria-label="Change language"
-              title={`Language: ${currentLang}`}
-            >
-              <Globe size={16} style={{ color: 'var(--newtab-text)' }} />
-              {currentLang !== 'auto' && (
-                <span className="text-[10px] font-bold uppercase" style={{ color: 'var(--newtab-text)' }}>
-                  {currentLang}
-                </span>
-              )}
-            </button>
-            {langOpen && (
-              <div
-                className="absolute right-0 top-full mt-1 glass-panel rounded-xl py-1 z-[9999] min-w-[130px]"
-                style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}
-              >
-                {LANG_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => {
-                      setLangOpen(false);
-                      if (opt.value !== currentLang) onLanguageChange(opt.value);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-white/10"
-                    style={{
-                      color: opt.value === currentLang ? '#818cf8' : 'var(--newtab-text)',
-                      fontWeight: opt.value === currentLang ? 600 : 400,
-                    }}
-                  >
-                    <span className="text-base w-5 text-center">{opt.native}</span>
-                    {opt.label}
-                    {opt.value === currentLang && (
-                      <span className="ml-auto text-xs" style={{ color: '#818cf8' }}>✓</span>
-                    )}
-                  </button>
-                ))}
-              </div>
+          <button
+            ref={langBtnRef}
+            onClick={openDropdown}
+            className="p-1.5 rounded-lg hover:bg-white/15 transition-colors flex items-center gap-1"
+            aria-label="Change language"
+            title={`Language: ${currentLang}`}
+          >
+            <Globe size={16} style={{ color: 'var(--newtab-text)' }} />
+            {currentLang !== 'auto' && (
+              <span className="text-[10px] font-bold uppercase" style={{ color: 'var(--newtab-text)' }}>
+                {currentLang}
+              </span>
             )}
-          </div>
+          </button>
+          {langOpen && createPortal(
+            <div
+              ref={dropdownRef}
+              className="glass-panel rounded-xl py-1 min-w-[130px]"
+              style={{
+                position: 'fixed',
+                top: dropdownPos.top,
+                right: dropdownPos.right,
+                zIndex: 99999,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+              }}
+            >
+              {LANG_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => {
+                    setLangOpen(false);
+                    if (opt.value !== currentLang) onLanguageChange(opt.value);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-white/10"
+                  style={{
+                    color: opt.value === currentLang ? '#818cf8' : 'var(--newtab-text)',
+                    fontWeight: opt.value === currentLang ? 600 : 400,
+                  }}
+                >
+                  <span className="text-base w-5 text-center">{opt.native}</span>
+                  {opt.label}
+                  {opt.value === currentLang && (
+                    <span className="ml-auto text-xs" style={{ color: '#818cf8' }}>✓</span>
+                  )}
+                </button>
+              ))}
+            </div>,
+            document.body,
+          )}
 
           {/* Theme toggle */}
           <button
