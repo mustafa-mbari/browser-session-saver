@@ -18,7 +18,8 @@
       "Bash(git status:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(powershell -File -:*)"
     ]
   }
 }
