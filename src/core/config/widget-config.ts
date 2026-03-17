@@ -10,12 +10,13 @@ export interface WidgetSizeConfig {
 }
 
 export const WIDGET_CONFIG: Record<CardType, WidgetSizeConfig> = {
-  bookmark:     { minW: 2, minH: 2, maxW: 9, maxH: 9, defaultW: 3, defaultH: 3 },
-  clock:        { minW: 2, minH: 2, maxW: 5, maxH: 5, defaultW: 3, defaultH: 3 },
-  note:         { minW: 2, minH: 2, maxW: 9, maxH: 9, defaultW: 3, defaultH: 4 },
-  todo:         { minW: 2, minH: 2, maxW: 9, maxH: 9, defaultW: 3, defaultH: 4 },
-  subscription: { minW: 3, minH: 2, maxW: 9, maxH: 6, defaultW: 4, defaultH: 3 },
-  'tab-groups': { minW: 2, minH: 2, maxW: 9, maxH: 6, defaultW: 3, defaultH: 3 },
+  bookmark:           { minW: 2, minH: 2, maxW: 9, maxH: 9, defaultW: 3, defaultH: 3 },
+  clock:              { minW: 2, minH: 2, maxW: 5, maxH: 5, defaultW: 3, defaultH: 3 },
+  note:               { minW: 2, minH: 2, maxW: 9, maxH: 9, defaultW: 3, defaultH: 4 },
+  todo:               { minW: 2, minH: 2, maxW: 9, maxH: 9, defaultW: 3, defaultH: 4 },
+  subscription:       { minW: 3, minH: 2, maxW: 9, maxH: 6, defaultW: 4, defaultH: 3 },
+  'tab-groups':       { minW: 2, minH: 2, maxW: 9, maxH: 6, defaultW: 3, defaultH: 3 },
+  'native-bookmarks': { minW: 2, minH: 3, maxW: 9, maxH: 9, defaultW: 2, defaultH: 4 },
 };
 
 export function getDefaultSize(cardType: CardType): { colSpan: SpanValue; rowSpan: SpanValue } {

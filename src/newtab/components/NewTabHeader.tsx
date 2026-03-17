@@ -1,27 +1,23 @@
-import { forwardRef } from 'react';
-import { Paintbrush, Settings, Sun, Moon, Monitor, Clock } from 'lucide-react';
+import { forwardRef, useState, useRef, useEffect } from 'react';
+import { Paintbrush, Settings, Sun, Moon, Monitor, Clock, Globe } from 'lucide-react';
 import SearchBar from '@newtab/components/SearchBar';
 import { useTheme } from '@shared/hooks/useTheme';
-import type { NewTabSettings } from '@core/types/newtab.types';
-import type { NewTabView } from '@newtab/stores/newtab.store';
+import type { AppLanguage, NewTabSettings } from '@core/types/newtab.types';
 
 interface Props {
   settings: NewTabSettings;
-  activeView: NewTabView;
-  onViewChange: (view: NewTabView) => void;
   onOpenSettings: () => void;
   onOpenWallpaper: () => void;
   onToggleClock: () => void;
+  onLanguageChange: (lang: AppLanguage) => void;
 }
 
-const NAV_TABS: { id: NewTabView; label: string }[] = [
-  { id: 'bookmarks', label: 'All Bookmarks' },
-  { id: 'frequent', label: 'Frequently Visited' },
-  { id: 'tabs', label: 'Tabs' },
-  { id: 'activity', label: 'Activity' },
+const LANG_OPTIONS: { value: AppLanguage; label: string; native: string }[] = [
+  { value: 'auto', label: 'Auto',    native: '🌐' },
+  { value: 'en',   label: 'English', native: 'EN' },
+  { value: 'ar',   label: 'Arabic',  native: 'AR' },
+  { value: 'de',   label: 'German',  native: 'DE' },
 ];
-
-const SESSION_VIEWS = new Set(['sessions', 'auto-saves', 'tab-groups', 'import-export']);
 
 const THEME_ICONS = {
   light: Sun,
@@ -32,8 +28,23 @@ const THEME_ICONS = {
 const THEME_CYCLE: Array<'system' | 'light' | 'dark'> = ['system', 'light', 'dark'];
 
 const NewTabHeader = forwardRef<HTMLInputElement, Props>(
-  ({ settings, activeView, onViewChange, onOpenSettings, onOpenWallpaper, onToggleClock }, searchRef) => {
+  ({ settings, onOpenSettings, onOpenWallpaper, onToggleClock, onLanguageChange }, searchRef) => {
     const { theme, setTheme } = useTheme();
+    const [langOpen, setLangOpen] = useState(false);
+    const langRef = useRef<HTMLDivElement>(null);
+    const currentLang = settings.language ?? 'auto';
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+      if (!langOpen) return;
+      const handler = (e: MouseEvent) => {
+        if (langRef.current && !langRef.current.contains(e.target as Node)) {
+          setLangOpen(false);
+        }
+      };
+      document.addEventListener('mousedown', handler);
+      return () => document.removeEventListener('mousedown', handler);
+    }, [langOpen]);
 
     const cycleTheme = () => {
       const idx = THEME_CYCLE.indexOf(theme as 'system' | 'light' | 'dark');
@@ -42,7 +53,6 @@ const NewTabHeader = forwardRef<HTMLInputElement, Props>(
     };
 
     const ThemeIcon = THEME_ICONS[theme as keyof typeof THEME_ICONS] ?? Monitor;
-    const isSessionView = SESSION_VIEWS.has(activeView);
 
     return (
       <header className="glass-dark shrink-0 flex items-center gap-3 px-4 py-1.5 border-b border-white/10">
@@ -53,26 +63,6 @@ const NewTabHeader = forwardRef<HTMLInputElement, Props>(
             Session Saver
           </span>
         </div>
-
-        {/* Nav tabs — hidden in session management views */}
-        {!isSessionView && (
-          <div className="flex items-center gap-0.5 pl-3 shrink-0">
-            {NAV_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => onViewChange(tab.id)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                  tab.id === activeView
-                    ? 'bg-white/15 text-white'
-                    : 'text-white/55 hover:text-white/85 hover:bg-white/8'
-                }`}
-                aria-current={tab.id === activeView ? 'page' : undefined}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* Search — grows to fill remaining space */}
         <div className="flex-1 max-w-xl mx-auto">
@@ -93,6 +83,50 @@ const NewTabHeader = forwardRef<HTMLInputElement, Props>(
               style={{ color: settings.showClock ? 'var(--newtab-text)' : 'rgba(255,255,255,0.3)' }}
             />
           </button>
+
+          {/* Language switcher */}
+          <div ref={langRef} className="relative">
+            <button
+              onClick={() => setLangOpen((o) => !o)}
+              className="p-1.5 rounded-lg hover:bg-white/15 transition-colors flex items-center gap-1"
+              aria-label="Change language"
+              title={`Language: ${currentLang}`}
+            >
+              <Globe size={16} style={{ color: 'var(--newtab-text)' }} />
+              {currentLang !== 'auto' && (
+                <span className="text-[10px] font-bold uppercase" style={{ color: 'var(--newtab-text)' }}>
+                  {currentLang}
+                </span>
+              )}
+            </button>
+            {langOpen && (
+              <div
+                className="absolute right-0 top-full mt-1 glass-panel rounded-xl py-1 z-[9999] min-w-[130px]"
+                style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}
+              >
+                {LANG_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => {
+                      setLangOpen(false);
+                      if (opt.value !== currentLang) onLanguageChange(opt.value);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-white/10"
+                    style={{
+                      color: opt.value === currentLang ? '#818cf8' : 'var(--newtab-text)',
+                      fontWeight: opt.value === currentLang ? 600 : 400,
+                    }}
+                  >
+                    <span className="text-base w-5 text-center">{opt.native}</span>
+                    {opt.label}
+                    {opt.value === currentLang && (
+                      <span className="ml-auto text-xs" style={{ color: '#818cf8' }}>✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Theme toggle */}
           <button

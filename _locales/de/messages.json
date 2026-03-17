@@ -245,5 +245,24 @@
   },
   "errorBoundaryReload": {
     "message": "Neu laden"
+  },
+  "sessionsTitle": {
+    "message": "Sitzungen"
+  },
+  "autoSavesTitle": {
+    "message": "Auto-Speichern"
+  },
+  "totalTabsLabel": {
+    "message": "Gesamt-Tabs"
+  },
+  "storageLabel": {
+    "message": "Speicher"
+  },
+  "nSaved": {
+    "message": "$COUNT$ gespeichert",
+    "placeholders": { "count": { "content": "$1" } }
+  },
+  "searchSessionsPlaceholder": {
+    "message": "Sitzungen suchen… (#Tag zum Filtern)"
   }
 }

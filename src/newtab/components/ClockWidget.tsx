@@ -7,23 +7,31 @@ interface Props {
   rowSpan?: SpanValue;
 }
 
-export default function ClockWidget({ clockFormat, colSpan = 3 }: Props) {
+export default function ClockWidget({ clockFormat, colSpan = 3, rowSpan = 3 }: Props) {
   const { timeString, dateString } = useClock(clockFormat);
 
+  // Scale by colSpan (width-primary: time is a horizontal string)
+  // but also cap at rowSpan so it doesn't overflow a short widget
+  const size = Math.min(colSpan, rowSpan + 1); // rowSpan bias so 2w×3h reads as size=2
+
   const timeClass =
-    colSpan >= 4 ? 'text-7xl' :
-    colSpan >= 3 ? 'text-5xl' :
-    'text-3xl';
+    size >= 6 ? 'text-9xl' :
+    size >= 4 ? 'text-8xl' :
+    size >= 3 ? 'text-7xl' :
+    size >= 2 ? 'text-6xl' :
+    'text-4xl';
 
   const dateClass =
-    colSpan >= 4 ? 'text-xl mt-2' :
-    colSpan >= 3 ? 'text-base mt-1' :
+    size >= 6 ? 'text-2xl mt-3' :
+    size >= 4 ? 'text-xl mt-2' :
+    size >= 3 ? 'text-lg mt-1.5' :
+    size >= 2 ? 'text-sm mt-1' :
     'text-xs mt-1';
 
   return (
-    <div className="text-center select-none">
+    <div className="text-center select-none w-full h-full flex flex-col items-center justify-center">
       <div
-        className={`${timeClass} font-light tracking-tight`}
+        className={`${timeClass} font-light tracking-tight leading-none`}
         style={{ color: 'var(--newtab-text)', textShadow: '0 2px 20px rgba(0,0,0,0.5)' }}
       >
         {timeString}

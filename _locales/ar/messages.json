@@ -239,5 +239,24 @@
   },
   "errorBoundaryReload": {
     "message": "إعادة تحميل"
+  },
+  "sessionsTitle": {
+    "message": "الجلسات"
+  },
+  "autoSavesTitle": {
+    "message": "الحفظ التلقائي"
+  },
+  "totalTabsLabel": {
+    "message": "إجمالي التبويبات"
+  },
+  "storageLabel": {
+    "message": "التخزين"
+  },
+  "nSaved": {
+    "message": "$COUNT$ محفوظة",
+    "placeholders": { "count": { "content": "$1" } }
+  },
+  "searchSessionsPlaceholder": {
+    "message": "بحث في الجلسات… (#وسم للتصفية)"
   }
 }

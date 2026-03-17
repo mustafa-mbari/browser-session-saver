@@ -14,6 +14,7 @@ import ResizePopover from '@newtab/components/ResizePopover';
 import ClockWidget from '@newtab/components/ClockWidget';
 import SubscriptionCardBody from '@newtab/components/SubscriptionCardBody';
 import TabGroupsCardBody from '@newtab/components/TabGroupsCardBody';
+import NativeBookmarksCardBody from '@newtab/components/NativeBookmarksCardBody';
 
 interface Props {
   category: BookmarkCategory;
@@ -43,6 +44,7 @@ export default function BookmarkCategoryCard({
     onReorderEntries,
     onResize,
     onUpdateNote,
+    onRefreshQuote,
     onRenameCard,
     onDuplicateCard,
   } = useBookmarkBoardActions();
@@ -209,6 +211,9 @@ export default function BookmarkCategoryCard({
             <NoteCardBody
               content={category.noteContent ?? ''}
               onUpdate={(c) => onUpdateNote?.(category.id, c)}
+              quoteIndex={category.quoteIndex}
+              quoteChangedAt={category.quoteChangedAt}
+              onRefreshQuote={(idx, at) => onRefreshQuote?.(category.id, idx, at)}
               colSpan={colSpan}
               rowSpan={rowSpan}
             />
@@ -226,6 +231,9 @@ export default function BookmarkCategoryCard({
           )}
           {cardType === 'tab-groups' && (
             <TabGroupsCardBody category={category} colSpan={colSpan} rowSpan={rowSpan} />
+          )}
+          {cardType === 'native-bookmarks' && (
+            <NativeBookmarksCardBody colSpan={colSpan} rowSpan={rowSpan} />
           )}
         </div>
       )}

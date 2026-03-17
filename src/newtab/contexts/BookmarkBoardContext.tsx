@@ -10,6 +10,7 @@ export interface BookmarkBoardActions {
   onReorderEntries: (categoryId: string, orderedIds: string[]) => void;
   onResize: (id: string, colSpan: SpanValue, rowSpan: SpanValue) => void;
   onUpdateNote?: (id: string, content: string) => void;
+  onRefreshQuote?: (id: string, quoteIndex: number, quoteChangedAt: string) => void;
   onRenameCard: (id: string, name: string) => void;
   onDuplicateCard: (id: string) => void;
 }

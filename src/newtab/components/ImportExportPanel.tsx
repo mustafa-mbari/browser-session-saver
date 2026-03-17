@@ -69,7 +69,7 @@ export default function ImportExportPanel() {
   }, [sendMessage, refreshSessions]);
 
   return (
-    <div className="pt-4 max-w-3xl">
+    <div className="pt-4 w-full">
       <h2 className="text-xl font-semibold mb-5" style={{ color: 'var(--newtab-text)' }}>
         Import / Export
       </h2>

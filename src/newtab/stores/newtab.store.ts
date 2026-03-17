@@ -13,16 +13,13 @@ import {
 import { updateNewTabSettings } from '@core/services/newtab-settings.service';
 
 export type NewTabView =
-  | 'quick-links'
-  | 'frequent'
-  | 'tabs'
-  | 'activity'
   | 'bookmarks'
   | 'sessions'
   | 'auto-saves'
   | 'tab-groups'
   | 'import-export'
-  | 'subscriptions';
+  | 'subscriptions'
+  | 'settings';
 
 interface NewTabState {
   settings: NewTabSettings;

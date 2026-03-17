@@ -47,6 +47,12 @@ const CARD_TYPES: CardTypeOption[] = [
     label: 'Tab Groups',
     description: 'View and manage your live browser tab groups',
   },
+  {
+    type: 'native-bookmarks',
+    icon: '🔗',
+    label: 'Chrome Bookmarks',
+    description: 'Browse your Chrome bookmarks tree',
+  },
 ];
 
 interface Props {

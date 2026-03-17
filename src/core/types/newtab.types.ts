@@ -1,11 +1,12 @@
 export type LayoutMode = 'minimal' | 'focus' | 'dashboard';
 export type SpanValue = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-export type CardType = 'bookmark' | 'clock' | 'note' | 'todo' | 'subscription' | 'tab-groups';
+export type CardType = 'bookmark' | 'clock' | 'note' | 'todo' | 'subscription' | 'tab-groups' | 'native-bookmarks';
 export type CardDensity = 'comfortable' | 'compact';
 export type SearchEngine = 'google' | 'bing' | 'duckduckgo' | 'brave' | 'custom';
 export type ClockFormat = '12h' | '24h';
 export type BackgroundType = 'solid' | 'gradient' | 'image' | 'none';
 export type TodoPriority = 'high' | 'medium' | 'low' | 'none';
+export type AppLanguage = 'auto' | 'en' | 'ar' | 'de';
 
 export interface Board {
   id: string;
@@ -28,6 +29,8 @@ export interface BookmarkCategory {
   rowSpan?: SpanValue;
   cardType?: CardType;
   noteContent?: string;
+  quoteIndex?: number;
+  quoteChangedAt?: string;
   createdAt: string;
 }
 
@@ -106,6 +109,7 @@ export interface NewTabSettings {
   activeBoardId: string | null;
   zenMode: boolean;
   sidebarCollapsed: boolean;
+  language: AppLanguage;
 }
 
 export const DEFAULT_NEWTAB_SETTINGS: NewTabSettings = {
@@ -134,6 +138,7 @@ export const DEFAULT_NEWTAB_SETTINGS: NewTabSettings = {
   activeBoardId: null,
   zenMode: false,
   sidebarCollapsed: false,
+  language: 'auto',
 };
 
 export const GRADIENT_PRESETS: GradientPreset[] = [

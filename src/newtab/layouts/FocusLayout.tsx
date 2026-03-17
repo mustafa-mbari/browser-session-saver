@@ -3,13 +3,9 @@ import { getFaviconUrl } from '@core/utils/favicon';
 import { Settings } from 'lucide-react';
 import SearchBar from '@newtab/components/SearchBar';
 import ClockWidget from '@newtab/components/ClockWidget';
-import TopNavTabs from '@newtab/components/TopNavTabs';
 import QuickLinksRow from '@newtab/components/QuickLinksRow';
 import TodoWidget from '@newtab/components/TodoWidget';
 import SessionWidget from '@newtab/components/SessionWidget';
-import FrequentlyVisitedPanel from '@newtab/components/FrequentlyVisitedPanel';
-import TabsPanel from '@newtab/components/TabsPanel';
-import ActivityPanel from '@newtab/components/ActivityPanel';
 import BookmarkBoard from '@newtab/components/BookmarkBoard';
 import AddQuickLinkModal from '@newtab/components/AddQuickLinkModal';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
@@ -23,7 +19,7 @@ import { getDefaultSize } from '@core/config/widget-config';
 
 export default function FocusLayout() {
   const store = useNewTabStore();
-  const { settings, activeView, quickLinks, todoLists, todoItems, boards, categories, entries } = store;
+  const { settings, quickLinks, todoLists, todoItems, boards, categories, entries } = store;
   const searchRef = useRef<HTMLInputElement>(null);
   const [addLinkOpen, setAddLinkOpen] = useState(false);
   const [editLink, setEditLink] = useState<QuickLink | null>(null);
@@ -128,6 +124,11 @@ export default function FocusLayout() {
     store.setCategories(reordered);
   }, [store]);
 
+  const handleRefreshQuote = useCallback(async (id: string, quoteIndex: number, quoteChangedAt: string) => {
+    await BookmarkService.updateCategory(newtabDB, id, { quoteIndex, quoteChangedAt });
+    store.setCategories(categories.map((c) => (c.id === id ? { ...c, quoteIndex, quoteChangedAt } : c)));
+  }, [categories, store]);
+
   const handleImportNative = useCallback(async (boardId: string) => {
     await BookmarkService.importNativeBookmarks(newtabDB, boardId);
     const [newCats, newEntries] = await Promise.all([
@@ -140,12 +141,13 @@ export default function FocusLayout() {
 
   const handleAddCategory = useCallback(async (boardId: string, cardType: CardType = 'bookmark') => {
     const defaults: Record<CardType, { name: string; icon: string; color: string }> = {
-      bookmark:     { name: 'New Widget',      icon: '📁', color: '#6366f1' },
-      clock:        { name: 'Clock',         icon: '🕐', color: '#0ea5e9' },
-      note:         { name: 'Note',          icon: '📝', color: '#f59e0b' },
-      todo:         { name: 'To-Do',         icon: '✅', color: '#22c55e' },
-      subscription: { name: 'Subscriptions', icon: '💳', color: '#8b5cf6' },
-      'tab-groups':  { name: 'Tab Groups',    icon: '🗂️', color: '#06b6d4' },
+      bookmark:           { name: 'New Widget',       icon: '📁', color: '#6366f1' },
+      clock:              { name: 'Clock',            icon: '🕐', color: '#0ea5e9' },
+      note:               { name: 'Note',             icon: '📝', color: '#f59e0b' },
+      todo:               { name: 'To-Do',            icon: '✅', color: '#22c55e' },
+      subscription:       { name: 'Subscriptions',   icon: '💳', color: '#8b5cf6' },
+      'tab-groups':       { name: 'Tab Groups',       icon: '🗂️', color: '#06b6d4' },
+      'native-bookmarks': { name: 'Chrome Bookmarks', icon: '🔗', color: '#e05d44' },
     };
     const cat = await BookmarkService.saveCategory(newtabDB, {
       boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, ...getDefaultSize(cardType), cardType,
@@ -180,24 +182,20 @@ export default function FocusLayout() {
         </button>
       </div>
 
-      <div className="px-8 pb-2">
-        <TopNavTabs activeView={activeView} onViewChange={store.setActiveView} />
-      </div>
-
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-8 pb-8">
         <div className="max-w-5xl mx-auto">
-          {activeView === 'quick-links' && (
-            <div className="flex flex-col gap-6 pt-6">
-              {settings.showQuickLinks && (
-                <QuickLinksRow
-                  links={quickLinks}
-                  onAdd={() => setAddLinkOpen(true)}
-                  onEdit={(link) => { setEditLink(link); setAddLinkOpen(true); }}
-                  onDelete={(id) => { void handleDeleteLink(id); }}
-                  onReorder={(links) => { void handleReorderLinks(links); }}
-                />
-              )}
+          <div className="flex flex-col gap-6 pt-4">
+            {settings.showQuickLinks && (
+              <QuickLinksRow
+                links={quickLinks}
+                onAdd={() => setAddLinkOpen(true)}
+                onEdit={(link) => { setEditLink(link); setAddLinkOpen(true); }}
+                onDelete={(id) => { void handleDeleteLink(id); }}
+                onReorder={(links) => { void handleReorderLinks(links); }}
+              />
+            )}
+            {(settings.showTodo || settings.showSessions) && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {settings.showTodo && (
                   <TodoWidget
@@ -213,13 +211,8 @@ export default function FocusLayout() {
                 )}
                 {settings.showSessions && <SessionWidget />}
               </div>
-            </div>
-          )}
-          {activeView === 'frequent' && <FrequentlyVisitedPanel />}
-          {activeView === 'tabs' && <TabsPanel />}
-          {activeView === 'activity' && <ActivityPanel />}
-          {activeView === 'bookmarks' && activeBoard && (
-            <div className="pt-4">
+            )}
+            {activeBoard && (
               <BookmarkBoard
                 board={activeBoard}
                 categories={boardCategories}
@@ -237,9 +230,10 @@ export default function FocusLayout() {
                 onResize={() => {}}
                 onRenameCard={() => {}}
                 onDuplicateCard={() => {}}
+                onRefreshQuote={(id, idx, at) => { void handleRefreshQuote(id, idx, at); }}
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 

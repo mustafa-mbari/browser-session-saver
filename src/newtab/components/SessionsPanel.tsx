@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, memo, useRef } from 'react';
+import { t } from '@shared/utils/i18n';
 import { Search, RotateCcw, MoreVertical, Pin, Star, Download, Trash2, Lock, FolderOpen, Layers2, Clock as ClockIcon, HardDrive } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useSession } from '@shared/hooks/useSession';
@@ -9,6 +10,7 @@ import LoadingSpinner from '@shared/components/LoadingSpinner';
 import Tooltip from '@shared/components/Tooltip';
 import SessionBulkToolbar from './SessionBulkToolbar';
 import SessionDiffModal from './SessionDiffModal';
+import AutoSavesPanel from './AutoSavesPanel';
 import type { Session, TabGroup } from '@core/types/session.types';
 import type { SessionDiffResponse } from '@core/types/messages.types';
 import { GROUP_COLORS } from '@core/constants/tab-group-colors';
@@ -44,10 +46,10 @@ function SessionStatsBar({ sessions }: { sessions: Session[] }) {
   const estimatedSize = (JSON.stringify(sessions).length / 1024).toFixed(1);
 
   const stats = [
-    { icon: FolderOpen, label: 'Sessions',   value: sessions.length },
-    { icon: Layers2,    label: 'Total Tabs', value: totalTabs },
-    { icon: ClockIcon,  label: 'Auto-Saves', value: autoSaves },
-    { icon: HardDrive,  label: 'Storage',    value: `${estimatedSize} KB` },
+    { icon: FolderOpen, label: t('sessionsTitle'),    value: sessions.length },
+    { icon: Layers2,    label: t('totalTabsLabel'),   value: totalTabs },
+    { icon: ClockIcon,  label: t('autoSavesTitle'),   value: autoSaves },
+    { icon: HardDrive,  label: t('storageLabel'),     value: `${estimatedSize} KB` },
   ];
 
   return (
@@ -125,8 +127,10 @@ const SessionRow = memo(function SessionRow({
 
   return (
     <div
-      className="glass-panel rounded-xl px-4 py-3 flex items-start gap-3 group hover:bg-white/5 transition-colors"
-      style={selected ? { outline: '1.5px solid rgba(99,102,241,0.5)', background: 'rgba(99,102,241,0.08)' } : undefined}
+      className="flex items-center gap-3 px-3 py-2.5 rounded-lg group hover:bg-white/5 transition-colors"
+      style={selected
+        ? { background: 'rgba(99,102,241,0.08)', outline: '1px solid rgba(99,102,241,0.3)' }
+        : { borderBottom: '1px solid var(--newtab-border)' }}
     >
       {/* Checkbox */}
       <input
@@ -134,43 +138,43 @@ const SessionRow = memo(function SessionRow({
         checked={selected}
         onChange={(e) => { e.stopPropagation(); onToggleSelect(session.id); }}
         onClick={(e) => e.stopPropagation()}
-        className="mt-1 w-3.5 h-3.5 shrink-0 rounded accent-indigo-500 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-        style={selected ? { opacity: 1 } : undefined}
+        className="w-3.5 h-3.5 shrink-0 rounded accent-indigo-500 cursor-pointer"
         aria-label={`Select ${session.name}`}
       />
 
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {session.isStarred && (
-            <Star size={11} fill="currentColor" style={{ color: '#EAB308' }} className="shrink-0" />
-          )}
-          {session.isPinned && (
-            <Pin size={11} style={{ color: '#6366f1' }} className="shrink-0" />
-          )}
-          <p className="text-sm font-medium truncate" style={{ color: 'var(--newtab-text)' }}>
-            {session.name}
-          </p>
+      {/* Info — takes all remaining space */}
+      <div className="flex-1 min-w-0 flex items-center gap-3">
+        {/* Badges */}
+        <div className="flex items-center gap-1 shrink-0">
+          {session.isStarred && <Star size={11} fill="currentColor" style={{ color: '#EAB308' }} />}
+          {session.isPinned && <Pin size={11} style={{ color: '#6366f1' }} />}
+          {session.isLocked && <Lock size={10} className="opacity-50" style={{ color: 'var(--newtab-text-secondary)' }} />}
+        </div>
+
+        {/* Name */}
+        <p className="text-sm font-medium truncate flex-1 min-w-0" style={{ color: 'var(--newtab-text)' }}>
+          {session.name}
+        </p>
+
+        {/* Metadata */}
+        <div className="flex items-center gap-2 shrink-0">
           {session.isAutoSave && (
             <span
-              className="text-[10px] px-1.5 py-0.5 rounded-full shrink-0 leading-tight"
+              className="text-[10px] px-1.5 py-0.5 rounded-full leading-tight"
               style={{ background: 'rgba(99,102,241,0.2)', color: '#818cf8' }}
             >
               Auto
             </span>
           )}
-          {session.isLocked && (
-            <Lock size={10} className="shrink-0 opacity-50" style={{ color: 'var(--newtab-text-secondary)' }} />
-          )}
+          <p className="text-xs whitespace-nowrap" style={{ color: 'var(--newtab-text-secondary)' }}>
+            {formatRelative(session.createdAt)} · {session.tabCount} tab{session.tabCount !== 1 ? 's' : ''}
+          </p>
+          <TabGroupPills groups={session.tabGroups} />
         </div>
-        <p className="text-xs mt-0.5" style={{ color: 'var(--newtab-text-secondary)' }}>
-          {formatRelative(session.createdAt)} · {session.tabCount} tab{session.tabCount !== 1 ? 's' : ''}
-        </p>
-        <TabGroupPills groups={session.tabGroups} />
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
+      {/* Actions — always visible */}
+      <div className="flex items-center gap-0.5 shrink-0">
         <button
           onClick={handleRestore}
           disabled={restoring}
@@ -186,7 +190,7 @@ const SessionRow = memo(function SessionRow({
         </button>
         <ContextMenu items={menuItems}>
           <button
-            className="p-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100 hover:bg-white/15"
+            className="p-1.5 rounded-lg transition-colors hover:bg-white/15"
             style={{ color: 'var(--newtab-text-secondary)' }}
             aria-label="More actions"
           >
@@ -203,6 +207,7 @@ const SessionRow = memo(function SessionRow({
 export default function SessionsPanel() {
   const { sessions, loading, restoreSession, deleteSession, updateSession, refreshSessions } = useSession();
   const { sendMessage } = useMessaging();
+  const [activeTab, setActiveTab] = useState<'sessions' | 'auto-saves'>('sessions');
   const [query, setQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [diffResult, setDiffResult] = useState<SessionDiffResponse | null>(null);
@@ -317,15 +322,13 @@ export default function SessionsPanel() {
   // ── Virtualizer ─────────────────────────────────────────────────────────────
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const COLS = 3;
-  const CARD_H = 92;
+  const CARD_H = 44;
 
   const virtualizer = useVirtualizer({
     count: sorted.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => CARD_H,
-    lanes: COLS,
-    overscan: 4,
+    overscan: 8,
   });
 
   if (loading) {
@@ -337,114 +340,138 @@ export default function SessionsPanel() {
   }
 
   return (
-    <div className="pt-4 max-w-5xl">
+    <div className="pt-4 w-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold" style={{ color: 'var(--newtab-text)' }}>
-          Sessions
+          {t('sessionsTitle')}
         </h2>
-        <span className="text-sm" style={{ color: 'var(--newtab-text-secondary)' }}>
-          {sessions.length} saved
-        </span>
+        {activeTab === 'sessions' && (
+          <span className="text-sm" style={{ color: 'var(--newtab-text-secondary)' }}>
+            {t('nSaved', String(sessions.length))}
+          </span>
+        )}
       </div>
 
-      {/* Stats */}
-      <SessionStatsBar sessions={sessions} />
-
-      {/* Search */}
-      <div className="relative mb-4">
-        <Search
-          size={14}
-          className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-          style={{ color: 'var(--newtab-text-secondary)' }}
-        />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search sessions… (#tag to filter)"
-          className="w-full pl-9 pr-4 py-2 rounded-xl text-sm outline-none"
-          style={{ color: 'var(--newtab-text)', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}
-        />
+      {/* Tabs */}
+      <div className="flex gap-1 mb-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0' }}>
+        {(['sessions', 'auto-saves'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors"
+            style={{
+              color: activeTab === tab ? 'var(--newtab-text)' : 'var(--newtab-text-secondary)',
+              background: activeTab === tab ? 'rgba(255,255,255,0.1)' : 'transparent',
+              borderBottom: activeTab === tab ? '2px solid rgba(255,255,255,0.6)' : '2px solid transparent',
+              marginBottom: '-1px',
+            }}
+          >
+            {tab === 'sessions' ? t('sessionsTitle') : t('autoSavesTitle')}
+          </button>
+        ))}
       </div>
 
-      {/* Session list */}
-      {sorted.length === 0 ? (
-        <div className="text-center py-16" style={{ color: 'var(--newtab-text-secondary)' }}>
-          <p className="text-base">{query ? 'No sessions match your search' : 'No saved sessions yet'}</p>
-          {!query && (
-            <p className="text-sm mt-1 opacity-60">Save a session from the side panel to see it here</p>
-          )}
-        </div>
-      ) : sorted.length <= 30 ? (
-        /* Small list — plain CSS grid */
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
-          {sorted.map((session) => (
-            <SessionRow
-              key={session.id}
-              session={session}
-              selected={selectedIds.has(session.id)}
-              onToggleSelect={toggleSelect}
-              onRestore={handleRestore}
-              onDelete={handleDelete}
-              onUpdate={handleUpdate}
-              onExport={handleExport}
+      {activeTab === 'sessions' ? (
+        <>
+          {/* Stats */}
+          <SessionStatsBar sessions={sessions} />
+
+          {/* Search */}
+          <div className="relative mb-4">
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: 'var(--newtab-text-secondary)' }}
             />
-          ))}
-        </div>
-      ) : (
-        /* Large list — virtualised 3-column grid */
-        <div
-          ref={scrollRef}
-          style={{ height: 'calc(100vh - 340px)', overflowY: 'auto' }}
-        >
-          <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
-            {virtualizer.getVirtualItems().map((vItem) => (
-              <div
-                key={vItem.key}
-                style={{
-                  position: 'absolute',
-                  top: vItem.start,
-                  left: `${(vItem.lane / COLS) * 100}%`,
-                  width: `${100 / COLS}%`,
-                  height: vItem.size,
-                  paddingRight: vItem.lane < COLS - 1 ? 4 : 0,
-                  paddingLeft: vItem.lane > 0 ? 4 : 0,
-                  paddingBottom: 8,
-                }}
-              >
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('searchSessionsPlaceholder')}
+              className="w-full pl-9 pr-4 py-2 rounded-xl text-sm outline-none"
+              style={{ color: 'var(--newtab-text)', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}
+            />
+          </div>
+
+          {/* Session list */}
+          {sorted.length === 0 ? (
+            <div className="text-center py-16" style={{ color: 'var(--newtab-text-secondary)' }}>
+              <p className="text-base">{query ? 'No sessions match your search' : t('noSessions')}</p>
+              {!query && (
+                <p className="text-sm mt-1 opacity-60">{t('noSessionsDesc')}</p>
+              )}
+            </div>
+          ) : sorted.length <= 30 ? (
+            /* Small list — single column */
+            <div className="flex flex-col">
+              {sorted.map((session) => (
                 <SessionRow
-                  session={sorted[vItem.index]}
-                  selected={selectedIds.has(sorted[vItem.index].id)}
+                  key={session.id}
+                  session={session}
+                  selected={selectedIds.has(session.id)}
                   onToggleSelect={toggleSelect}
                   onRestore={handleRestore}
                   onDelete={handleDelete}
                   onUpdate={handleUpdate}
                   onExport={handleExport}
                 />
+              ))}
+            </div>
+          ) : (
+            /* Large list — virtualised single column */
+            <div
+              ref={scrollRef}
+              style={{ height: 'calc(100vh - 340px)', overflowY: 'auto' }}
+            >
+              <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
+                {virtualizer.getVirtualItems().map((vItem) => (
+                  <div
+                    key={vItem.key}
+                    style={{
+                      position: 'absolute',
+                      top: vItem.start,
+                      left: 0,
+                      width: '100%',
+                      height: vItem.size,
+                    }}
+                  >
+                    <SessionRow
+                      session={sorted[vItem.index]}
+                      selected={selectedIds.has(sorted[vItem.index].id)}
+                      onToggleSelect={toggleSelect}
+                      onRestore={handleRestore}
+                      onDelete={handleDelete}
+                      onUpdate={handleUpdate}
+                      onExport={handleExport}
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </div>
+          )}
 
-      {/* Bulk toolbar — fixed bottom */}
-      <SessionBulkToolbar
-        selectedIds={selectedIds}
-        onClear={clearSelection}
-        onExport={handleBulkExport}
-        onDelete={handleBulkDelete}
-        onMerge={handleBulkMerge}
-        onCompare={handleBulkCompare}
-      />
+          {/* Bulk toolbar — fixed bottom */}
+          <SessionBulkToolbar
+            selectedIds={selectedIds}
+            onClear={clearSelection}
+            onExport={handleBulkExport}
+            onDelete={handleBulkDelete}
+            onMerge={handleBulkMerge}
+            onCompare={handleBulkCompare}
+          />
 
-      {/* Diff modal */}
-      {diffSessions && (
-        <SessionDiffModal
-          diffResult={diffResult}
-          sessions={diffSessions}
-          onClose={() => { setDiffSessions(null); setDiffResult(null); }}
-        />
+          {/* Diff modal */}
+          {diffSessions && (
+            <SessionDiffModal
+              diffResult={diffResult}
+              sessions={diffSessions}
+              onClose={() => { setDiffSessions(null); setDiffResult(null); }}
+            />
+          )}
+        </>
+      ) : (
+        <AutoSavesPanel />
       )}
     </div>
   );

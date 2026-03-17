@@ -47,6 +47,7 @@ export default function BookmarkBoard({
   onReorderEntries,
   onResize,
   onUpdateNote,
+  onRefreshQuote,
   onRenameCard,
   onDuplicateCard,
 }: Props) {
@@ -57,7 +58,7 @@ export default function BookmarkBoard({
   const actions: BookmarkBoardActions = {
     onAddEntry, onDeleteEntry, onRenameEntry, onDeleteCategory,
     onToggleCollapse, onReorderEntries, onResize, onUpdateNote,
-    onRenameCard, onDuplicateCard,
+    onRefreshQuote, onRenameCard, onDuplicateCard,
   };
 
   return (

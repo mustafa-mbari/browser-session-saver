@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -7,76 +7,17 @@ import {
   Pencil,
   Plus,
   Clock,
-  Bookmark,
   Layers,
   ArrowDownUp,
-  RefreshCw,
+  Settings,
   Trash2,
   CreditCard,
+  User,
 } from 'lucide-react';
 import Tooltip from '@shared/components/Tooltip';
 import ContextMenu from '@shared/components/ContextMenu';
 import type { Board } from '@core/types/newtab.types';
 import type { NewTabView } from '@newtab/stores/newtab.store';
-
-interface NativeNode {
-  id: string;
-  title: string;
-  url?: string;
-  children?: NativeNode[];
-}
-
-function NativeBookmarkTree({ nodes, depth = 0 }: { nodes: NativeNode[]; depth?: number }) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const toggle = (id: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-
-  return (
-    <div style={{ paddingLeft: depth > 0 ? 12 : 0 }}>
-      {nodes.map((node) => {
-        const isFolder = !node.url;
-        const isOpen = expanded.has(node.id);
-        return (
-          <div key={node.id}>
-            {isFolder ? (
-              <button
-                className="flex items-center gap-1 w-full text-left py-1 px-2 rounded hover:bg-white/10 text-xs transition-colors"
-                style={{ color: 'var(--newtab-text-secondary)' }}
-                onClick={() => toggle(node.id)}
-              >
-                {isOpen ? '▾' : '▸'} {node.title || 'Folder'}
-              </button>
-            ) : (
-              <a
-                href={node.url}
-                className="flex items-center gap-2 py-1 px-2 rounded hover:bg-white/10 text-xs transition-colors truncate"
-                style={{ color: 'var(--newtab-text-secondary)' }}
-              >
-                <img
-                  src={`https://www.google.com/s2/favicons?domain=${(() => {
-                    try { return new URL(node.url ?? '').hostname; }
-                    catch { return 'example.com'; }
-                  })()}&sz=16`}
-                  alt=""
-                  className="w-3 h-3 rounded shrink-0"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                />
-                {node.title || node.url}
-              </a>
-            )}
-            {isFolder && isOpen && node.children && (
-              <NativeBookmarkTree nodes={node.children} depth={depth + 1} />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 function SectionLabel({ label }: { label: string }) {
   return (
@@ -222,14 +163,7 @@ export default function DashboardSidebar({
   onRenameBoard,
   onDeleteBoard,
 }: Props) {
-  const [nativeTree, setNativeTree] = useState<NativeNode[]>([]);
-  const [showNative, setShowNative] = useState(false);
   const [sessionsExpanded, setSessionsExpanded] = useState(true);
-
-  useEffect(() => {
-    if (!showNative) return;
-    chrome.bookmarks.getTree((tree) => { setNativeTree(tree as NativeNode[]); });
-  }, [showNative]);
 
   if (collapsed) {
     return (
@@ -256,9 +190,9 @@ export default function DashboardSidebar({
         <div className="w-full border-t border-white/10 my-1" />
         {[
           { view: 'sessions' as NewTabView, icon: <Clock size={14} />, label: 'Sessions' },
-          { view: 'auto-saves' as NewTabView, icon: <RefreshCw size={13} />, label: 'Auto-Saves' },
           { view: 'tab-groups' as NewTabView, icon: <Layers size={13} />, label: 'Tab Groups' },
           { view: 'import-export' as NewTabView, icon: <ArrowDownUp size={13} />, label: 'Import/Export' },
+          { view: 'settings' as NewTabView, icon: <Settings size={13} />, label: 'Settings' },
         ].map(({ view, icon, label }) => (
           <Tooltip key={view} content={label} position="right">
             <button
@@ -284,6 +218,13 @@ export default function DashboardSidebar({
             <CreditCard size={14} style={{ color: 'var(--newtab-text-secondary)' }} />
           </button>
         </Tooltip>
+        <div className="mt-auto pt-2">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center mx-auto"
+            style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.3)' }}
+          >
+            <User size={14} style={{ color: '#818cf8' }} />
+          </div>
+        </div>
       </div>
     );
   }
@@ -359,12 +300,6 @@ export default function DashboardSidebar({
               onClick={() => onViewChange('sessions')}
             />
             <NavItem
-              icon={<RefreshCw size={13} />}
-              label="Auto-Saves"
-              active={activeView === 'auto-saves'}
-              onClick={() => onViewChange('auto-saves')}
-            />
-            <NavItem
               icon={<Layers size={13} />}
               label="Tab Groups"
               active={activeView === 'tab-groups'}
@@ -375,6 +310,12 @@ export default function DashboardSidebar({
               label="Import / Export"
               active={activeView === 'import-export'}
               onClick={() => onViewChange('import-export')}
+            />
+            <NavItem
+              icon={<Settings size={13} />}
+              label="Settings"
+              active={activeView === 'settings'}
+              onClick={() => onViewChange('settings')}
             />
           </div>
         )}
@@ -393,28 +334,23 @@ export default function DashboardSidebar({
         </div>
       </div>
 
-      {/* ── NATIVE BOOKMARKS ── */}
+      {/* ── ACCOUNT ── */}
       <div className="border-t border-white/10 mt-auto shrink-0">
-        <SectionLabel label="Native Bookmarks" />
-        <div className="px-2 pb-2">
-          <button
-            onClick={() => setShowNative((v) => !v)}
-            className="flex items-center gap-2 px-2 py-1.5 w-full text-sm hover:bg-white/10 rounded-lg transition-colors"
-            style={{ color: 'var(--newtab-text-secondary)' }}
+        <div className="flex items-center gap-2.5 px-4 py-3">
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.3)' }}
           >
-            <Bookmark size={13} className="shrink-0 opacity-60" />
-            <span className="flex-1 text-left">Chrome Bookmarks</span>
-            <ChevronDown
-              size={11}
-              className={`transition-transform ${showNative ? '' : '-rotate-90'}`}
-              style={{ opacity: 0.5 }}
-            />
-          </button>
-          {showNative && (
-            <div className="px-1 pt-1 pb-1 max-h-56 overflow-y-auto">
-              <NativeBookmarkTree nodes={nativeTree} />
+            <User size={15} style={{ color: '#818cf8' }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium truncate" style={{ color: 'var(--newtab-text)' }}>
+              Chrome User
             </div>
-          )}
+            <div className="text-[10px] truncate" style={{ color: 'var(--newtab-text-secondary)' }}>
+              Session Saver
+            </div>
+          </div>
         </div>
       </div>
     </div>

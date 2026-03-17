@@ -52,11 +52,21 @@
     border: 1px solid rgba(255, 255, 255, 0.12);
   }
 
+  .dark .glass {
+    background: rgba(0, 0, 0, 0.68);
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+
   .glass-dark {
     background: rgba(0, 0, 0, 0.60);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .dark .glass-dark {
+    background: rgba(0, 0, 0, 0.82);
+    border-color: rgba(255, 255, 255, 0.12);
   }
 
   .glass-panel {
@@ -65,6 +75,23 @@
     -webkit-backdrop-filter: blur(24px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.10);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+
+  .dark .glass-panel {
+    background: rgba(0, 0, 0, 0.75);
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  }
+
+  /* ── Start-tab page cards (Settings, etc.) ── */
+  .newtab-page-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .dark .newtab-page-card {
+    background: rgba(0, 0, 0, 0.45);
+    border-color: rgba(255, 255, 255, 0.13);
   }
 
   .glass-hover {

@@ -330,5 +330,30 @@
   "errorBoundaryReload": {
     "message": "Reload",
     "description": "Error boundary reload button label"
+  },
+  "sessionsTitle": {
+    "message": "Sessions",
+    "description": "Sessions panel heading and tab label"
+  },
+  "autoSavesTitle": {
+    "message": "Auto-Saves",
+    "description": "Auto-saves tab label"
+  },
+  "totalTabsLabel": {
+    "message": "Total Tabs",
+    "description": "Sessions stats bar — total tab count label"
+  },
+  "storageLabel": {
+    "message": "Storage",
+    "description": "Sessions stats bar — storage usage label"
+  },
+  "nSaved": {
+    "message": "$COUNT$ saved",
+    "description": "Sessions count suffix in panel header",
+    "placeholders": { "count": { "content": "$1" } }
+  },
+  "searchSessionsPlaceholder": {
+    "message": "Search sessions… (#tag to filter)",
+    "description": "Sessions panel search input placeholder"
   }
 }

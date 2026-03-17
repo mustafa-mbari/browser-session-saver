@@ -1,5 +1,6 @@
 import { useEffect, useRef, lazy, Suspense } from 'react';
 import { useTheme } from '@shared/hooks/useTheme';
+import { loadLocale } from '@shared/utils/i18n';
 import { useNewTabSettings } from '@newtab/hooks/useNewTabSettings';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
 import { useKeyboardShortcuts } from '@newtab/hooks/useKeyboardShortcuts';
@@ -44,12 +45,17 @@ export default function App() {
 
   useKeyboardShortcuts({ focusSearchRef: searchRef, focusTodoRef: todoRef });
 
+  // Load runtime locale override whenever language setting changes
+  useEffect(() => {
+    void loadLocale(settings.language ?? 'auto');
+  }, [settings.language]);
+
   // Navigate to a specific view when opened with ?view=<name>
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const viewParam = params.get('view');
     if (!viewParam) return;
-    const mgmtViews = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions'];
+    const mgmtViews = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions', 'settings'];
     store.setActiveView(viewParam as Parameters<typeof store.setActiveView>[0]);
     if (mgmtViews.includes(viewParam) && store.settings.layoutMode !== 'dashboard') {
       store.setLayoutMode('dashboard');

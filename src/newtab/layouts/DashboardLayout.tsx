@@ -2,22 +2,21 @@ import { useRef, useCallback, useState } from 'react';
 import NewTabHeader from '@newtab/components/NewTabHeader';
 import ClockWidget from '@newtab/components/ClockWidget';
 import QuickLinksRow from '@newtab/components/QuickLinksRow';
-import FrequentlyVisitedPanel from '@newtab/components/FrequentlyVisitedPanel';
-import TabsPanel from '@newtab/components/TabsPanel';
-import ActivityPanel from '@newtab/components/ActivityPanel';
 import BookmarkBoard from '@newtab/components/BookmarkBoard';
 import DashboardSidebar from '@newtab/components/DashboardSidebar';
 import SessionsPanel from '@newtab/components/SessionsPanel';
-import AutoSavesPanel from '@newtab/components/AutoSavesPanel';
 import TabGroupsPanel from '@newtab/components/TabGroupsPanel';
 import ImportExportPanel from '@newtab/components/ImportExportPanel';
 import SubscriptionsPanel from '@newtab/components/SubscriptionsPanel';
+import SettingsView from '@newtab/components/SettingsView';
 import AddQuickLinkModal from '@newtab/components/AddQuickLinkModal';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
 import { newtabDB } from '@core/storage/newtab-storage';
+import { updateNewTabSettings } from '@core/services/newtab-settings.service';
 import * as QuickLinksService from '@core/services/quicklinks.service';
 import * as BookmarkService from '@core/services/bookmark.service';
 import { getFaviconUrl } from '@core/utils/favicon';
+import { DEFAULT_NEWTAB_SETTINGS } from '@core/types/newtab.types';
 import type { QuickLink, CardType, SpanValue } from '@core/types/newtab.types';
 import { getDefaultSize, clampSize } from '@core/config/widget-config';
 
@@ -119,12 +118,13 @@ export default function DashboardLayout() {
 
   const handleAddCategory = useCallback(async (boardId: string, cardType: CardType = 'bookmark') => {
     const defaults: Record<CardType, { name: string; icon: string; color: string }> = {
-      bookmark:     { name: 'New Widget',      icon: '📁', color: '#6366f1' },
-      clock:        { name: 'Clock',         icon: '🕐', color: '#0ea5e9' },
-      note:         { name: 'Note',          icon: '📝', color: '#f59e0b' },
-      todo:         { name: 'To-Do',         icon: '✅', color: '#22c55e' },
-      subscription: { name: 'Subscriptions', icon: '💳', color: '#8b5cf6' },
-      'tab-groups':  { name: 'Tab Groups',    icon: '🗂️', color: '#06b6d4' },
+      bookmark:           { name: 'New Widget',       icon: '📁', color: '#6366f1' },
+      clock:              { name: 'Clock',            icon: '🕐', color: '#0ea5e9' },
+      note:               { name: 'Note',             icon: '📝', color: '#f59e0b' },
+      todo:               { name: 'To-Do',            icon: '✅', color: '#22c55e' },
+      subscription:       { name: 'Subscriptions',   icon: '💳', color: '#8b5cf6' },
+      'tab-groups':       { name: 'Tab Groups',       icon: '🗂️', color: '#06b6d4' },
+      'native-bookmarks': { name: 'Chrome Bookmarks', icon: '🔗', color: '#e05d44' },
     };
     const cat = await BookmarkService.saveCategory(newtabDB, {
       boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, ...getDefaultSize(cardType), cardType,
@@ -143,6 +143,11 @@ export default function DashboardLayout() {
   const handleUpdateNote = useCallback(async (id: string, noteContent: string) => {
     await BookmarkService.updateCategory(newtabDB, id, { noteContent });
     store.setCategories(categories.map((c) => (c.id === id ? { ...c, noteContent } : c)));
+  }, [categories, store]);
+
+  const handleRefreshQuote = useCallback(async (id: string, quoteIndex: number, quoteChangedAt: string) => {
+    await BookmarkService.updateCategory(newtabDB, id, { quoteIndex, quoteChangedAt });
+    store.setCategories(categories.map((c) => (c.id === id ? { ...c, quoteIndex, quoteChangedAt } : c)));
   }, [categories, store]);
 
   const handleRenameCard = useCallback(async (id: string, name: string) => {
@@ -223,13 +228,14 @@ export default function DashboardLayout() {
         onImportNative: (boardId: string) => { void handleImportNative(boardId); },
         onResize: (id: string, colSpan: SpanValue, rowSpan: SpanValue) => { void handleResizeCategory(id, colSpan, rowSpan); },
         onUpdateNote: (id: string, content: string) => { void handleUpdateNote(id, content); },
+        onRefreshQuote: (id: string, idx: number, at: string) => { void handleRefreshQuote(id, idx, at); },
         onRenameCard: (id: string, name: string) => { void handleRenameCard(id, name); },
         onDuplicateCard: (id: string) => { void handleDuplicateCard(id); },
       }
     : null;
 
-  // Determine if current view is a "sessions management" view
-  const isSessionView = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions'].includes(activeView);
+  // Determine if current view is a "management" view (hides clock/quick links)
+  const isSessionView = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions', 'settings'].includes(activeView);
 
   return (
     <div className="relative z-10 h-screen flex flex-col overflow-hidden">
@@ -237,11 +243,14 @@ export default function DashboardLayout() {
       <NewTabHeader
         ref={searchRef}
         settings={settings}
-        activeView={activeView}
-        onViewChange={store.setActiveView}
         onOpenSettings={() => store.toggleSettings()}
         onOpenWallpaper={() => store.toggleWallpaper()}
         onToggleClock={() => store.updateSettings({ showClock: !settings.showClock })}
+        onLanguageChange={async (lang) => {
+          store.updateSettings({ language: lang }); // update React state
+          await updateNewTabSettings({ language: lang }); // ensure persisted before reload
+          window.location.reload();
+        }}
       />
 
       {/* ── Body: sidebar + main ── */}
@@ -301,19 +310,27 @@ export default function DashboardLayout() {
                 </div>
               )}
 
-              {/* Browser views */}
-              {activeView === 'frequent' && <FrequentlyVisitedPanel />}
-              {activeView === 'tabs' && <TabsPanel />}
-              {activeView === 'activity' && <ActivityPanel />}
-
               {/* Session management views */}
               {activeView === 'sessions' && <SessionsPanel />}
-              {activeView === 'auto-saves' && <AutoSavesPanel />}
               {activeView === 'tab-groups' && <TabGroupsPanel />}
               {activeView === 'import-export' && <ImportExportPanel />}
 
               {/* Subscriptions */}
               {activeView === 'subscriptions' && <SubscriptionsPanel />}
+
+              {/* Settings */}
+              {activeView === 'settings' && (
+                <SettingsView
+                  settings={settings}
+                  boards={boards}
+                  onUpdate={(updates) => store.updateSettings(updates)}
+                  onClearData={async () => {
+                    await newtabDB.clearAll();
+                    await updateNewTabSettings(DEFAULT_NEWTAB_SETTINGS);
+                    window.location.reload();
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>

@@ -111,7 +111,7 @@ export default function AutoSavesPanel() {
   }
 
   return (
-    <div className="pt-4 flex flex-col gap-4 max-w-3xl">
+    <div className="pt-4 flex flex-col gap-4 w-full">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold" style={{ color: 'var(--newtab-text)' }}>
           Auto-Saves
