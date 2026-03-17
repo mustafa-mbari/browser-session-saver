@@ -45,7 +45,9 @@ export async function restoreTabGroups(
   const groupIdMap = new Map<number, number>();
 
   for (const group of tabGroups) {
-    const groupTabs = tabs.filter((t) => t.groupId === group.id);
+    const groupTabs = tabs
+      .filter((t) => t.groupId === group.id)
+      .sort((a, b) => a.index - b.index);
     if (groupTabs.length === 0) continue;
 
     const tabIds: number[] = [];

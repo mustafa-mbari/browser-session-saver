@@ -32,6 +32,6 @@ export const DEFAULT_SETTINGS: Settings = {
   closeTabsAfterSave: false,
   primaryUI: 'sidepanel',
   theme: 'system',
-  autoSaveOnTabClose: false,
+  autoSaveOnTabClose: true,
   removeClosedTabsOnUpdate: false,
 };

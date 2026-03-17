@@ -116,11 +116,12 @@ async function handleRestoreSession(payload: {
   if (!session) return { success: false, error: 'Session not found' };
 
   const failedUrls: string[] = [];
-  const ungroupedTabs = session.tabs.filter((t) => t.groupId === -1);
+  const sortedTabs = [...session.tabs].sort((a, b) => a.index - b.index);
+  const ungroupedTabs = sortedTabs.filter((t) => t.groupId === -1);
   let windowId: number;
 
   if (payload.mode === 'new_window') {
-    const firstUrl = ungroupedTabs[0]?.url || session.tabs[0]?.url;
+    const firstUrl = ungroupedTabs[0]?.url || sortedTabs[0]?.url;
     const window = await chrome.windows.create({ url: firstUrl, focused: true });
     windowId = window.id!;
 
@@ -174,7 +175,15 @@ async function handleRestoreSession(payload: {
   }
 
   if (session.tabGroups.length > 0) {
-    await restoreTabGroups(session.tabGroups, session.tabs, windowId);
+    await restoreTabGroups(session.tabGroups, sortedTabs, windowId);
+  }
+
+  // Activate the tab that was active when the session was saved
+  const activeSavedTab = sortedTabs.find((t) => t.active);
+  if (activeSavedTab) {
+    const allWindowTabs = await chrome.tabs.query({ windowId });
+    const match = allWindowTabs.find((t) => t.url === activeSavedTab.url);
+    if (match?.id) await chrome.tabs.update(match.id, { active: true });
   }
 
   return {
@@ -383,7 +392,9 @@ async function handleRestoreSelectedTabs(payload: {
   if (!session) return { success: false, error: 'Session not found' };
 
   const selectedSet = new Set(payload.tabIds);
-  const tabsToOpen = session.tabs.filter((t) => selectedSet.has(t.id));
+  const tabsToOpen = [...session.tabs]
+    .filter((t) => selectedSet.has(t.id))
+    .sort((a, b) => a.index - b.index);
   if (tabsToOpen.length === 0) return { success: false, error: 'No tabs selected' };
 
   const failedUrls: string[] = [];

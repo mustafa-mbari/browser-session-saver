@@ -145,7 +145,7 @@ async function performAutoSave(trigger: AutoSaveTrigger): Promise<void> {
 
     // mergeWithExisting = true when autoSaveOnTabClose is disabled (default).
     // Merge keeps closed tabs in the session; only new URLs are added.
-    const mergeWithExisting = !(_settings?.autoSaveOnTabClose ?? false);
+    const mergeWithExisting = !(_settings?.autoSaveOnTabClose ?? true);
 
     await SessionService.upsertAutoSaveSession(
       allTabs,

@@ -86,10 +86,10 @@ export default function SettingsView() {
           onChange={(v) => updateSetting('saveOnNetworkDisconnect', v)}
         />
         <Toggle
-          label="Update auto-save when tabs are closed"
-          checked={settings.autoSaveOnTabClose ?? false}
+          label="Snapshot mode (remove closed tabs)"
+          checked={settings.autoSaveOnTabClose ?? true}
           onChange={(v) => updateSetting('autoSaveOnTabClose', v)}
-          description="Off (default): auto-save only adds new tabs — closing a tab keeps it in the session. On: auto-save always reflects exactly what's currently open."
+          description="On (default): auto-save always reflects exactly what's currently open — closed tabs are removed. Off: closed tabs stay in the auto-save session."
         />
       </Section>
 
