@@ -25,6 +25,7 @@ interface Props extends BookmarkBoardActions {
   categories: BookmarkCategory[];
   entries: BookmarkEntry[];
   density: CardDensity;
+  isMain?: boolean;
   onAddCategory: (boardId: string, cardType: CardType) => void;
   onReorderCategories: (newCategories: BookmarkCategory[]) => void;
   onImportNative: (boardId: string) => void;
@@ -35,6 +36,7 @@ export default function BookmarkBoard({
   categories,
   entries,
   density,
+  isMain = false,
   onAddCategory,
   onReorderCategories,
   onImportNative,
@@ -69,14 +71,16 @@ export default function BookmarkBoard({
             {board.icon} {board.name}
           </h2>
           <div className="flex gap-2">
-            <button
-              onClick={() => onImportNative(board.id)}
-              className="glass flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm hover:bg-white/20 transition-colors"
-              style={{ color: 'var(--newtab-text)' }}
-            >
-              <Download size={14} />
-              Import Bookmarks
-            </button>
+            {!isMain && (
+              <button
+                onClick={() => onImportNative(board.id)}
+                className="glass flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm hover:bg-white/20 transition-colors"
+                style={{ color: 'var(--newtab-text)' }}
+              >
+                <Download size={14} />
+                Import Bookmarks
+              </button>
+            )}
             <button
               onClick={() => setAddCardOpen(true)}
               className="glass flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm hover:bg-white/20 transition-colors"

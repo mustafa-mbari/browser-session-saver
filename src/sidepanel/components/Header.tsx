@@ -26,13 +26,13 @@ export default function Header() {
         )}
         {currentView === 'home' && (
           <img
-            src={chrome.runtime.getURL('icons/bs_logo.png')}
-            alt="Session Saver"
+            src={chrome.runtime.getURL('icons/browser-hub_logo.png')}
+            alt="Browser Hub"
             className="w-5 h-5 shrink-0"
           />
         )}
         <span className="font-semibold text-sm">
-          {currentView === 'home' ? 'Session Saver' : viewTitle(currentView)}
+          {currentView === 'home' ? 'Browser Hub' : viewTitle(currentView)}
         </span>
       </div>
       <div className="flex items-center gap-2">
@@ -76,5 +76,5 @@ function viewTitle(view: string): string {
     'import-export': 'Import / Export',
     subscriptions: 'Subscriptions',
   };
-  return titles[view] ?? 'Session Saver';
+  return titles[view] ?? 'Browser Hub';
 }

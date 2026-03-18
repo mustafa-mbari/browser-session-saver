@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Session Saver is a Chrome Manifest V3 extension built with React 18, TypeScript (strict mode), Tailwind CSS, and Zustand. It has grown from a session management tool into a multi-feature productivity suite spanning sessions, subscriptions, tab groups, bookmarks, to-do lists, and a full new-tab-page replacement.
+Browser Hub is a Chrome Manifest V3 extension built with React 18, TypeScript (strict mode), Tailwind CSS, and Zustand. It has grown from a session management tool into a multi-feature productivity suite spanning sessions, subscriptions, tab groups, bookmarks, to-do lists, and a full new-tab-page replacement.
 
 **Architecture is sound.** Clean layered separation (core → background → UI surfaces), typed discriminated union message protocol, IndexedDB abstraction via `IStorage` interface, and per-surface Zustand stores. TypeScript strict mode with `noUnusedLocals` and `noUnusedParameters` enforced.
 

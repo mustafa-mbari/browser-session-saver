@@ -35,7 +35,7 @@ export default function ImportExportView() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `session-saver-export.${exportFormat}`;
+      a.download = `browser-hub-export.${exportFormat}`;
       a.click();
       URL.revokeObjectURL(url);
     }

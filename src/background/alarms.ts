@@ -1,4 +1,4 @@
-const ALARM_NAME = 'session-saver-auto-save';
+const ALARM_NAME = 'browser-hub-auto-save';
 
 let _alarmListenerRegistered = false;
 

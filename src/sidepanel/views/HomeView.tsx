@@ -155,7 +155,7 @@ export default function HomeView() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `session-saver-export-${ids.length}.json`;
+      a.download = `browser-hub-export-${ids.length}.json`;
       a.click();
       URL.revokeObjectURL(url);
     }

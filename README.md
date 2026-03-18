@@ -1,4 +1,4 @@
-# Session Saver — Chrome Extension
+# Browser Hub — Chrome Extension
 
 Save, restore, and manage your browser sessions with one click. Auto-save protects your tabs before shutdown, sleep, or low battery.
 
@@ -93,7 +93,7 @@ src/
 │   │   ├── storage.interface.ts           # IStorage interface
 │   │   ├── chrome-local-key-adapter.ts    # Generic ChromeLocalKeyAdapter<T>
 │   │   ├── chrome-storage.ts              # chrome.storage.local adapter
-│   │   ├── indexeddb.ts                   # IndexedDB adapter (session-saver db)
+│   │   ├── indexeddb.ts                   # IndexedDB adapter (browser-hub db)
 │   │   ├── newtab-storage.ts              # NewTabDB (newtab-db, 7 stores)
 │   │   ├── subscription-storage.ts        # chrome.storage.local (subscriptions key)
 │   │   ├── tab-group-template-storage.ts  # chrome.storage.local (tab_group_templates key)
@@ -211,7 +211,7 @@ npm run format
 
 **Service Worker** handles all Chrome API interactions — tab queries, session save/restore, auto-save triggers, alarm management. Processes 15 typed message actions from UI surfaces.
 
-**Storage Layer** uses chrome.storage.local for settings/metadata and IndexedDB (`session-saver` database) for session data (large payloads). The start-tab feature uses a separate `newtab-db` IndexedDB database for bookmarks, quick links, to-do items, and wallpaper blobs — never touched by the background service worker. Subscriptions and tab group templates are stored as flat keys in chrome.storage.local via the generic `ChromeLocalKeyAdapter<T>` class.
+**Storage Layer** uses chrome.storage.local for settings/metadata and IndexedDB (`browser-hub` database) for session data (large payloads). The start-tab feature uses a separate `newtab-db` IndexedDB database for bookmarks, quick links, to-do items, and wallpaper blobs — never touched by the background service worker. Subscriptions and tab group templates are stored as flat keys in chrome.storage.local via the generic `ChromeLocalKeyAdapter<T>` class.
 
 **Content Script** (`src/content/scroll-capture.ts`) runs in web pages to capture scroll position (`window.scrollX`, `window.scrollY`) for full-fidelity session restore.
 

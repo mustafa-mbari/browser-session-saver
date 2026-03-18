@@ -39,7 +39,7 @@ export default function ImportExportPanel() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `session-saver-export.${EXT[exportFormat]}`;
+      a.download = `browser-hub-export.${EXT[exportFormat]}`;
       a.click();
       URL.revokeObjectURL(url);
     }

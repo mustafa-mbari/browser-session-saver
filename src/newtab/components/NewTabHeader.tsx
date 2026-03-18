@@ -73,9 +73,9 @@ const NewTabHeader = forwardRef<HTMLInputElement, Props>(
       <header className="glass-dark shrink-0 flex items-center gap-3 px-4 py-1.5 border-b border-white/10">
         {/* Branding */}
         <div className="flex items-center gap-2 shrink-0">
-          <img src="/icons/bs_logo.png" alt="Session Saver" className="w-6 h-6 rounded-md" />
+          <img src="/icons/browser-hub_logo.png" alt="Browser Hub" className="w-6 h-6 rounded-md" />
           <span className="text-sm font-semibold whitespace-nowrap" style={{ color: 'var(--newtab-text)' }}>
-            Session Saver
+            Browser Hub
           </span>
         </div>
 

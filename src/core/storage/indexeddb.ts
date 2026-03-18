@@ -1,6 +1,6 @@
 import type { IStorage } from './storage.interface';
 
-const DB_NAME = 'session-saver';
+const DB_NAME = 'browser-hub';
 const DB_VERSION = 1;
 const STORE_NAME = 'sessions';
 

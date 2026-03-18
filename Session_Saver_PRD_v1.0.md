@@ -36,13 +36,13 @@
 
 ### 1.1 Purpose
 
-This Product Requirements Document (PRD) defines the full scope, technical architecture, and feature set for **Session Saver**, a Chrome extension that enables users to save, restore, and manage their browser sessions with a single click. The document serves as the definitive reference for development, design, and quality assurance teams.
+This Product Requirements Document (PRD) defines the full scope, technical architecture, and feature set for **Browser Hub**, a Chrome extension that enables users to save, restore, and manage their browser sessions with a single click. The document serves as the definitive reference for development, design, and quality assurance teams.
 
 ### 1.2 Document Info
 
 | Field | Details |
 |---|---|
-| Product Name | Session Saver |
+| Product Name | Browser Hub |
 | Version | 1.0.0 |
 | Platform | Google Chrome (Manifest V3) |
 | Primary UI | Chrome Side Panel (`chrome.sidePanel` API) |
@@ -57,7 +57,7 @@ This Product Requirements Document (PRD) defines the full scope, technical archi
 | Session | A snapshot of all open tabs and their states at a given moment |
 | Tab Group | Chrome's native colored tab grouping, preserved with full metadata |
 | Auto-Save | Background process that automatically saves current session state |
-| Session Saver | The Chrome extension product name |
+| Browser Hub | The Chrome extension product name |
 | Side Panel | Chrome's built-in side panel UI surface (`chrome.sidePanel` API) that docks to the right of the browser |
 | Manifest V3 | Chrome's latest extension platform with service workers |
 
@@ -67,7 +67,7 @@ This Product Requirements Document (PRD) defines the full scope, technical archi
 
 ### 2.1 Vision Statement
 
-Session Saver empowers users to never lose their browsing context. Whether due to a crash, shutdown, low battery, or intentional cleanup, every tab and tab group is preserved and instantly restorable, keeping users in flow without interruption.
+Browser Hub empowers users to never lose their browsing context. Whether due to a crash, shutdown, low battery, or intentional cleanup, every tab and tab group is preserved and instantly restorable, keeping users in flow without interruption.
 
 ### 2.2 Problem Statement
 
@@ -80,7 +80,7 @@ Session Saver empowers users to never lose their browsing context. Whether due t
 
 ### 2.3 Value Proposition
 
-Session Saver is the fastest, most reliable way to save and restore your complete browsing state. One click saves everything. Smart auto-save protects you before shutdowns, sleep, or low battery. The always-visible Side Panel makes session management effortless without leaving your current workflow.
+Browser Hub is the fastest, most reliable way to save and restore your complete browsing state. One click saves everything. Smart auto-save protects you before shutdowns, sleep, or low battery. The always-visible Side Panel makes session management effortless without leaving your current workflow.
 
 ### 2.4 Target Audience
 
@@ -92,7 +92,7 @@ Session Saver is the fastest, most reliable way to save and restore your complet
 
 ### 2.5 Competitive Analysis
 
-| Feature | Session Saver | OneTab | Session Buddy | Tab Session Mgr |
+| Feature | Browser Hub | OneTab | Session Buddy | Tab Session Mgr |
 |---|---|---|---|---|
 | One-Click Save All Tabs | ✅ | ✅ | ✅ | ✅ |
 | Auto-Save (Battery/Sleep/Shutdown) | ✅ | ❌ | ❌ | ❌ |
@@ -219,7 +219,7 @@ The Auto-Save Engine is the core differentiator. It runs as a background service
 
 ## 6. Tab Group Management
 
-Session Saver provides first-class support for Chrome's native tab groups, preserving and restoring them with full fidelity.
+Browser Hub provides first-class support for Chrome's native tab groups, preserving and restoring them with full fidelity.
 
 ### 6.1 Tab Group Features
 
@@ -295,7 +295,7 @@ Each saved tab group stores the following metadata:
 
 ### 8.2 Import Sources
 
-- Import from Session Saver JSON backup files
+- Import from Browser Hub JSON backup files
 - Import from Chrome bookmarks HTML file
 - Import from other session managers (OneTab format, Session Buddy JSON)
 - Import from plain URL list (text file with one URL per line)
@@ -329,7 +329,7 @@ Each saved tab group stores the following metadata:
 
 ### 9.2 UI Surfaces
 
-Session Saver uses **three** UI surfaces, with the Side Panel as the primary interface:
+Browser Hub uses **three** UI surfaces, with the Side Panel as the primary interface:
 
 | Surface | Role | Access |
 |---|---|---|
@@ -366,7 +366,7 @@ Session Saver uses **three** UI surfaces, with the Side Panel as the primary int
 
 ## 10. Side Panel Architecture
 
-The Side Panel is the **primary UI surface** for Session Saver, using Chrome's `chrome.sidePanel` API to provide a persistent, always-accessible session management interface docked to the right side of the browser.
+The Side Panel is the **primary UI surface** for Browser Hub, using Chrome's `chrome.sidePanel` API to provide a persistent, always-accessible session management interface docked to the right side of the browser.
 
 ### 10.1 Why Side Panel
 
@@ -518,7 +518,7 @@ Settings → Interface → Primary UI:
 
 ### 11.2 Architecture Overview
 
-Session Saver follows a layered architecture pattern optimized for Chrome extension development with clear separation of concerns.
+Browser Hub follows a layered architecture pattern optimized for Chrome extension development with clear separation of concerns.
 
 **Layer 1 — Background Service Worker:** Handles all Chrome API interactions, auto-save engine, event listeners, alarm management, and Side Panel lifecycle control.
 
@@ -594,7 +594,7 @@ The project follows a feature-based modular architecture designed for maintainab
 ### 12.1 Directory Layout
 
 ```
-session-saver/
+browser-hub/
 ├── public/
 │   ├── icons/                        # Extension icons (16, 32, 48, 128px)
 │   └── manifest.json                 # Chrome Manifest V3 configuration
@@ -727,7 +727,7 @@ session-saver/
 |---|---|---|
 | Service Worker (no background pages) | Required | Background scripts must use service worker pattern |
 | Side Panel declaration | Required | `"side_panel"` key in manifest.json |
-| Declarative Net Request (if needed) | N/A | Session Saver does not modify network requests |
+| Declarative Net Request (if needed) | N/A | Browser Hub does not modify network requests |
 | Permissions: minimal scope | Required | Only request permissions actually used |
 | Content Security Policy | Required | No inline scripts, strict CSP in manifest |
 | Remote code prohibition | Required | All code bundled locally, no remote script loading |
@@ -750,7 +750,7 @@ session-saver/
 ```json
 {
   "manifest_version": 3,
-  "name": "Session Saver",
+  "name": "Browser Hub",
   "version": "1.0.0",
   "description": "Save, restore, and manage your browser sessions with one click. Auto-save protects your tabs before shutdown, sleep, or low battery.",
   "permissions": [
@@ -776,7 +776,7 @@ session-saver/
       "48": "icons/icon-48.png",
       "128": "icons/icon-128.png"
     },
-    "default_title": "Session Saver"
+    "default_title": "Browser Hub"
   },
   "icons": {
     "16": "icons/icon-16.png",
@@ -787,7 +787,7 @@ session-saver/
   "commands": {
     "_execute_action": {
       "suggested_key": { "default": "Ctrl+Shift+S" },
-      "description": "Toggle Session Saver Side Panel"
+      "description": "Toggle Browser Hub Side Panel"
     }
   }
 }
@@ -947,4 +947,4 @@ The following features are planned for consideration in future releases beyond v
 
 ---
 
-*End of Document — Session Saver PRD v1.0 — March 2026*
+*End of Document — Browser Hub PRD v1.0 — March 2026*

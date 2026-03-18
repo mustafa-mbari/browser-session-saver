@@ -71,43 +71,49 @@ export default function NoteCardBody({
   const activeQuote = quotes[getActiveQuoteIndex(quotes, quoteIndex, quoteChangedAt)];
   const isEmpty = draft === '';
 
-  if (isEmpty) {
-    return (
-      <div
-        className="relative w-full h-full"
-        style={{ minHeight: '80px' }}
-        onClick={() => textareaRef.current?.focus()}
-      >
-        {/* Quote display */}
+  // Always render the same DOM structure — never two branches — so the textarea is never
+  // remounted on the empty→non-empty transition (which would cause focus loss after the
+  // first keystroke, requiring the user to click again to continue typing).
+  return (
+    <div
+      className="relative w-full h-full"
+      style={{ minHeight: '80px' }}
+      onClick={() => textareaRef.current?.focus()}
+    >
+      {/* Quote overlay — visible behind the transparent textarea when draft is empty */}
+      {isEmpty && (
         <p
-          className="text-sm italic leading-relaxed select-none pointer-events-none"
+          className="absolute inset-0 text-sm italic leading-relaxed select-none pointer-events-none overflow-hidden"
           style={{
             color: 'var(--newtab-text-secondary)',
             opacity: 0.65,
-            padding: isRtl ? '12px 36px 12px 16px' : '12px 36px 12px 16px',
+            padding: '12px 36px 12px 16px',
             direction: isRtl ? 'rtl' : 'ltr',
             textAlign: isRtl ? 'right' : 'left',
           }}
         >
           {activeQuote}
         </p>
+      )}
 
-        {/* Invisible textarea to capture typing — rendered before button so button stays on top */}
-        <textarea
-          ref={textareaRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={handleBlur}
-          className="absolute inset-0 w-full h-full bg-transparent outline-none resize-none text-sm px-4 py-3 opacity-0 focus:opacity-100"
-          style={{
-            color: 'var(--newtab-text)',
-            caretColor: 'var(--newtab-text)',
-            direction: isRtl ? 'rtl' : 'ltr',
-          }}
-          aria-label="Note"
-        />
+      {/* Single always-mounted textarea — transparent so quote shows through when empty */}
+      <textarea
+        ref={textareaRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={handleBlur}
+        placeholder={isEmpty ? '' : 'Write your note here…'}
+        className="absolute inset-0 w-full h-full bg-transparent outline-none resize-none text-sm px-4 py-3 placeholder-white/30"
+        style={{
+          color: 'var(--newtab-text)',
+          caretColor: 'var(--newtab-text)',
+          direction: isRtl ? 'rtl' : 'ltr',
+        }}
+        aria-label="Note"
+      />
 
-        {/* Refresh button — z-10 keeps it above the textarea overlay */}
+      {/* Refresh button — shown only when empty */}
+      {isEmpty && (
         <button
           onClick={handleRefresh}
           className={`absolute top-2 z-10 p-1 rounded hover:bg-white/10 transition-colors ${isRtl ? 'left-2' : 'right-2'}`}
@@ -119,23 +125,7 @@ export default function NoteCardBody({
         >
           <RefreshCw size={13} style={{ color: 'var(--newtab-text-secondary)' }} />
         </button>
-      </div>
-    );
-  }
-
-  return (
-    <textarea
-      ref={textareaRef}
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={handleBlur}
-      placeholder="Write your note here…"
-      className="w-full h-full bg-transparent outline-none resize-none text-sm px-4 py-3 placeholder-white/30"
-      style={{
-        color: 'var(--newtab-text)',
-        minHeight: '80px',
-        direction: isRtl ? 'rtl' : 'ltr',
-      }}
-    />
+      )}
+    </div>
   );
 }

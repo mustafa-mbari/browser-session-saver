@@ -192,11 +192,13 @@ export default function DashboardLayout() {
   }, [boards, store]);
 
   const handleRenameBoard = useCallback(async (id: string, name: string) => {
+    if (boards[0]?.id === id) return; // Main board is permanent
     await BookmarkService.updateBoard(newtabDB, id, { name });
     store.setBoards(boards.map((b) => (b.id === id ? { ...b, name } : b)));
   }, [boards, store]);
 
   const handleDeleteBoard = useCallback(async (id: string) => {
+    if (boards[0]?.id === id) return; // Main board cannot be deleted
     await BookmarkService.deleteBoard(newtabDB, id);
     const nextBoards = boards.filter((b) => b.id !== id);
     store.setBoards(nextBoards);
@@ -217,6 +219,7 @@ export default function DashboardLayout() {
         categories: boardCategories,
         entries,
         density: settings.cardDensity,
+        isMain: boards[0]?.id === activeBoard.id,
         onAddCategory: (id: string, cardType: CardType) => { void handleAddCategory(id, cardType); },
         onDeleteCategory: (id: string) => { void handleDeleteCategory(id); },
         onToggleCollapse: (id: string) => { void handleToggleCollapse(id); },
@@ -267,6 +270,8 @@ export default function DashboardLayout() {
           onViewChange={store.setActiveView}
           onRenameBoard={(id, name) => { void handleRenameBoard(id, name); }}
           onDeleteBoard={(id) => { void handleDeleteBoard(id); }}
+          sidebarControl={settings.sidebarControl ?? 'expanded'}
+          onSidebarControlChange={(mode) => store.updateSettings({ sidebarControl: mode })}
         />
 
         {/* Main content */}

@@ -37,13 +37,13 @@
 
 ### 1.1 Purpose
 
-This Product Requirements Document (PRD) defines the full scope, technical architecture, and feature set for **Session Saver**, a Chrome extension that enables users to save, restore, and manage their browser sessions with a single click. The document serves as the definitive reference for development, design, and quality assurance teams.
+This Product Requirements Document (PRD) defines the full scope, technical architecture, and feature set for **Browser Hub**, a Chrome extension that enables users to save, restore, and manage their browser sessions with a single click. The document serves as the definitive reference for development, design, and quality assurance teams.
 
 ### 1.2 Document Info
 
 | Field | Details |
 |---|---|
-| Product Name | Session Saver |
+| Product Name | Browser Hub |
 | Version | 1.1.0 |
 | Platform | Google Chrome (Manifest V3) |
 | Primary UI | Chrome Side Panel API |
@@ -59,7 +59,7 @@ This Product Requirements Document (PRD) defines the full scope, technical archi
 | Session | A snapshot of all open tabs and their states at a given moment |
 | Tab Group | Chrome's native colored tab grouping, preserved with full metadata |
 | Auto-Save | Background process that automatically saves current session state |
-| Session Saver | The Chrome extension product name |
+| Browser Hub | The Chrome extension product name |
 | Side Panel | Chrome's built-in side panel UI surface that docks to the right of the browser |
 | New Tab Override | Chrome API that replaces the default new tab page with a custom extension page |
 | Glassmorphism | UI design style using frosted glass panels with backdrop blur over rich backgrounds |
@@ -73,7 +73,7 @@ This Product Requirements Document (PRD) defines the full scope, technical archi
 
 ### 2.1 Vision Statement
 
-Session Saver empowers users to never lose their browsing context. Whether due to a crash, shutdown, low battery, or intentional cleanup, every tab and tab group is preserved and instantly restorable, keeping users in flow without interruption.
+Browser Hub empowers users to never lose their browsing context. Whether due to a crash, shutdown, low battery, or intentional cleanup, every tab and tab group is preserved and instantly restorable, keeping users in flow without interruption.
 
 ### 2.2 Problem Statement
 
@@ -87,7 +87,7 @@ Session Saver empowers users to never lose their browsing context. Whether due t
 
 ### 2.3 Value Proposition
 
-Session Saver is the fastest, most reliable way to save and restore your complete browsing state. One click saves everything. Smart auto-save protects you before shutdowns, sleep, or low battery. The always-visible Side Panel makes session management effortless. The custom New Tab page transforms every new tab into a glassmorphism command center with organized bookmarks, quick links, and a built-in to-do list.
+Browser Hub is the fastest, most reliable way to save and restore your complete browsing state. One click saves everything. Smart auto-save protects you before shutdowns, sleep, or low battery. The always-visible Side Panel makes session management effortless. The custom New Tab page transforms every new tab into a glassmorphism command center with organized bookmarks, quick links, and a built-in to-do list.
 
 ### 2.4 Target Audience
 
@@ -100,7 +100,7 @@ Session Saver is the fastest, most reliable way to save and restore your complet
 
 ### 2.5 Competitive Analysis
 
-| Feature | Session Saver | OneTab | Session Buddy | Tab Session Mgr | ZenStack |
+| Feature | Browser Hub | OneTab | Session Buddy | Tab Session Mgr | ZenStack |
 |---|---|---|---|---|---|
 | One-Click Save All Tabs | ✅ | ✅ | ✅ | ✅ | ❌ |
 | Auto-Save (Battery/Sleep/Shutdown) | ✅ | ❌ | ❌ | ❌ | ❌ |
@@ -237,7 +237,7 @@ The Auto-Save Engine is the core differentiator. It runs as a background service
 
 ## 6. Tab Group Management
 
-Session Saver provides first-class support for Chrome's native tab groups, preserving and restoring them with full fidelity.
+Browser Hub provides first-class support for Chrome's native tab groups, preserving and restoring them with full fidelity.
 
 ### 6.1 Tab Group Features
 
@@ -306,7 +306,7 @@ Each saved tab group stores the following metadata: group ID (internal unique id
 
 ### 8.2 Import Sources
 
-- Import from Session Saver JSON backup files
+- Import from Browser Hub JSON backup files
 - Import from Chrome bookmarks HTML file
 - Import from other session managers (OneTab format, Session Buddy JSON)
 - Import from plain URL list (text file with one URL per line)
@@ -341,7 +341,7 @@ Each saved tab group stores the following metadata: group ID (internal unique id
 
 ### 9.2 UI Surfaces
 
-Session Saver uses **four** UI surfaces:
+Browser Hub uses **four** UI surfaces:
 
 | Surface | Role | Access |
 |---|---|---|
@@ -379,7 +379,7 @@ Session Saver uses **four** UI surfaces:
 
 ## 10. Side Panel Architecture
 
-The Side Panel is the **primary UI surface** for Session Saver, using Chrome's Side Panel API to provide a persistent, always-accessible session management interface docked to the right side of the browser.
+The Side Panel is the **primary UI surface** for Browser Hub, using Chrome's Side Panel API to provide a persistent, always-accessible session management interface docked to the right side of the browser.
 
 ### 10.1 Why Side Panel
 
@@ -454,11 +454,11 @@ The user can choose their preferred primary UI in settings. When set to Side Pan
 
 ## 11. New Tab Page Override
 
-Session Saver replaces Chrome's default new tab page with a fully customizable **command center** — a glassmorphism-styled dashboard for bookmarks, quick links, a built-in to-do list, and session management. This feature uses the Manifest V3 chrome_url_overrides.newtab API.
+Browser Hub replaces Chrome's default new tab page with a fully customizable **command center** — a glassmorphism-styled dashboard for bookmarks, quick links, a built-in to-do list, and session management. This feature uses the Manifest V3 chrome_url_overrides.newtab API.
 
 ### 11.1 Manifest Requirements
 
-The New Tab Override requires adding the chrome_url_overrides.newtab declaration to the manifest, along with these additional permissions beyond the existing Session Saver permissions: topSites (for quick links auto-population), bookmarks (for reading/writing Chrome bookmarks), favicon (for fetching site icons), and an optional history permission (for the Frequently Visited view). A host_permissions entry for chrome://favicon/* is also required.
+The New Tab Override requires adding the chrome_url_overrides.newtab declaration to the manifest, along with these additional permissions beyond the existing Browser Hub permissions: topSites (for quick links auto-population), bookmarks (for reading/writing Chrome bookmarks), favicon (for fetching site icons), and an optional history permission (for the Frequently Visited view). A host_permissions entry for chrome://favicon/* is also required.
 
 ### 11.2 Feature Toggle
 
@@ -474,7 +474,7 @@ The toggle is accessible from: Settings → Interface → New Tab Page → Enabl
 
 ### 11.3 Layout Modes
 
-Session Saver's New Tab page supports **three layout modes** the user can switch between at any time. Each mode progressively reveals more UI:
+Browser Hub's New Tab page supports **three layout modes** the user can switch between at any time. Each mode progressively reveals more UI:
 
 | Mode | Description | Best For |
 |---|---|---|
@@ -632,7 +632,7 @@ Users can adjust how compact or spacious bookmark cards appear. This is critical
 | Feature | Description |
 |---|---|
 | Import from Chrome | One-click import from Chrome's native bookmarks tree |
-| Sync mode | Optional two-way sync: changes in Session Saver reflect in Chrome bookmarks and vice versa |
+| Sync mode | Optional two-way sync: changes in Browser Hub reflect in Chrome bookmarks and vice versa |
 | Sidebar tree | Native bookmark folders shown in sidebar: Bookmarks Bar, Other Bookmarks, Mobile Bookmarks |
 | Grouped by Website | Auto-categorize native bookmarks by domain (e.g., all github.com links grouped together) |
 | Conflict resolution | On import: skip duplicates, merge, or overwrite — user chooses |
@@ -701,13 +701,13 @@ A horizontal tab bar below the search bar for switching content views:
 |---|---|---|---|
 | **Quick Links** (default) | 🔗 | Quick links row + bookmark category grid | Dashboard |
 | **Frequently Visited** | 🕐 | Auto-populated grid from Chrome's topSites and browsing history | All modes |
-| **Tabs** | 📑 | Current open tabs grouped by tab groups with colors (Session Saver integration) | Dashboard, Focus |
+| **Tabs** | 📑 | Current open tabs grouped by tab groups with colors (Browser Hub integration) | Dashboard, Focus |
 | **Activity** | 📊 | Recent bookmark activity log: added, deleted, moved, restored | Dashboard |
 | **All** | 📚 | Flat list of all bookmarks across all boards, fully searchable and filterable | Dashboard |
 
-### 11.11 Session Saver Integration
+### 11.11 Browser Hub Integration
 
-The New Tab page is deeply integrated with the core Session Saver functionality:
+The New Tab page is deeply integrated with the core Browser Hub functionality:
 
 | Integration Point | Description |
 |---|---|
@@ -728,7 +728,7 @@ The left sidebar (visible only in Dashboard mode) provides navigation and organi
 
 **Native Bookmarks Section:** Expandable tree showing Chrome's native bookmark folders: Bookmarks Bar, Other Bookmarks, Mobile Bookmarks. Clicking a native folder shows its contents in the main grid. A "Grouped by Website" option auto-categorizes bookmarks by domain.
 
-**Bottom Section:** "Get Pro" upgrade button (for freemium model), "Zen Mode" toggle (hides the sidebar and shows only the content area for a clean look), "Backup & Restore" link (ties into the existing Session Saver import/export system), "Trash" (recently deleted bookmarks and categories, restorable for 30 days), and a link to the extension website and Help Center.
+**Bottom Section:** "Get Pro" upgrade button (for freemium model), "Zen Mode" toggle (hides the sidebar and shows only the content area for a clean look), "Backup & Restore" link (ties into the existing Browser Hub import/export system), "Trash" (recently deleted bookmarks and categories, restorable for 30 days), and a link to the extension website and Help Center.
 
 The sidebar is collapsible via the Ctrl+B shortcut or a toggle button.
 
@@ -779,7 +779,7 @@ The sidebar is collapsible via the Ctrl+B shortcut or a toggle button.
 | NT-016 | Full-text bookmark search with Ctrl+K / / shortcut | 🟠 High |
 | NT-017 | Global keyboard shortcuts (16+ shortcuts) with customization and ? cheat sheet | 🟠 High |
 | NT-018 | Top navigation tabs: Quick Links, Frequent, Tabs, Activity, All | 🟡 Medium |
-| NT-019 | Session Saver integration: session widget, save button, auto-save indicator | 🟠 High |
+| NT-019 | Browser Hub integration: session widget, save button, auto-save indicator | 🟠 High |
 | NT-020 | Feature toggle: enable/disable New Tab override in settings | 🔴 Critical |
 | NT-021 | Sidebar with boards list, native bookmarks tree, Zen Mode, Trash | 🟠 High |
 | NT-022 | User-uploaded wallpaper images stored in IndexedDB (max 5MB each, max 10 images) | 🟡 Medium |
@@ -811,7 +811,7 @@ The sidebar is collapsible via the Ctrl+B shortcut or a toggle button.
 
 ### 12.2 Architecture Overview
 
-Session Saver follows a layered architecture pattern optimized for Chrome extension development with clear separation of concerns.
+Browser Hub follows a layered architecture pattern optimized for Chrome extension development with clear separation of concerns.
 
 **Layer 1 — Background Service Worker:** Handles all Chrome API interactions, auto-save engine, event listeners, alarm management, and Side Panel lifecycle control.
 
@@ -889,7 +889,7 @@ The project follows a feature-based modular architecture designed for maintainab
 | Service Worker (no background pages) | Required | Background scripts must use service worker pattern |
 | Side Panel declaration | Required | side_panel key in manifest |
 | New Tab Override declaration | Required | chrome_url_overrides.newtab key in manifest |
-| Declarative Net Request (if needed) | N/A | Session Saver does not modify network requests |
+| Declarative Net Request (if needed) | N/A | Browser Hub does not modify network requests |
 | Permissions: minimal scope | Required | Only request permissions actually used |
 | Content Security Policy | Required | No inline scripts, strict CSP in manifest |
 | Remote code prohibition | Required | All code bundled locally, no remote script loading |
@@ -913,7 +913,7 @@ The project follows a feature-based modular architecture designed for maintainab
 
 ### 14.3 Manifest Configuration Summary
 
-The manifest.json declares manifest_version 3, the extension name "Session Saver", version, and description. It lists all required and optional permissions, host_permissions for the favicon API, the chrome_url_overrides.newtab entry pointing to the New Tab HTML file, the side_panel default_path, the background service worker entry, the action configuration with icons and title, the extension icons at 16/32/48/128px, and the commands configuration for keyboard shortcuts (with Ctrl+Shift+S as the suggested key for the primary action).
+The manifest.json declares manifest_version 3, the extension name "Browser Hub", version, and description. It lists all required and optional permissions, host_permissions for the favicon API, the chrome_url_overrides.newtab entry pointing to the New Tab HTML file, the side_panel default_path, the background service worker entry, the action configuration with icons and title, the extension icons at 16/32/48/128px, and the commands configuration for keyboard shortcuts (with Ctrl+Shift+S as the suggested key for the primary action).
 
 ### 14.4 Store Listing Assets
 
@@ -1100,4 +1100,4 @@ The following features are planned for consideration in future releases beyond v
 
 ---
 
-*End of Document — Session Saver PRD v1.1 — March 2026*
+*End of Document — Browser Hub PRD v1.1 — March 2026*

@@ -1,7 +1,7 @@
-# Add "New Tab Page Override" Feature to Session Saver
+# Add "New Tab Page Override" Feature to Browser Hub
 
 ## Context
-This is an existing Chrome Extension project called **Session Saver** built with: React 18 + TypeScript, Zustand, Tailwind CSS, Vite + CRXJS, Framer Motion, Lucide React, chrome.storage.local + IndexedDB, and Manifest V3. The project already has a Side Panel, popup, dashboard, background service worker, and a shared core layer (types, services, storage, utils). Follow the existing project patterns and reuse shared components/hooks/services.
+This is an existing Chrome Extension project called **Browser Hub** built with: React 18 + TypeScript, Zustand, Tailwind CSS, Vite + CRXJS, Framer Motion, Lucide React, chrome.storage.local + IndexedDB, and Manifest V3. The project already has a Side Panel, popup, dashboard, background service worker, and a shared core layer (types, services, storage, utils). Follow the existing project patterns and reuse shared components/hooks/services.
 
 ---
 
@@ -151,7 +151,7 @@ All customizable. `?` shows cheat sheet modal.
 
 ## Top Navigation Tabs
 
-Below search bar: **Quick Links** (default, grid), **Frequently Visited** (topSites + history), **Tabs** (current open tabs with tab groups — Session Saver integration), **Activity** (bookmark activity log), **All** (flat searchable list of all bookmarks).
+Below search bar: **Quick Links** (default, grid), **Frequently Visited** (topSites + history), **Tabs** (current open tabs with tab groups — Browser Hub integration), **Activity** (bookmark activity log), **All** (flat searchable list of all bookmarks).
 
 ---
 
@@ -163,7 +163,7 @@ Below search bar: **Quick Links** (default, grid), **Frequently Visited** (topSi
 
 ---
 
-## Session Saver Integration
+## Browser Hub Integration
 
 - Session widget: last 3–5 saved sessions with one-click restore
 - Save Session button accessible from all layouts

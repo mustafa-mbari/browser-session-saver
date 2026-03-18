@@ -168,7 +168,7 @@ export default function App() {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
-          <p className="text-white/80 text-lg mb-2">Session Saver New Tab is disabled.</p>
+          <p className="text-white/80 text-lg mb-2">Browser Hub New Tab is disabled.</p>
           <p className="text-white/50 text-sm">
             Re-enable it in the extension dashboard under Settings → New Tab Page.
           </p>

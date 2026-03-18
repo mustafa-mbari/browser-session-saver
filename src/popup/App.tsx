@@ -38,7 +38,7 @@ export default function App() {
       {/* Header */}
       <div className="px-4 py-3 border-b border-[var(--color-border)]">
         <div className="flex items-center justify-between">
-          <h1 className="font-semibold text-base">Session Saver</h1>
+          <h1 className="font-semibold text-base">Browser Hub</h1>
           {tabInfo && (
             <Badge>
               {tabInfo.tabCount} tab{tabInfo.tabCount !== 1 ? 's' : ''}

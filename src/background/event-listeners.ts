@@ -4,7 +4,7 @@ import type { Settings } from '@core/types/settings.types';
 import { STORAGE_KEYS } from '@core/types/storage.types';
 import type { StorageMetadata } from '@core/types/storage.types';
 import * as SessionService from '@core/services/session.service';
-import { captureTabGroups, restoreTabGroups } from '@core/services/tab-group.service';
+import { captureTabGroups } from '@core/services/tab-group.service';
 import { getSettingsStorage, getSessionStorage } from '@core/storage/storage-factory';
 import { DEFAULT_SETTINGS } from '@core/types/settings.types';
 import { exportAsJSON, exportAsHTML, exportAsMarkdown, exportAsCSV, exportAsText } from '@core/services/export.service';
@@ -116,69 +116,77 @@ async function handleRestoreSession(payload: {
   if (!session) return { success: false, error: 'Session not found' };
 
   const failedUrls: string[] = [];
+  // Sort all tabs by their original index so they open in the right order.
+  // Groups and ungrouped tabs are interleaved exactly as they were at save time.
   const sortedTabs = [...session.tabs].sort((a, b) => a.index - b.index);
-  const ungroupedTabs = sortedTabs.filter((t) => t.groupId === -1);
+
+  // Track which newly created Chrome tab IDs belong to each saved group ID.
+  const groupTabIds = new Map<number, number[]>();
+  function trackGroupTab(savedGroupId: number, chromeTabId: number) {
+    if (savedGroupId === -1) return;
+    const list = groupTabIds.get(savedGroupId);
+    if (list) list.push(chromeTabId);
+    else groupTabIds.set(savedGroupId, [chromeTabId]);
+  }
+
   let windowId: number;
 
   if (payload.mode === 'new_window') {
-    const firstUrl = ungroupedTabs[0]?.url || sortedTabs[0]?.url;
-    const window = await chrome.windows.create({ url: firstUrl, focused: true });
-    windowId = window.id!;
+    const firstTab = sortedTabs[0];
+    const win = await chrome.windows.create({ url: firstTab?.url, focused: true });
+    windowId = win.id!;
+    // Capture the first tab's ID for group tracking
+    const firstId = win.tabs?.[0]?.id;
+    if (firstId && firstTab) trackGroupTab(firstTab.groupId, firstId);
 
-    for (let i = 1; i < ungroupedTabs.length; i++) {
+    for (let i = 1; i < sortedTabs.length; i++) {
+      const tab = sortedTabs[i];
       try {
-        await chrome.tabs.create({
-          url: ungroupedTabs[i].url,
-          windowId,
-          pinned: ungroupedTabs[i].pinned,
-          active: false,
-        });
+        const created = await chrome.tabs.create({ url: tab.url, windowId, pinned: tab.pinned, active: false });
+        if (created.id) trackGroupTab(tab.groupId, created.id);
       } catch {
-        failedUrls.push(ungroupedTabs[i].url);
+        failedUrls.push(tab.url);
       }
     }
   } else {
     windowId = await getCurrentWindowId();
+    const existing = payload.mode === 'current' ? await chrome.tabs.query({ windowId }) : [];
 
-    if (payload.mode === 'current') {
-      const existing = await chrome.tabs.query({ windowId });
-      for (const tab of ungroupedTabs) {
-        try {
-          await chrome.tabs.create({
-            url: tab.url,
-            windowId,
-            pinned: tab.pinned,
-            active: false,
-          });
-        } catch {
-          failedUrls.push(tab.url);
-        }
+    for (const tab of sortedTabs) {
+      try {
+        const created = await chrome.tabs.create({ url: tab.url, windowId, pinned: tab.pinned, active: false });
+        if (created.id) trackGroupTab(tab.groupId, created.id);
+      } catch {
+        failedUrls.push(tab.url);
       }
-      const existingIds = existing
-        .map((t) => t.id)
-        .filter((id): id is number => id !== undefined);
-      if (existingIds.length > 0) await chrome.tabs.remove(existingIds);
-    } else {
-      for (const tab of ungroupedTabs) {
-        try {
-          await chrome.tabs.create({
-            url: tab.url,
-            windowId,
-            pinned: tab.pinned,
-            active: false,
-          });
-        } catch {
-          failedUrls.push(tab.url);
-        }
-      }
+    }
+
+    if (payload.mode === 'current' && existing.length > 0) {
+      const existingIds = existing.map((t) => t.id).filter((id): id is number => id !== undefined);
+      await chrome.tabs.remove(existingIds);
     }
   }
 
-  if (session.tabGroups.length > 0) {
-    await restoreTabGroups(session.tabGroups, sortedTabs, windowId);
+  // Re-apply tab groups. Sort groups by the index of their first tab so groups
+  // are formed in the same order they appeared in the original tab strip.
+  const sortedGroups = [...session.tabGroups].sort((a, b) => {
+    const aMin = sortedTabs.find((t) => t.groupId === a.id)?.index ?? Infinity;
+    const bMin = sortedTabs.find((t) => t.groupId === b.id)?.index ?? Infinity;
+    return aMin - bMin;
+  });
+
+  for (const group of sortedGroups) {
+    const tabIds = groupTabIds.get(group.id) ?? [];
+    if (tabIds.length === 0) continue;
+    const newGroupId = await chrome.tabs.group({ tabIds, createProperties: { windowId } });
+    await chrome.tabGroups.update(newGroupId, {
+      title: group.title,
+      color: group.color,
+      collapsed: group.collapsed,
+    });
   }
 
-  // Activate the tab that was active when the session was saved
+  // Activate the tab that was focused when the session was saved
   const activeSavedTab = sortedTabs.find((t) => t.active);
   if (activeSavedTab) {
     const allWindowTabs = await chrome.tabs.query({ windowId });

@@ -21,8 +21,8 @@ export function exportAsHTML(sessions: Session[]): string {
   const lines: string[] = [
     '<!DOCTYPE NETSCAPE-Bookmark-file-1>',
     '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">',
-    '<TITLE>Session Saver Export</TITLE>',
-    '<H1>Session Saver Export</H1>',
+    '<TITLE>Browser Hub Export</TITLE>',
+    '<H1>Browser Hub Export</H1>',
     '<DL><p>',
   ];
 
@@ -65,7 +65,7 @@ export function exportAsHTML(sessions: Session[]): string {
 }
 
 export function exportAsMarkdown(sessions: Session[]): string {
-  const lines: string[] = ['# Session Saver Export', ''];
+  const lines: string[] = ['# Browser Hub Export', ''];
 
   for (const session of sessions) {
     lines.push(`## ${session.name}`);

@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ChevronLeft,
   ChevronRight,
@@ -13,10 +14,13 @@ import {
   Trash2,
   CreditCard,
   User,
+  PanelLeft,
+  Check,
 } from 'lucide-react';
 import Tooltip from '@shared/components/Tooltip';
 import ContextMenu from '@shared/components/ContextMenu';
 import type { Board } from '@core/types/newtab.types';
+import type { SidebarControl } from '@core/types/newtab.types';
 import type { NewTabView } from '@newtab/stores/newtab.store';
 
 function SectionLabel({ label }: { label: string }) {
@@ -58,12 +62,13 @@ function NavItem({ icon, label, active, onClick, indent }: NavItemProps) {
 interface BoardItemProps {
   board: Board;
   isActive: boolean;
+  isProtected: boolean;
   onSelect: () => void;
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
 }
 
-function BoardItem({ board, isActive, onSelect, onRename, onDelete }: BoardItemProps) {
+function BoardItem({ board, isActive, isProtected, onSelect, onRename, onDelete }: BoardItemProps) {
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(board.name);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -89,10 +94,18 @@ function BoardItem({ board, isActive, onSelect, onRename, onDelete }: BoardItemP
   ];
 
   return (
+    // The entire row is the click target. The ⋯ button and rename input stop propagation
+    // so they don't accidentally trigger board selection.
     <div
-      className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm transition-colors group ${
+      className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm transition-colors group cursor-pointer ${
         isActive ? 'bg-white/20' : 'hover:bg-white/10'
       }`}
+      onClick={() => { if (!renaming) onSelect(); }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && !renaming) { e.preventDefault(); onSelect(); }
+      }}
     >
       <span className="text-base shrink-0">{board.icon}</span>
 
@@ -113,26 +126,105 @@ function BoardItem({ board, isActive, onSelect, onRename, onDelete }: BoardItemP
           style={{ color: 'var(--newtab-text)' }}
         />
       ) : (
-        <button
-          className="flex-1 min-w-0 text-left truncate"
+        <span
+          className="flex-1 min-w-0 truncate"
           style={{ color: 'var(--newtab-text)' }}
-          onClick={onSelect}
         >
           {board.name}
-        </button>
+        </span>
       )}
 
-      {!renaming && (
-        <ContextMenu items={menuItems}>
-          <button
-            className="p-0.5 rounded hover:bg-white/10 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
-            aria-label="Board options"
-          >
-            <MoreHorizontal size={13} style={{ color: 'var(--newtab-text-secondary)' }} />
-          </button>
-        </ContextMenu>
+      {/* Protected boards (Main) have no context menu */}
+      {!renaming && !isProtected && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <ContextMenu items={menuItems}>
+            <button
+              className="p-0.5 rounded hover:bg-white/10 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+              aria-label="Board options"
+            >
+              <MoreHorizontal size={13} style={{ color: 'var(--newtab-text-secondary)' }} />
+            </button>
+          </ContextMenu>
+        </div>
       )}
     </div>
+  );
+}
+
+// ── Sidebar control popup ──────────────────────────────────────────────────────
+
+const CONTROL_OPTIONS: { value: SidebarControl; label: string }[] = [
+  { value: 'expanded',        label: 'Expanded' },
+  { value: 'collapsed',       label: 'Collapsed' },
+  { value: 'expand-on-hover', label: 'Expand on hover' },
+];
+
+function SidebarControlPopup({
+  value,
+  anchorRef,
+  onChange,
+  onClose,
+}: {
+  value: SidebarControl;
+  anchorRef: React.RefObject<HTMLButtonElement | null>;
+  onChange: (mode: SidebarControl) => void;
+  onClose: () => void;
+}) {
+  const popupRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (anchorRef.current) {
+      const rect = anchorRef.current.getBoundingClientRect();
+      setPos({ top: rect.top - 8, left: rect.right + 8 });
+    }
+  }, [anchorRef]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        !popupRef.current?.contains(e.target as Node) &&
+        !anchorRef.current?.contains(e.target as Node)
+      ) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [anchorRef, onClose]);
+
+  return createPortal(
+    <div
+      ref={popupRef}
+      className="glass-panel rounded-xl py-1.5 min-w-[190px]"
+      style={{
+        position: 'fixed',
+        top: pos.top,
+        left: pos.left,
+        zIndex: 99999,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+        transform: 'translateY(-100%)',
+      }}
+    >
+      <p
+        className="px-3 pt-1.5 pb-1.5 text-[10px] font-bold uppercase tracking-wider"
+        style={{ color: 'var(--newtab-text-secondary)', opacity: 0.5 }}
+      >
+        Sidebar control
+      </p>
+      {CONTROL_OPTIONS.map((opt) => (
+        <button
+          key={opt.value}
+          onClick={() => { onChange(opt.value); onClose(); }}
+          className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-white/10 transition-colors"
+          style={{ color: 'var(--newtab-text)' }}
+        >
+          {opt.label}
+          {value === opt.value && <Check size={13} style={{ color: '#818cf8' }} />}
+        </button>
+      ))}
+    </div>,
+    document.body,
   );
 }
 
@@ -149,12 +241,14 @@ interface Props {
   onViewChange: (view: NewTabView) => void;
   onRenameBoard: (id: string, name: string) => void;
   onDeleteBoard: (id: string) => void;
+  sidebarControl?: SidebarControl;
+  onSidebarControlChange?: (mode: SidebarControl) => void;
 }
 
 export default function DashboardSidebar({
   boards,
   activeBoard,
-  collapsed,
+  collapsed: _collapsed,
   activeView,
   onSelectBoard,
   onToggle,
@@ -162,14 +256,43 @@ export default function DashboardSidebar({
   onViewChange,
   onRenameBoard,
   onDeleteBoard,
+  sidebarControl = 'expand-on-hover',
+  onSidebarControlChange,
 }: Props) {
   const [sessionsExpanded, setSessionsExpanded] = useState(true);
+  const [isHovering, setIsHovering] = useState(false);
+  const [controlOpen, setControlOpen] = useState(false);
+  const controlBtnRef = useRef<HTMLButtonElement>(null);
 
-  if (collapsed) {
+  // Derive effective collapsed state from sidebarControl mode
+  const effectiveCollapsed =
+    sidebarControl === 'expanded' ? false :
+    sidebarControl === 'collapsed' ? true :
+    !isHovering; // expand-on-hover
+
+  const handleMouseEnter = () => {
+    if (sidebarControl === 'expand-on-hover') setIsHovering(true);
+  };
+  const handleMouseLeave = () => {
+    if (sidebarControl === 'expand-on-hover' && !controlOpen) setIsHovering(false);
+  };
+
+  if (effectiveCollapsed) {
     return (
-      <div className="glass-panel h-full flex flex-col items-center py-4 gap-1 border-r border-white/10 w-12 shrink-0">
+      <div
+        className="glass-panel h-full flex flex-col items-center py-4 gap-1 border-r border-white/10 w-12 shrink-0"
+        style={{ transition: 'width 0.2s ease' }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
         <button
-          onClick={onToggle}
+          onClick={() => {
+            if (sidebarControl === 'expand-on-hover') {
+              onSidebarControlChange?.('expanded');
+            } else {
+              onSidebarControlChange?.('expanded') ?? onToggle();
+            }
+          }}
           className="p-1 rounded hover:bg-white/10 transition-colors mb-2"
           aria-label="Expand sidebar"
         >
@@ -230,17 +353,22 @@ export default function DashboardSidebar({
   }
 
   return (
-    <div className="glass-panel h-full flex flex-col border-r border-white/10 w-60 shrink-0 overflow-y-auto">
-      {/* Header */}
+    <div
+      className="glass-panel h-full flex flex-col border-r border-white/10 w-60 shrink-0 overflow-y-auto"
+      style={{ transition: 'width 0.2s ease' }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Header — "Menu" glassy label */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10 shrink-0">
-        <div className="flex items-center gap-1.5">
-          <img src="/icons/bs_logo.png" alt="Session Saver" className="w-5 h-5 rounded" />
-          <span className="text-sm font-semibold" style={{ color: 'var(--newtab-text)' }}>
-            Session Saver
-          </span>
-        </div>
+        <span
+          className="text-xs font-bold uppercase tracking-widest select-none"
+          style={{ color: 'var(--newtab-text-secondary)', opacity: 0.45 }}
+        >
+          Menu
+        </span>
         <button
-          onClick={onToggle}
+          onClick={() => onSidebarControlChange?.('collapsed') ?? onToggle()}
           className="p-1 rounded hover:bg-white/10 transition-colors"
           aria-label="Collapse sidebar"
         >
@@ -251,11 +379,12 @@ export default function DashboardSidebar({
       {/* ── BOARDS ── */}
       <SectionLabel label="Boards" />
       <div className="flex flex-col gap-0.5 px-2">
-        {boards.map((board) => (
+        {boards.map((board, idx) => (
           <BoardItem
             key={board.id}
             board={board}
             isActive={activeBoard?.id === board.id && activeView === 'bookmarks'}
+            isProtected={idx === 0}
             onSelect={() => { onSelectBoard(board); onViewChange('bookmarks'); }}
             onRename={onRenameBoard}
             onDelete={onDeleteBoard}
@@ -282,7 +411,7 @@ export default function DashboardSidebar({
             className="text-[10px] font-bold uppercase tracking-widest flex-1 select-none"
             style={{ color: 'var(--newtab-text-secondary)', opacity: 0.45 }}
           >
-            Session Saver
+            Browser Hub
           </span>
           <ChevronDown
             size={11}
@@ -334,8 +463,9 @@ export default function DashboardSidebar({
         </div>
       </div>
 
-      {/* ── ACCOUNT ── */}
+      {/* ── ACCOUNT + SIDEBAR CONTROL ── */}
       <div className="border-t border-white/10 mt-auto shrink-0">
+        {/* Account row */}
         <div className="flex items-center gap-2.5 px-4 py-3">
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
@@ -348,11 +478,37 @@ export default function DashboardSidebar({
               Chrome User
             </div>
             <div className="text-[10px] truncate" style={{ color: 'var(--newtab-text-secondary)' }}>
-              Session Saver
+              Browser Hub
             </div>
           </div>
         </div>
+
+        {/* Sidebar control button */}
+        <div className="px-2 pb-2">
+          <button
+            ref={controlBtnRef}
+            onClick={() => setControlOpen((v) => !v)}
+            className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm hover:bg-white/10 transition-colors w-full text-left"
+            style={{ color: 'var(--newtab-text-secondary)', opacity: 0.65 }}
+          >
+            <PanelLeft size={13} className="shrink-0" />
+            <span>Sidebar control</span>
+          </button>
+        </div>
       </div>
+
+      {/* Sidebar control popup */}
+      {controlOpen && (
+        <SidebarControlPopup
+          value={sidebarControl}
+          anchorRef={controlBtnRef}
+          onChange={(mode) => {
+            onSidebarControlChange?.(mode);
+            setIsHovering(false);
+          }}
+          onClose={() => setControlOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 {
-  "name": "session-saver",
+  "name": "browser-hub",
   "version": "1.0.0",
   "description": "Save, restore, and manage your browser sessions with one click.",
   "type": "module",

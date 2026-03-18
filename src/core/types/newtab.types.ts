@@ -81,6 +81,8 @@ export interface GradientPreset {
   angle: number;
 }
 
+export type SidebarControl = 'expanded' | 'collapsed' | 'expand-on-hover';
+
 export interface NewTabSettings {
   enabled: boolean;
   layoutMode: LayoutMode;
@@ -109,6 +111,7 @@ export interface NewTabSettings {
   activeBoardId: string | null;
   zenMode: boolean;
   sidebarCollapsed: boolean;
+  sidebarControl: SidebarControl;
   language: AppLanguage;
 }
 
@@ -138,6 +141,7 @@ export const DEFAULT_NEWTAB_SETTINGS: NewTabSettings = {
   activeBoardId: null,
   zenMode: false,
   sidebarCollapsed: false,
+  sidebarControl: 'expand-on-hover',
   language: 'auto',
 };
 

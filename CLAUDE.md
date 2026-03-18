@@ -1,8 +1,8 @@
-# CLAUDE.md — Session Saver Project Guide
+# CLAUDE.md — Browser Hub Project Guide
 
 ## Project Overview
 
-Session Saver is a Chrome extension (Manifest V3) that saves, restores, and manages browser sessions. It includes a Chrome Side Panel (primary UI), Start-Tab with glassmorphism UI, a full-page Dashboard, a Popup for quick actions, and a content script for scroll position capture — all built with React 18 + TypeScript + Tailwind CSS.
+Browser Hub is a Chrome extension (Manifest V3) that saves, restores, and manages browser sessions. It includes a Chrome Side Panel (primary UI), Start-Tab with glassmorphism UI, a full-page Dashboard, a Popup for quick actions, and a content script for scroll position capture — all built with React 18 + TypeScript + Tailwind CSS.
 
 ## Commands
 
@@ -145,6 +145,6 @@ npm run format   # Prettier
 - Do not use `chrome.storage.sync` — all data is local only
 - Do not import from `@background/` in UI code — communicate via messages only
 - Do not import from `@background/` in content script — it only listens for `CAPTURE_SCROLL`
-- Do not modify the `session-saver` IndexedDB — start-tab data uses the separate `newtab-db` (NewTabDB class)
+- Do not modify the `browser-hub` IndexedDB — start-tab data uses the separate `newtab-db` (NewTabDB class)
 - Do not merge NewTabSettings into the existing Settings type — it lives under its own storage key
 - Do not put subscriptions or tab-group templates in IndexedDB — they use flat `chrome.storage.local` keys

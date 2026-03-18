@@ -113,7 +113,10 @@ export default function BookmarkCategoryCard({
           <GripVertical size={14} style={{ color: 'var(--newtab-text-secondary)', opacity: 0.5 }} />
         </div>
 
-        <span className="text-base shrink-0">{category.icon}</span>
+        {cardType === 'bookmark'
+          ? <img src="/icons/bs_logo.png" alt="" className="w-4 h-4 shrink-0 rounded-sm" />
+          : <span className="text-base shrink-0">{category.icon}</span>
+        }
 
         {isRenaming ? (
           <input
