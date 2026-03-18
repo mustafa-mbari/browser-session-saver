@@ -569,7 +569,7 @@ function AnalyticsTab({ subs, onImport }: { subs: Subscription[]; onImport: (s: 
       </div>
 
       {/* Bar chart */}
-      <div className="bg-white/5 rounded-xl p-4">
+      <div className="glass-panel rounded-xl p-4">
         <p className="text-xs font-semibold mb-3" style={T}>Monthly Spend (last 6 months)</p>
         <svg viewBox="0 0 260 80" className="w-full" style={{ maxHeight: 100 }}>
           {monthly.map((d, i) => {
@@ -585,7 +585,7 @@ function AnalyticsTab({ subs, onImport }: { subs: Subscription[]; onImport: (s: 
       </div>
 
       {/* Donut chart */}
-      <div className="bg-white/5 rounded-xl p-4">
+      <div className="glass-panel rounded-xl p-4">
         <p className="text-xs font-semibold mb-3" style={T}>Spend by Category</p>
         {breakdown.length === 0 ? (
           <p className="text-xs opacity-40" style={TS}>No data</p>
@@ -610,7 +610,7 @@ function AnalyticsTab({ subs, onImport }: { subs: Subscription[]; onImport: (s: 
       </div>
 
       {/* Savings */}
-      <div className="bg-white/5 rounded-xl p-4">
+      <div className="glass-panel rounded-xl p-4">
         <p className="text-xs font-semibold mb-1" style={T}>Savings Tracker</p>
         <p className="text-lg font-bold text-green-400 mb-2">{SubscriptionService.formatCurrency(savings, currency)}<span className="text-xs font-normal text-green-500/70">/yr saved</span></p>
         {canceledSubs.length === 0 ? (
@@ -1194,30 +1194,40 @@ export default function SubscriptionsPanel() {
 
   if (loading) return <div className="flex-1 flex items-center justify-center"><div className="w-5 h-5 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" /></div>;
 
-  if (formOpen) return <div className="flex flex-col h-full"><SubForm initial={editSub} onSave={handleSave} onClose={() => { setFormOpen(false); setEditSub(null); }} customCats={customCats} onCustomCatsChange={setCustomCats} /></div>;
+  if (formOpen) return (
+    <div className="pt-4 w-full flex flex-col h-full gap-3">
+      <h2 className="text-xl font-semibold shrink-0" style={{ color: 'var(--newtab-text)' }}>Manage Subscriptions</h2>
+      <div className="glass-panel rounded-2xl flex flex-col flex-1 overflow-hidden">
+        <SubForm initial={editSub} onSave={handleSave} onClose={() => { setFormOpen(false); setEditSub(null); }} customCats={customCats} onCustomCatsChange={setCustomCats} />
+      </div>
+    </div>
+  );
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <SummaryStrip subscriptions={subs} onAdd={() => { setEditSub(null); setFormOpen(true); }} />
+    <div className="pt-4 w-full flex flex-col h-full gap-3">
+      <h2 className="text-xl font-semibold shrink-0" style={{ color: 'var(--newtab-text)' }}>Manage Subscriptions</h2>
+      <div className="glass-panel rounded-2xl flex flex-col flex-1 overflow-hidden">
+        <SummaryStrip subscriptions={subs} onAdd={() => { setEditSub(null); setFormOpen(true); }} />
 
-      {/* Tab bar */}
-      <div className="flex items-center border-b border-white/10 px-4">
-        {(['list', 'calendar', 'analytics'] as SubTab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-3 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors ${tab === t ? 'text-violet-400 border-violet-500' : 'border-transparent hover:text-white/80'}`}
-            style={tab === t ? {} : TS}
-          >
-            {t === 'list' ? '📋 List' : t === 'calendar' ? '📅 Calendar' : '📊 Analytics'}
-          </button>
-        ))}
-      </div>
+        {/* Tab bar */}
+        <div className="flex items-center border-b border-white/10 px-4">
+          {(['list', 'calendar', 'analytics'] as SubTab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-3 py-2.5 text-xs font-semibold border-b-2 -mb-px transition-colors ${tab === t ? 'text-violet-400 border-violet-500' : 'border-transparent hover:text-white/80'}`}
+              style={tab === t ? {} : TS}
+            >
+              {t === 'list' ? '📋 List' : t === 'calendar' ? '📅 Calendar' : '📊 Analytics'}
+            </button>
+          ))}
+        </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col">
-        {tab === 'list'      && <ListTab subs={subs} customCats={customCats} onEdit={(s) => { setEditSub(s); setFormOpen(true); }} onDelete={handleDelete} onStatusChange={handleStatus} />}
-        {tab === 'calendar'  && <CalendarTab subs={subs} />}
-        {tab === 'analytics' && <AnalyticsTab subs={subs} onImport={handleImport} />}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {tab === 'list'      && <ListTab subs={subs} customCats={customCats} onEdit={(s) => { setEditSub(s); setFormOpen(true); }} onDelete={handleDelete} onStatusChange={handleStatus} />}
+          {tab === 'calendar'  && <CalendarTab subs={subs} />}
+          {tab === 'analytics' && <AnalyticsTab subs={subs} onImport={handleImport} />}
+        </div>
       </div>
     </div>
   );

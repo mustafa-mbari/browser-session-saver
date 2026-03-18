@@ -139,9 +139,7 @@ function SelectField({ label, value, options, onChange }: {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className="rounded-2xl p-5 newtab-page-card"
-    >
+    <div className="glass-panel rounded-2xl p-5">
       {children}
     </div>
   );
