@@ -10,10 +10,9 @@ export default function App() {
 
   useKeyboard({
     'Ctrl+Shift+R': () => navigateTo('home'),
-    'Ctrl+Shift+D': () => chrome.tabs.create({ url: chrome.runtime.getURL('src/dashboard/index.html') }),
     'Ctrl+Shift+F': () => focusSearch?.(),
     'Ctrl+Shift+E': () => navigateTo('import-export'),
-    'Ctrl+Shift+S': () => navigateTo('subscriptions'),
+    'Ctrl+Shift+B': () => navigateTo('subscriptions'),
   });
 
   return (

@@ -15,8 +15,39 @@ const windowTabCache = new Map<number, { tabs: Tab[]; tabGroups: TabGroup[] }>()
 // Debounce timer for updateTabCache
 let _tabCacheTimer: ReturnType<typeof setTimeout> | null = null;
 
+const TAB_CACHE_KEY = 'window_tab_cache';
+
+async function persistTabCache(): Promise<void> {
+  try {
+    const obj = Object.fromEntries(windowTabCache);
+    await chrome.storage.session.set({ [TAB_CACHE_KEY]: obj });
+  } catch {
+    // storage.session may not be available in all contexts
+  }
+}
+
+async function rehydrateTabCache(): Promise<void> {
+  try {
+    const result = await chrome.storage.session.get(TAB_CACHE_KEY);
+    const data = result[TAB_CACHE_KEY];
+    if (data && typeof data === 'object') {
+      for (const [key, value] of Object.entries(data)) {
+        const windowId = Number(key);
+        if (!isNaN(windowId) && value && typeof value === 'object') {
+          windowTabCache.set(windowId, value as { tabs: Tab[]; tabGroups: TabGroup[] });
+        }
+      }
+    }
+  } catch {
+    // storage.session may not be available
+  }
+}
+
 export function initAutoSaveEngine(settings: Settings): void {
   _settings = settings;
+
+  // Rehydrate tab cache from storage.session (survives SW restarts)
+  void rehydrateTabCache();
 
   if (!settings.enableAutoSave) {
     clearAlarms();
@@ -47,11 +78,6 @@ export function initAutoSaveEngine(settings: Settings): void {
     }
   });
 
-  // Low battery
-  if (settings.saveOnLowBattery) {
-    initBatteryMonitor(settings.lowBatteryThreshold);
-  }
-
   // Window close - maintain tab cache with debounced updates
   chrome.tabs.onUpdated.addListener(debouncedUpdateTabCache);
   chrome.tabs.onRemoved.addListener((_tabId, removeInfo) => {
@@ -65,6 +91,7 @@ export function initAutoSaveEngine(settings: Settings): void {
       saveClosedWindowFromCache(cached, windowId);
     }
     windowTabCache.delete(windowId);
+    void persistTabCache();
   });
 
   // Network disconnect
@@ -168,48 +195,12 @@ async function performAutoSave(trigger: AutoSaveTrigger): Promise<void> {
 }
 
 
-function initBatteryMonitor(threshold: number): void {
-  try {
-    // navigator.getBattery may not be available in service worker
-    if ('getBattery' in navigator) {
-      (navigator as Navigator & { getBattery(): Promise<BatteryManager> })
-        .getBattery()
-        .then((battery) => {
-          battery.addEventListener('levelchange', () => {
-            if (battery.level <= threshold / 100 && !battery.charging) {
-              performAutoSave('battery');
-            }
-          });
-        })
-        .catch(() => {
-          console.warn('Battery API not available in service worker context');
-        });
-    }
-  } catch {
-    console.warn('Battery monitoring not supported');
-  }
-}
-
-interface BatteryManager extends EventTarget {
-  charging: boolean;
-  level: number;
-  addEventListener(type: string, listener: EventListener): void;
-}
-
-function debouncedUpdateTabCache(): void {
+function debouncedUpdateTabCache(_tabId: number, _changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab): void {
   if (_tabCacheTimer) clearTimeout(_tabCacheTimer);
+  const windowId = tab.windowId;
   _tabCacheTimer = setTimeout(() => {
-    updateTabCache();
-  }, 2000);
-}
-
-async function updateTabCache(): Promise<void> {
-  const windows = await chrome.windows.getAll({ populate: false });
-  for (const window of windows) {
-    if (window.id) {
-      await updateTabCacheForWindow(window.id);
-    }
-  }
+    if (windowId) updateTabCacheForWindow(windowId);
+  }, 5000);
 }
 
 async function updateTabCacheForWindow(windowId: number): Promise<void> {
@@ -218,6 +209,7 @@ async function updateTabCacheForWindow(windowId: number): Promise<void> {
     const chromeGroups = await chrome.tabGroups.query({ windowId });
     const { tabs, tabGroups } = captureTabGroups(chromeTabs, chromeGroups);
     windowTabCache.set(windowId, { tabs, tabGroups });
+    void persistTabCache();
   } catch {
     // Window may have already closed
   }

@@ -27,12 +27,16 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 (async () => {
-  await migrateIfNeeded();
+  try {
+    await migrateIfNeeded();
 
-  const storage = getSettingsStorage();
-  const settings = (await storage.get<Settings>(STORAGE_KEYS.SETTINGS)) ?? DEFAULT_SETTINGS;
+    const storage = getSettingsStorage();
+    const settings = (await storage.get<Settings>(STORAGE_KEYS.SETTINGS)) ?? DEFAULT_SETTINGS;
 
-  // Apply actual user settings (updates _settings + alarm interval without re-registering
-  // event listeners, which are already registered synchronously above).
-  updateSettings(settings);
+    // Apply actual user settings (updates _settings + alarm interval without re-registering
+    // event listeners, which are already registered synchronously above).
+    updateSettings(settings);
+  } catch (error) {
+    console.error('Service worker startup failed:', error);
+  }
 })();

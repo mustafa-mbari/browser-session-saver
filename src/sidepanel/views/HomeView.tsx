@@ -18,7 +18,7 @@ import { useMessaging } from '@shared/hooks/useMessaging';
 import type { Session, ChromeGroupColor } from '@core/types/session.types';
 import type { TabGroupTemplate } from '@core/types/tab-group.types';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
-import * as SessionService from '@core/services/session.service';
+import { GROUP_COLORS } from '@core/constants/tab-group-colors';
 import { formatRelative } from '@core/utils/date';
 
 const PROMPT_KEY = 'session_restore_prompt';
@@ -51,6 +51,7 @@ export default function HomeView() {
   const [restoringPrompt, setRestoringPrompt] = useState(false);
 
   useEffect(() => {
+    if (loading || sessions.length === 0) return;
     async function checkRestorePrompt() {
       const record = await new Promise<{ shownAt: number } | undefined>((resolve) =>
         chrome.storage.local.get(PROMPT_KEY, (r) =>
@@ -58,11 +59,11 @@ export default function HomeView() {
         ),
       );
       if (!record || Date.now() - record.shownAt > PROMPT_MAX_AGE_MS) return;
-      const autoSaves = await SessionService.getAllSessions({ isAutoSave: true });
-      if (autoSaves.length > 0) setRestorePromptSession(autoSaves[0]);
+      const autoSave = sessions.find(s => s.isAutoSave);
+      if (autoSave) setRestorePromptSession(autoSave);
     }
     void checkRestorePrompt();
-  }, []);
+  }, [loading, sessions]);
 
   const dismissRestorePrompt = useCallback(() => {
     chrome.storage.local.remove(PROMPT_KEY);
@@ -431,10 +432,6 @@ function CurrentTabsPanel({ query, onToast }: CurrentTabsPanelProps) {
 
 // ── Tab Groups Panel ──────────────────────────────────────────────────────────
 
-const TG_COLOR_MAP: Record<string, string> = {
-  grey: '#9aa0a6', blue: '#4a90d9', red: '#e06666', yellow: '#f6b26b',
-  green: '#6aa84f', pink: '#d16b8e', purple: '#8e44ad', cyan: '#45b7d1', orange: '#e69138',
-};
 
 interface TGLiveGroup {
   id: number;
@@ -468,7 +465,7 @@ function HomeLiveGroupRow({
   const [draftTitle, setDraftTitle] = useState(group.title);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const accentColor = TG_COLOR_MAP[group.color] ?? '#9aa0a6';
+  const accentColor = GROUP_COLORS[group.color] ?? '#9aa0a6';
 
   const startEdit = useCallback(() => {
     setDraftTitle(group.title);
@@ -626,7 +623,7 @@ function HomeSavedGroupRow({
   const [draftTitle, setDraftTitle] = useState(template.title);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const accentColor = TG_COLOR_MAP[template.color] ?? '#9aa0a6';
+  const accentColor = GROUP_COLORS[template.color] ?? '#9aa0a6';
 
   const startEdit = useCallback(() => {
     setDraftTitle(template.title);

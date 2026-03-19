@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Browser Hub is a Chrome extension (Manifest V3) that saves, restores, and manages browser sessions. It includes a Chrome Side Panel (primary UI), Start-Tab with glassmorphism UI, a full-page Dashboard, a Popup for quick actions, and a content script for scroll position capture — all built with React 18 + TypeScript + Tailwind CSS.
+Browser Hub is a Chrome extension (Manifest V3) that saves, restores, and manages browser sessions. It includes a Chrome Side Panel (primary UI), Start-Tab with glassmorphism UI, and a Popup for quick actions — all built with React 18 + TypeScript + Tailwind CSS.
 
 ## Commands
 
@@ -18,14 +18,13 @@ npm run format   # Prettier
 
 - **Background service worker** (`src/background/`) — all Chrome API calls, auto-save engine, message handling
 - **Core layer** (`src/core/`) — framework-agnostic types, services, storage, utilities
-- **UI surfaces** — Side Panel (`src/sidepanel/`), Popup (`src/popup/`), Dashboard (`src/dashboard/`), Start-Tab (`src/newtab/`)
-- **Content script** (`src/content/`) — scroll position capture via `CAPTURE_SCROLL` message listener
+- **UI surfaces** — Side Panel (`src/sidepanel/`), Popup (`src/popup/`), Start-Tab (`src/newtab/`)
 - **Shared** (`src/shared/`) — reusable components, hooks, styles, i18n utilities used by all UI surfaces
 
 ## Key Conventions
 
-- **Path aliases**: `@core/*`, `@shared/*`, `@background/*`, `@sidepanel/*`, `@popup/*`, `@dashboard/*`, `@newtab/*`
-- **State management**: Zustand stores per UI surface (sidepanel.store.ts, dashboard.store.ts, newtab.store.ts)
+- **Path aliases**: `@core/*`, `@shared/*`, `@background/*`, `@sidepanel/*`, `@popup/*`, `@newtab/*`
+- **State management**: Zustand stores per UI surface (sidepanel.store.ts, newtab.store.ts)
 - **Storage**: chrome.storage.local for settings, IndexedDB for sessions — abstracted via `IStorage` interface; start-tab uses a separate `newtab-db` (NewTabDB class in `src/core/storage/newtab-storage.ts`) for bookmarks/todos/wallpapers
 - **Messaging**: Typed discriminated union `Message` type between service worker and UI via `chrome.runtime.sendMessage`; 15 action types defined in `messages.types.ts`
 - **Styling**: Tailwind CSS with CSS custom properties for theme tokens, dark mode via `class` strategy. Glassmorphism utilities (`.glass`, `.glass-panel`, `.glass-dark`, `.glass-hover`, `.vignette`) defined in `@layer utilities` in `globals.css`
@@ -40,7 +39,6 @@ npm run format   # Prettier
 - **Widget config**: `src/core/config/widget-config.ts` — `WIDGET_CONFIG` registry with per-type min/max/default sizes, `getDefaultSize()`, `clampSize()` utilities
 - **View unions**:
   - `SidePanelView`: `'home' | 'session-detail' | 'tab-groups' | 'settings' | 'import-export' | 'subscriptions'`
-  - `DashboardPage`: `'sessions' | 'auto-saves' | 'tab-groups' | 'import-export' | 'settings'`
   - `CardType`: `'bookmark' | 'clock' | 'note' | 'todo' | 'subscription' | 'tab-groups'`
 
 ## Important Files
@@ -60,12 +58,9 @@ npm run format   # Prettier
 - `src/core/services/subscription.service.ts` — Urgency calculation, monthly normalization, analytics, CSV import/export, currency formatting
 - `src/background/event-listeners.ts` — Central message dispatcher (15 handlers)
 - `src/background/auto-save-engine.ts` — Auto-save trigger management; calls `upsertAutoSaveSession` so each trigger type maintains exactly one pinned entry (updated in place)
-- `src/content/scroll-capture.ts` — Content script listening for `CAPTURE_SCROLL` messages, returns `{x, y}` scroll position
 - `src/sidepanel/views/HomeView.tsx` — Primary user-facing view with sessions, current tabs, and tab groups tabs
 - `src/sidepanel/views/SubscriptionsView.tsx` — Subscription management with List/Calendar/Analytics tabs
 - `src/sidepanel/views/TabGroupsView.tsx` — Live and saved tab groups management
-- `src/dashboard/App.tsx` — Dashboard root with 5 pages and sidebar navigation
-- `src/dashboard/stores/dashboard.store.ts` — Dashboard Zustand store with `DashboardPage` union type
 - `src/newtab/App.tsx` — Start-tab root component: data loading, layout selection, overlay management
 - `src/newtab/stores/newtab.store.ts` — Single Zustand store for all start-tab state (settings, boards, categories, entries, quickLinks, todoLists, todoItems, UI flags)
 - `src/newtab/hooks/useNewTabSettings.ts` — Settings load/sync hook (reads `newtab_settings` key from chrome.storage.local)
@@ -112,18 +107,14 @@ npm run format   # Prettier
 - Types: `TabGroupTemplate` and `TabGroupTemplateTab` in `src/core/types/tab-group.types.ts`
 - Live groups queried via `chrome.tabGroups.query({})` + `chrome.tabs.query({})` — available in all extension pages
 - Sidepanel view: `'tab-groups'` in `SidePanelView` union — `src/sidepanel/views/TabGroupsView.tsx` with live/saved sections
-- Dashboard page: `'tab-groups'` in `DashboardPage` — `src/dashboard/pages/TabGroupsPage.tsx`
 - Start-tab: `TabGroupsCardBody` widget type, `TabGroupsPanel` sidebar view
 - Auto-save: live groups automatically saved as templates when viewed
 - `ChromeGroupColor` type from `src/core/types/session.types.ts` (9 colors: grey, blue, red, yellow, green, pink, purple, cyan, orange)
 
-## Dashboard Notes
+## Start-Tab Management
 
-- 5 pages: Sessions, Auto-Saves, Tab Groups, Import/Export, Settings
-- Zustand store: `src/dashboard/stores/dashboard.store.ts` with `DashboardPage` type
-- Sidebar navigation: `src/dashboard/components/Sidebar.tsx`
-- Sessions page features: StatsWidget, search with debounce, session list with checkboxes, session detail panel, bulk toolbar (merge/export/delete), diff modal for session comparison
-- Full-page management UI at `src/dashboard/index.html`
+- Session management features (SessionBulkToolbar, SessionDiffModal, SettingsPanel, AutoSavesPanel) live in `src/newtab/components/`
+- Full session management is available through the start-tab sidebar panels
 
 ## Testing
 
@@ -144,7 +135,6 @@ npm run format   # Prettier
 - Do not add `popup` to `action.default_popup` in manifest — Side Panel opens via `openPanelOnActionClick`
 - Do not use `chrome.storage.sync` — all data is local only
 - Do not import from `@background/` in UI code — communicate via messages only
-- Do not import from `@background/` in content script — it only listens for `CAPTURE_SCROLL`
 - Do not modify the `browser-hub` IndexedDB — start-tab data uses the separate `newtab-db` (NewTabDB class)
 - Do not merge NewTabSettings into the existing Settings type — it lives under its own storage key
 - Do not put subscriptions or tab-group templates in IndexedDB — they use flat `chrome.storage.local` keys

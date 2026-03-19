@@ -20,7 +20,7 @@ export interface SaveSessionOptions {
 function generateSessionName(isAutoSave: boolean, trigger?: AutoSaveTrigger): string {
   const timestamp = formatTimestamp(nowISO());
   if (isAutoSave && trigger) {
-    const triggerLabel = trigger.charAt(0).toUpperCase() + trigger.slice(1).replace('_', ' ');
+    const triggerLabel = trigger.charAt(0).toUpperCase() + trigger.slice(1).replace(/_/g, ' ');
     return `[Auto — ${triggerLabel}] ${timestamp}`;
   }
   return `Session — ${timestamp}`;

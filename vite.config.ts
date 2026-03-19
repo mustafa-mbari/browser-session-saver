@@ -20,6 +20,7 @@ export default defineConfig({
     },
   },
   build: {
+    sourcemap: 'hidden',
     rollupOptions: {
       input: {
         sidepanel: resolve(__dirname, 'src/sidepanel/index.html'),

@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src/ --ext .ts,.tsx",
@@ -26,7 +25,7 @@
     "rollup": "2.80.0"
   },
   "devDependencies": {
-    "@crxjs/vite-plugin": "^2.0.0-beta.30",
+    "@crxjs/vite-plugin": "2.0.0-beta.30",
     "@eslint/js": "^9.18.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",

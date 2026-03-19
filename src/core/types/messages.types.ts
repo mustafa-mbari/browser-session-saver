@@ -52,6 +52,7 @@ export interface MessageResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
+  timedOut?: boolean;
 }
 
 export interface AutoSaveStatusResponse {

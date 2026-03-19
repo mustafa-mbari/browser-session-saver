@@ -10,6 +10,7 @@ import { DEFAULT_SETTINGS } from '@core/types/settings.types';
 import { exportAsJSON, exportAsHTML, exportAsMarkdown, exportAsCSV, exportAsText } from '@core/services/export.service';
 import { importFromJSON, importFromHTML, importFromURLList } from '@core/services/import.service';
 import { generateId } from '@core/utils/uuid';
+import { isValidUrl, isValidSession } from '@core/utils/validators';
 
 export function registerEventListeners(): void {
   chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
@@ -133,14 +134,21 @@ async function handleRestoreSession(payload: {
 
   if (payload.mode === 'new_window') {
     const firstTab = sortedTabs[0];
-    const win = await chrome.windows.create({ url: firstTab?.url, focused: true });
-    windowId = win.id!;
+    let win: chrome.windows.Window;
+    try {
+      win = await chrome.windows.create({ url: firstTab?.url ? (isValidUrl(firstTab.url) ? firstTab.url : undefined) : undefined, focused: true });
+    } catch {
+      return { success: false, error: 'Failed to create window' };
+    }
+    if (!win.id) return { success: false, error: 'Failed to create window' };
+    windowId = win.id;
     // Capture the first tab's ID for group tracking
     const firstId = win.tabs?.[0]?.id;
     if (firstId && firstTab) trackGroupTab(firstTab.groupId, firstId);
 
     for (let i = 1; i < sortedTabs.length; i++) {
       const tab = sortedTabs[i];
+      if (!isValidUrl(tab.url)) { failedUrls.push(tab.url); continue; }
       try {
         const created = await chrome.tabs.create({ url: tab.url, windowId, pinned: tab.pinned, active: false });
         if (created.id) trackGroupTab(tab.groupId, created.id);
@@ -153,6 +161,7 @@ async function handleRestoreSession(payload: {
     const existing = payload.mode === 'current' ? await chrome.tabs.query({ windowId }) : [];
 
     for (const tab of sortedTabs) {
+      if (!isValidUrl(tab.url)) { failedUrls.push(tab.url); continue; }
       try {
         const created = await chrome.tabs.create({ url: tab.url, windowId, pinned: tab.pinned, active: false });
         if (created.id) trackGroupTab(tab.groupId, created.id);
@@ -312,6 +321,10 @@ async function handleImportSessions(payload: {
   data: string;
   source: string;
 }): Promise<MessageResponse> {
+  if (payload.data.length > 5_242_880) {
+    return { success: false, error: 'Import data too large (max 5 MB)' };
+  }
+
   let result;
   switch (payload.source) {
     case 'html':
@@ -327,9 +340,7 @@ async function handleImportSessions(payload: {
   }
 
   const storage = getSessionStorage();
-  for (const session of result.sessions) {
-    await storage.set(session.id, session);
-  }
+  await Promise.all(result.sessions.map(s => storage.set(s.id, s)));
 
   return {
     success: result.sessions.length > 0,
@@ -341,6 +352,9 @@ async function handleImportSessions(payload: {
 async function handleUndeleteSession(payload: {
   session: Session;
 }): Promise<MessageResponse<Session>> {
+  if (!isValidSession(payload.session)) {
+    return { success: false, error: 'Invalid session data' };
+  }
   const storage = getSessionStorage();
   await storage.set(payload.session.id, payload.session);
   return { success: true, data: payload.session };
@@ -408,10 +422,17 @@ async function handleRestoreSelectedTabs(payload: {
   const failedUrls: string[] = [];
 
   if (payload.mode === 'new_window') {
-    const firstUrl = tabsToOpen[0].url;
-    const window = await chrome.windows.create({ url: firstUrl, focused: true });
-    const windowId = window.id!;
+    const firstUrl = isValidUrl(tabsToOpen[0].url) ? tabsToOpen[0].url : undefined;
+    let win: chrome.windows.Window;
+    try {
+      win = await chrome.windows.create({ url: firstUrl, focused: true });
+    } catch {
+      return { success: false, error: 'Failed to create window' };
+    }
+    if (!win.id) return { success: false, error: 'Failed to create window' };
+    const windowId = win.id;
     for (let i = 1; i < tabsToOpen.length; i++) {
+      if (!isValidUrl(tabsToOpen[i].url)) { failedUrls.push(tabsToOpen[i].url); continue; }
       try {
         await chrome.tabs.create({ url: tabsToOpen[i].url, windowId, pinned: tabsToOpen[i].pinned, active: false });
       } catch {
@@ -423,6 +444,7 @@ async function handleRestoreSelectedTabs(payload: {
     if (payload.mode === 'current') {
       const existing = await chrome.tabs.query({ windowId });
       for (const tab of tabsToOpen) {
+        if (!isValidUrl(tab.url)) { failedUrls.push(tab.url); continue; }
         try {
           await chrome.tabs.create({ url: tab.url, windowId, pinned: tab.pinned, active: false });
         } catch {
@@ -433,6 +455,7 @@ async function handleRestoreSelectedTabs(payload: {
       if (existingIds.length > 0) await chrome.tabs.remove(existingIds);
     } else {
       for (const tab of tabsToOpen) {
+        if (!isValidUrl(tab.url)) { failedUrls.push(tab.url); continue; }
         try {
           await chrome.tabs.create({ url: tab.url, windowId, pinned: tab.pinned, active: false });
         } catch {

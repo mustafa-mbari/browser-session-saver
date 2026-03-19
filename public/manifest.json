@@ -41,13 +41,6 @@
     "48": "icons/browser-hub_logo.png",
     "128": "icons/browser-hub_logo.png"
   },
-  "content_scripts": [
-    {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["src/content/scroll-capture.ts"],
-      "run_at": "document_idle"
-    }
-  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
