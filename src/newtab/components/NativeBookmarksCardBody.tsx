@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getFaviconUrl } from '@core/utils/favicon';
 import type { SpanValue } from '@core/types/newtab.types';
 
 interface NativeNode {
@@ -9,11 +10,7 @@ interface NativeNode {
 }
 
 function getFaviconSrc(url: string): string {
-  try {
-    return `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=16`;
-  } catch {
-    return '';
-  }
+  return getFaviconUrl(url, 16);
 }
 
 function BookmarkNode({ node, depth = 0 }: { node: NativeNode; depth?: number }) {

@@ -21,7 +21,10 @@ export class IndexedDBAdapter implements IStorage {
       };
 
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      request.onerror = () => {
+        this.dbPromise = null; // Clear cache so the next call can retry
+        reject(request.error);
+      };
     });
 
     return this.dbPromise;

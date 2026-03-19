@@ -1,6 +1,6 @@
 import { registerEventListeners } from './event-listeners';
 import { setupSidePanelController } from './side-panel-controller';
-import { initAutoSaveEngine } from './auto-save-engine';
+import { initAutoSaveEngine, updateSettings } from './auto-save-engine';
 import { restoreTabGroupNamesOnStartup } from './tab-group-restore';
 import { migrateIfNeeded } from '@core/services/migration.service';
 import { getSettingsStorage } from '@core/storage/storage-factory';
@@ -12,6 +12,13 @@ console.log('Browser Hub service worker started');
 
 setupSidePanelController();
 registerEventListeners();
+
+// CRITICAL (Chrome MV3): All chrome event listeners must be registered synchronously
+// during top-level evaluation of the service worker — Chrome uses these to decide when
+// to wake the SW. Registering after any `await` means alarms and other events can fire
+// without the SW being woken up. Use DEFAULT_SETTINGS as a safe initial value; actual
+// user settings are applied immediately below once storage is read.
+initAutoSaveEngine(DEFAULT_SETTINGS);
 
 chrome.runtime.onStartup.addListener(() => {
   void restoreTabGroupNamesOnStartup();
@@ -25,5 +32,7 @@ chrome.runtime.onStartup.addListener(() => {
   const storage = getSettingsStorage();
   const settings = (await storage.get<Settings>(STORAGE_KEYS.SETTINGS)) ?? DEFAULT_SETTINGS;
 
-  initAutoSaveEngine(settings);
+  // Apply actual user settings (updates _settings + alarm interval without re-registering
+  // event listeners, which are already registered synchronously above).
+  updateSettings(settings);
 })();
