@@ -1,7 +1,7 @@
 import type { IStorage } from './storage.interface';
 
 const DB_NAME = 'browser-hub';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'sessions';
 
 export class IndexedDBAdapter implements IStorage {
@@ -13,10 +13,24 @@ export class IndexedDBAdapter implements IStorage {
     this.dbPromise = new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-      request.onupgradeneeded = () => {
+      request.onupgradeneeded = (event) => {
         const db = request.result;
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME);
+        const oldVersion = event.oldVersion;
+
+        if (oldVersion < 1) {
+          const store = db.createObjectStore(STORE_NAME);
+          store.createIndex('isAutoSave', 'isAutoSave', { unique: false });
+          store.createIndex('createdAt', 'createdAt', { unique: false });
+        } else if (oldVersion < 2) {
+          // v1 → v2 migration: add indexes to existing store
+          const tx = (event.target as IDBOpenDBRequest).transaction!;
+          const store = tx.objectStore(STORE_NAME);
+          if (!store.indexNames.contains('isAutoSave')) {
+            store.createIndex('isAutoSave', 'isAutoSave', { unique: false });
+          }
+          if (!store.indexNames.contains('createdAt')) {
+            store.createIndex('createdAt', 'createdAt', { unique: false });
+          }
         }
       };
 
@@ -68,20 +82,32 @@ export class IndexedDBAdapter implements IStorage {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
-      const result: Record<string, unknown> = {};
-      const cursorRequest = store.openCursor();
+      const keysReq = store.getAllKeys();
+      const valsReq = store.getAll();
 
-      cursorRequest.onsuccess = () => {
-        const cursor = cursorRequest.result;
-        if (cursor) {
-          result[cursor.key as string] = cursor.value;
-          cursor.continue();
-        } else {
-          resolve(result);
+      tx.oncomplete = () => {
+        const keys = keysReq.result as string[];
+        const vals = valsReq.result;
+        const result: Record<string, unknown> = {};
+        for (let i = 0; i < keys.length; i++) {
+          result[keys[i]] = vals[i];
         }
+        resolve(result);
       };
 
-      cursorRequest.onerror = () => reject(cursorRequest.error);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getByIndex<T>(indexName: string, value: IDBValidKey | boolean, limit?: number): Promise<T[]> {
+    const db = await this.openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const index = store.index(indexName);
+      const request = index.getAll(value as IDBValidKey, limit);
+      request.onsuccess = () => resolve(request.result as T[]);
+      request.onerror = () => reject(request.error);
     });
   }
 

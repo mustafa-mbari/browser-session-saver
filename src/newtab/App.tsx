@@ -2,7 +2,8 @@ import { useEffect, useRef, lazy, Suspense } from 'react';
 import { useTheme } from '@shared/hooks/useTheme';
 import { loadLocale } from '@shared/utils/i18n';
 import { useNewTabSettings } from '@newtab/hooks/useNewTabSettings';
-import { useNewTabStore } from '@newtab/stores/newtab.store';
+import { useNewTabUIStore } from '@newtab/stores/newtab-ui.store';
+import { useNewTabDataStore } from '@newtab/stores/newtab-data.store';
 import { useKeyboardShortcuts } from '@newtab/hooks/useKeyboardShortcuts';
 import { newtabDB } from '@core/storage/newtab-storage';
 import { updateNewTabSettings, getNewTabSettings } from '@core/services/newtab-settings.service';
@@ -27,18 +28,17 @@ export default function App() {
   const { isLoading } = useNewTabSettings();
   useTheme();
 
-  const store = useNewTabStore();
+  const uiStore = useNewTabUIStore();
+  const dataStore = useNewTabDataStore();
   const {
     settings,
     layoutMode,
     isSettingsOpen,
     isWallpaperOpen,
     isKeyboardHelpOpen,
-    setBoards,
-    setQuickLinks,
-    setTodoLists,
     setLoading,
-  } = store;
+  } = uiStore;
+  const { setBoards, setQuickLinks, setTodoLists } = dataStore;
 
   const searchRef = useRef<HTMLInputElement>(null);
   const todoRef = useRef<HTMLInputElement>(null);
@@ -56,9 +56,9 @@ export default function App() {
     const viewParam = params.get('view');
     if (!viewParam) return;
     const mgmtViews = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions', 'settings'];
-    store.setActiveView(viewParam as Parameters<typeof store.setActiveView>[0]);
-    if (mgmtViews.includes(viewParam) && store.settings.layoutMode !== 'dashboard') {
-      store.setLayoutMode('dashboard');
+    uiStore.setActiveView(viewParam as Parameters<typeof uiStore.setActiveView>[0]);
+    if (mgmtViews.includes(viewParam) && uiStore.settings.layoutMode !== 'dashboard') {
+      uiStore.setLayoutMode('dashboard');
     }
   // Only run once on mount
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -84,18 +84,18 @@ export default function App() {
           setBoards(seededBoards);
           setQuickLinks(links);
           setTodoLists(seededLists);
-          store.updateSettings({ activeBoardId: seeded.mainBoard.id });
+          uiStore.updateSettings({ activeBoardId: seeded.mainBoard.id });
 
           const allCats = await Promise.all(
             seededBoards.map((b) => BookmarkService.getCategories(newtabDB, b.id)),
           );
           const cats = allCats.flat();
-          store.setCategories(cats);
+          dataStore.setCategories(cats);
           if (cats.length > 0) {
             const allEntries = await Promise.all(
               cats.map((c) => BookmarkService.getEntries(newtabDB, c.id)),
             );
-            store.setEntries(allEntries.flat());
+            dataStore.setEntries(allEntries.flat());
           }
           return;
         }
@@ -109,7 +109,7 @@ export default function App() {
           const storedSettings = await getNewTabSettings();
           const activeBoardId = storedSettings.activeBoardId ?? boards[0].id;
           if (!storedSettings.activeBoardId) {
-            store.updateSettings({ activeBoardId: boards[0].id });
+            uiStore.updateSettings({ activeBoardId: boards[0].id });
           }
 
           const activeBoard = boards.find((b) => b.id === activeBoardId) ?? boards[0];
@@ -132,20 +132,20 @@ export default function App() {
             );
           }
 
-          store.setCategories(cats);
+          dataStore.setCategories(cats);
 
           if (cats.length > 0) {
             const allEntries = await Promise.all(
               cats.map((c) => BookmarkService.getEntries(newtabDB, c.id)),
             );
-            store.setEntries(allEntries.flat());
+            dataStore.setEntries(allEntries.flat());
           }
         }
 
         // Load todo items for first list
         if (lists.length > 0) {
           const items = await TodoService.getTodoItems(newtabDB, lists[0].id);
-          store.setTodoItems(items);
+          dataStore.setTodoItems(items);
         }
       } finally {
         setLoading(false);
@@ -187,8 +187,8 @@ export default function App() {
         <Suspense fallback={null}>
           <SettingsPanel
             settings={settings}
-            onUpdate={(updates) => store.updateSettings(updates)}
-            onClose={() => store.toggleSettings()}
+            onUpdate={(updates) => uiStore.updateSettings(updates)}
+            onClose={() => uiStore.toggleSettings()}
             onClearData={async () => {
               await newtabDB.clearAll();
               await updateNewTabSettings(DEFAULT_NEWTAB_SETTINGS);
@@ -201,9 +201,9 @@ export default function App() {
         <Suspense fallback={null}>
           <WallpaperPicker
             isOpen={isWallpaperOpen}
-            onClose={() => store.toggleWallpaper()}
+            onClose={() => uiStore.toggleWallpaper()}
             settings={settings}
-            onUpdate={(updates) => store.updateSettings(updates)}
+            onUpdate={(updates) => uiStore.updateSettings(updates)}
           />
         </Suspense>
       )}
@@ -211,7 +211,7 @@ export default function App() {
         <Suspense fallback={null}>
           <KeyboardHelpModal
             isOpen={isKeyboardHelpOpen}
-            onClose={() => store.toggleKeyboardHelp()}
+            onClose={() => uiStore.toggleKeyboardHelp()}
           />
         </Suspense>
       )}

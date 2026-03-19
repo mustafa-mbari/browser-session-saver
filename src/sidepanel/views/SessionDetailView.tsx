@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useReducer } from 'react';
 import { RotateCcw, Trash2, Download, ExternalLink, Edit2, Check, X, PenLine } from 'lucide-react';
 import type { Session } from '@core/types/session.types';
 import type { ExportFormat, RestoreMode } from '@core/types/messages.types';
@@ -30,6 +30,47 @@ const MIME_TYPES: Record<ExportFormat, string> = {
   text: 'text/plain',
 };
 
+type RestoreState = {
+  isOpen: boolean;
+  selectedTabIds: Set<string>;
+  mode: RestoreMode;
+};
+
+type RestoreAction =
+  | { type: 'OPEN'; allTabIds: string[] }
+  | { type: 'CLOSE' }
+  | { type: 'TOGGLE_TAB'; tabId: string }
+  | { type: 'SELECT_ALL'; allTabIds: string[] }
+  | { type: 'DESELECT_ALL' }
+  | { type: 'SET_MODE'; mode: RestoreMode };
+
+function restoreReducer(state: RestoreState, action: RestoreAction): RestoreState {
+  switch (action.type) {
+    case 'OPEN':
+      return { isOpen: true, selectedTabIds: new Set(action.allTabIds), mode: 'new_window' };
+    case 'CLOSE':
+      return { ...state, isOpen: false };
+    case 'TOGGLE_TAB': {
+      const next = new Set(state.selectedTabIds);
+      if (next.has(action.tabId)) next.delete(action.tabId);
+      else next.add(action.tabId);
+      return { ...state, selectedTabIds: next };
+    }
+    case 'SELECT_ALL':
+      return { ...state, selectedTabIds: new Set(action.allTabIds) };
+    case 'DESELECT_ALL':
+      return { ...state, selectedTabIds: new Set() };
+    case 'SET_MODE':
+      return { ...state, mode: action.mode };
+  }
+}
+
+const restoreInitialState: RestoreState = {
+  isOpen: false,
+  selectedTabIds: new Set(),
+  mode: 'new_window',
+};
+
 export default function SessionDetailView() {
   const { selectedSessionId, goBack } = useSidePanelStore();
   const { restoreSession, deleteSession, updateSession } = useSession();
@@ -57,9 +98,7 @@ export default function SessionDetailView() {
   const [notesDirty, setNotesDirty] = useState(false);
 
   // Selective restore modal
-  const [showRestoreModal, setShowRestoreModal] = useState(false);
-  const [selectedTabIds, setSelectedTabIds] = useState<Set<string>>(new Set());
-  const [restoreMode, setRestoreMode] = useState<RestoreMode>('new_window');
+  const [restore, dispatchRestore] = useReducer(restoreReducer, restoreInitialState);
 
   useEffect(() => {
     if (!selectedSessionId) return;
@@ -152,23 +191,21 @@ export default function SessionDetailView() {
   };
 
   const handleOpenRestoreModal = () => {
-    setSelectedTabIds(new Set(session.tabs.map((t) => t.id)));
-    setRestoreMode('new_window');
-    setShowRestoreModal(true);
+    dispatchRestore({ type: 'OPEN', allTabIds: session.tabs.map((t) => t.id) });
   };
 
   const handleConfirmRestore = async () => {
-    const allSelected = selectedTabIds.size === session.tabs.length;
+    const allSelected = restore.selectedTabIds.size === session.tabs.length;
     let result;
     if (allSelected) {
-      result = await restoreSession(session.id, restoreMode);
+      result = await restoreSession(session.id, restore.mode);
     } else {
       result = await sendMessage({
         action: 'RESTORE_SELECTED_TABS',
-        payload: { sessionId: session.id, tabIds: Array.from(selectedTabIds), mode: restoreMode },
+        payload: { sessionId: session.id, tabIds: Array.from(restore.selectedTabIds), mode: restore.mode },
       });
     }
-    setShowRestoreModal(false);
+    dispatchRestore({ type: 'CLOSE' });
     if (result.success) {
       const failedUrls = (result.data as { failedUrls?: string[] } | undefined)?.failedUrls;
       if (failedUrls && failedUrls.length > 0) {
@@ -216,12 +253,7 @@ export default function SessionDetailView() {
   };
 
   const toggleTabSelection = (tabId: string) => {
-    setSelectedTabIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(tabId)) next.delete(tabId);
-      else next.add(tabId);
-      return next;
-    });
+    dispatchRestore({ type: 'TOGGLE_TAB', tabId });
   };
 
   const groupedTabs = session.tabGroups.map((group) => ({
@@ -404,16 +436,16 @@ export default function SessionDetailView() {
 
       {/* Selective Restore Modal */}
       <Modal
-        isOpen={showRestoreModal}
-        onClose={() => setShowRestoreModal(false)}
+        isOpen={restore.isOpen}
+        onClose={() => dispatchRestore({ type: 'CLOSE' })}
         title="Restore Session"
         actions={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setShowRestoreModal(false)}>
+            <Button variant="secondary" size="sm" onClick={() => dispatchRestore({ type: 'CLOSE' })}>
               Cancel
             </Button>
-            <Button size="sm" icon={RotateCcw} onClick={handleConfirmRestore} disabled={selectedTabIds.size === 0}>
-              Restore {selectedTabIds.size} tab{selectedTabIds.size !== 1 ? 's' : ''}
+            <Button size="sm" icon={RotateCcw} onClick={handleConfirmRestore} disabled={restore.selectedTabIds.size === 0}>
+              Restore {restore.selectedTabIds.size} tab{restore.selectedTabIds.size !== 1 ? 's' : ''}
             </Button>
           </>
         }
@@ -426,8 +458,8 @@ export default function SessionDetailView() {
                 type="radio"
                 name="restoreMode"
                 value={mode}
-                checked={restoreMode === mode}
-                onChange={() => setRestoreMode(mode)}
+                checked={restore.mode === mode}
+                onChange={() => dispatchRestore({ type: 'SET_MODE', mode })}
                 className="accent-primary"
               />
               {mode === 'new_window' ? 'New Window' : mode === 'current' ? 'Replace' : 'Append'}
@@ -438,19 +470,19 @@ export default function SessionDetailView() {
         {/* Select all toggle */}
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs text-[var(--color-text-secondary)]">
-            {selectedTabIds.size} / {session.tabs.length} selected
+            {restore.selectedTabIds.size} / {session.tabs.length} selected
           </span>
           <button
             className="text-xs text-primary hover:underline"
             onClick={() => {
-              if (selectedTabIds.size === session.tabs.length) {
-                setSelectedTabIds(new Set());
+              if (restore.selectedTabIds.size === session.tabs.length) {
+                dispatchRestore({ type: 'DESELECT_ALL' });
               } else {
-                setSelectedTabIds(new Set(session.tabs.map((t) => t.id)));
+                dispatchRestore({ type: 'SELECT_ALL', allTabIds: session.tabs.map((t) => t.id) });
               }
             }}
           >
-            {selectedTabIds.size === session.tabs.length ? 'Deselect all' : 'Select all'}
+            {restore.selectedTabIds.size === session.tabs.length ? 'Deselect all' : 'Select all'}
           </button>
         </div>
 
@@ -463,7 +495,7 @@ export default function SessionDetailView() {
             >
               <input
                 type="checkbox"
-                checked={selectedTabIds.has(tab.id)}
+                checked={restore.selectedTabIds.has(tab.id)}
                 onChange={() => toggleTabSelection(tab.id)}
                 className="accent-primary shrink-0"
               />

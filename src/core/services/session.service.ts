@@ -99,8 +99,11 @@ export async function upsertAutoSaveSession(
   const now = nowISO();
 
   // Always find THE single auto-save entry (newest first, any trigger type)
-  const all = await getAllSessions({ isAutoSave: true }, undefined, 1);
-  const existing = all[0] ?? null;
+  const autoSaves = storage.getByIndex
+    ? await storage.getByIndex<Session>('isAutoSave', true)
+    : Object.values(await storage.getAll()).filter((s) => (s as Session).isAutoSave) as Session[];
+  autoSaves.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const existing = autoSaves[0] ?? null;
 
   if (existing) {
     let finalTabs = tabs;
@@ -251,13 +254,16 @@ export async function checkDuplicate(tabUrls: string[]): Promise<boolean> {
 }
 
 async function enforceAutoSaveLimit(maxAutoSaves: number): Promise<void> {
-  const autoSaves = (await getAllSessions({ isAutoSave: true }))
+  const storage = getSessionStorage();
+  const allAutoSaves = storage.getByIndex
+    ? await storage.getByIndex<Session>('isAutoSave', true)
+    : Object.values(await storage.getAll()).filter((s) => (s as Session).isAutoSave) as Session[];
+  const deletable = allAutoSaves
     .filter((s) => !s.isLocked)
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-  const storage = getSessionStorage();
-  while (autoSaves.length > maxAutoSaves) {
-    const oldest = autoSaves.shift()!;
+  while (deletable.length > maxAutoSaves) {
+    const oldest = deletable.shift()!;
     await storage.remove(oldest.id);
   }
 }

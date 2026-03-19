@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useKeyboard } from '@shared/hooks/useKeyboard';
-import { useNewTabStore } from '@newtab/stores/newtab.store';
+import { useNewTabUIStore } from '@newtab/stores/newtab-ui.store';
+import { useNewTabDataStore } from '@newtab/stores/newtab-data.store';
 import type { LayoutMode } from '@core/types/newtab.types';
 
 const LAYOUT_CYCLE: LayoutMode[] = ['minimal', 'focus', 'dashboard'];
@@ -9,7 +10,8 @@ export function useKeyboardShortcuts(opts?: {
   focusSearchRef?: React.RefObject<HTMLInputElement | null>;
   focusTodoRef?: React.RefObject<HTMLInputElement | null>;
 }) {
-  const store = useNewTabStore();
+  const store = useNewTabUIStore();
+  const dataStore = useNewTabDataStore();
 
   useKeyboard({
     'Ctrl+Shift+L': () => {
@@ -50,7 +52,7 @@ export function useKeyboardShortcuts(opts?: {
       Array.from({ length: 9 }, (_, i) => [
         `Ctrl+${i + 1}`,
         () => {
-          const board = store.boards[i];
+          const board = dataStore.boards[i];
           if (board) store.updateSettings({ activeBoardId: board.id });
         },
       ]),

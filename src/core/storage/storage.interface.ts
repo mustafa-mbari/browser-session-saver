@@ -6,4 +6,5 @@ export interface IStorage {
   clear(): Promise<void>;
   getUsedBytes(): Promise<number>;
   count(): Promise<number>;
+  getByIndex?<T>(indexName: string, value: IDBValidKey | boolean, limit?: number): Promise<T[]>;
 }
