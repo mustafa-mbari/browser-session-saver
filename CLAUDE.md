@@ -24,8 +24,8 @@ npm run format   # Prettier
 ## Key Conventions
 
 - **Path aliases**: `@core/*`, `@shared/*`, `@background/*`, `@sidepanel/*`, `@popup/*`, `@newtab/*`
-- **State management**: Zustand stores per UI surface (sidepanel.store.ts, newtab.store.ts)
-- **Storage**: chrome.storage.local for settings, IndexedDB for sessions — abstracted via `IStorage` interface; start-tab uses a separate `newtab-db` (NewTabDB class in `src/core/storage/newtab-storage.ts`) for bookmarks/todos/wallpapers
+- **State management**: Zustand stores per UI surface (sidepanel.store.ts; newtab split into newtab-ui.store.ts + newtab-data.store.ts with facade re-export from newtab.store.ts)
+- **Storage**: chrome.storage.local for settings, IndexedDB (`browser-hub` v2 with `isAutoSave`/`createdAt` indexes) for sessions — abstracted via `IStorage` interface (with optional `getByIndex` for indexed queries); start-tab uses a separate `newtab-db` (NewTabDB class in `src/core/storage/newtab-storage.ts`) for bookmarks/todos/wallpapers
 - **Messaging**: Typed discriminated union `Message` type between service worker and UI via `chrome.runtime.sendMessage`; 15 action types defined in `messages.types.ts`
 - **Styling**: Tailwind CSS with CSS custom properties for theme tokens, dark mode via `class` strategy. Glassmorphism utilities (`.glass`, `.glass-panel`, `.glass-dark`, `.glass-hover`, `.vignette`) defined in `@layer utilities` in `globals.css`
 - **Components**: All shared components support dark mode and include ARIA attributes
@@ -50,6 +50,7 @@ npm run format   # Prettier
 - `src/core/types/subscription.types.ts` — Subscription, SubscriptionTemplate, BillingCycle, DueUrgency, SUPPORTED_CURRENCIES, SUBSCRIPTION_TEMPLATES (22 presets)
 - `src/core/types/tab-group.types.ts` — TabGroupTemplate, TabGroupTemplateTab
 - `src/core/config/widget-config.ts` — Widget sizing configuration registry: `WidgetSizeConfig` interface, `WIDGET_CONFIG` (per-CardType min/max/default), `getDefaultSize()`, `clampSize()`
+- `src/core/storage/indexeddb.ts` — IndexedDB adapter (`browser-hub` v2); native `getAll()`/`getAllKeys()`, secondary indexes (`isAutoSave`, `createdAt`), `getByIndex()` for filtered queries
 - `src/core/storage/newtab-storage.ts` — Multi-store IndexedDB adapter (newtab-db v1); stores: quickLinks, boards, bookmarkCategories, bookmarkEntries, todoLists, todoItems, wallpaperImages
 - `src/core/storage/chrome-local-key-adapter.ts` — Generic `ChromeLocalKeyAdapter<T>` for storing arrays under a single key; used by subscription and tab-group-template storage
 - `src/core/storage/subscription-storage.ts` — Flat chrome.storage.local adapter; keys: `subscriptions` (Subscription[]), `subscription_categories` (CustomCategory[])
@@ -58,11 +59,17 @@ npm run format   # Prettier
 - `src/core/services/subscription.service.ts` — Urgency calculation, monthly normalization, analytics, CSV import/export, currency formatting
 - `src/background/event-listeners.ts` — Central message dispatcher (15 handlers)
 - `src/background/auto-save-engine.ts` — Auto-save trigger management; calls `upsertAutoSaveSession` so each trigger type maintains exactly one pinned entry (updated in place)
-- `src/sidepanel/views/HomeView.tsx` — Primary user-facing view with sessions, current tabs, and tab groups tabs
+- `src/sidepanel/views/HomeView.tsx` — Slim orchestrator (~250 LOC) for sessions, current tabs, and tab groups tabs
+- `src/sidepanel/components/CurrentTabsPanel.tsx` — Current browser tabs panel (extracted from HomeView)
+- `src/sidepanel/components/HomeTabGroupsPanel.tsx` — Tab groups panel with live/saved sections (extracted from HomeView)
+- `src/sidepanel/components/HomeLiveGroupRow.tsx` — Live tab group row with inline edit, expand, actions (extracted from HomeView)
+- `src/sidepanel/components/HomeSavedGroupRow.tsx` — Saved tab group template row with restore/rename/delete (extracted from HomeView)
 - `src/sidepanel/views/SubscriptionsView.tsx` — Subscription management with List/Calendar/Analytics tabs
 - `src/sidepanel/views/TabGroupsView.tsx` — Live and saved tab groups management
 - `src/newtab/App.tsx` — Start-tab root component: data loading, layout selection, overlay management
-- `src/newtab/stores/newtab.store.ts` — Single Zustand store for all start-tab state (settings, boards, categories, entries, quickLinks, todoLists, todoItems, UI flags)
+- `src/newtab/stores/newtab-ui.store.ts` — UI state store (settings, layoutMode, activeView, modals, loading)
+- `src/newtab/stores/newtab-data.store.ts` — Data state store (boards, categories, entries, quickLinks, todoLists, todoItems)
+- `src/newtab/stores/newtab.store.ts` — Facade re-exporting `useNewTabStore` (alias for UI store), `useNewTabUIStore`, `useNewTabDataStore`, and `NewTabView` type
 - `src/newtab/hooks/useNewTabSettings.ts` — Settings load/sync hook (reads `newtab_settings` key from chrome.storage.local)
 - `src/newtab/components/SubscriptionReminder.tsx` — Glassmorphism toast overlay for upcoming subscription renewals (24-hour snooze)
 - `src/newtab/components/BookmarkCardBody.tsx` — Bookmark widget body (split from `BookmarkCategoryCard.tsx`)

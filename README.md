@@ -13,10 +13,9 @@ Save, restore, and manage your browser sessions with one click. Auto-save protec
 - **Search & Filter** — Full-text search across session names, tags, URLs, and titles; `#tag` syntax for tag-based filtering
 - **Import/Export** — Export as JSON, HTML bookmarks, Markdown, CSV, or plain text; import from JSON, HTML, or URL lists
 - **Dark Mode** — Light/dark/system theme support synced across all extension surfaces
-- **Dashboard** — Full-page management with 5 pages: Sessions (bulk merge/compare/export/delete, stats), Auto-Saves, Tab Groups, Import/Export, Settings
+- **Start-Tab Sidebar** — Full management via sidebar panels: Sessions (bulk merge/compare/export/delete, stats), Auto-Saves, Tab Groups, Import/Export, Subscriptions, Settings
 - **Virtual Scrolling** — Handles 500+ sessions with smooth performance via @tanstack/react-virtual; lists ≤30 items use plain DOM, >30 items use virtualizer (3-column grid for sessions, flat list with date headers for auto-saves)
-- **Scroll Position Capture** — Content script captures per-tab scroll position for full-fidelity session restore
-- **i18n** — English and Arabic with chrome.i18n support (~282 message keys including tab groups, subscriptions, error boundaries, and auto-saves)
+- **i18n** — English, Arabic, and German with chrome.i18n support (~282 message keys including tab groups, subscriptions, error boundaries, and auto-saves)
 - **Start-Tab** — Glassmorphism command center replacing Chrome's new tab, with bookmarks, quick links, to-do, session, subscription, and tab group widgets
 
 ## Start-Tab Features
@@ -48,10 +47,10 @@ The start-tab (`chrome_url_overrides.newtab`) provides:
 | Platform | Chrome Manifest V3 |
 | Primary UI | Chrome Side Panel API |
 | Framework | React 18 + TypeScript |
-| State | Zustand |
+| State | Zustand (split UI + data stores) |
 | Styling | Tailwind CSS |
 | Build | Vite + CRXJS |
-| Storage | chrome.storage.local + IndexedDB |
+| Storage | chrome.storage.local + IndexedDB (v2, indexed) |
 | Icons | Lucide React |
 | Drag & Drop | @dnd-kit/core + @dnd-kit/sortable |
 | Virtual Lists | @tanstack/react-virtual |
@@ -62,8 +61,6 @@ The start-tab (`chrome_url_overrides.newtab`) provides:
 ```
 src/
 ├── background/              # Service worker, auto-save engine, event listeners, alarms
-├── content/                 # Content script for scroll position capture
-│   └── scroll-capture.ts
 ├── core/
 │   ├── types/               # TypeScript interfaces
 │   │   ├── session.types.ts       # Session, Tab, TabGroup, AutoSaveTrigger, ChromeGroupColor
@@ -93,7 +90,7 @@ src/
 │   │   ├── storage.interface.ts           # IStorage interface
 │   │   ├── chrome-local-key-adapter.ts    # Generic ChromeLocalKeyAdapter<T>
 │   │   ├── chrome-storage.ts              # chrome.storage.local adapter
-│   │   ├── indexeddb.ts                   # IndexedDB adapter (browser-hub db)
+│   │   ├── indexeddb.ts                   # IndexedDB adapter (browser-hub db v2, indexed)
 │   │   ├── newtab-storage.ts              # NewTabDB (newtab-db, 7 stores)
 │   │   ├── subscription-storage.ts        # chrome.storage.local (subscriptions key)
 │   │   ├── tab-group-template-storage.ts  # chrome.storage.local (tab_group_templates key)
@@ -103,21 +100,19 @@ src/
 │   ├── views/               # HomeView, SessionDetailView, TabGroupsView, SettingsView,
 │   │                        # ImportExportView, SubscriptionsView
 │   ├── components/          # Header, NavigationStack, SessionList, SessionCard,
-│   │   │                    # SearchBar, QuickActions, TabGroupPreview, AutoSaveBadge
+│   │   │                    # SearchBar, QuickActions, TabGroupPreview, AutoSaveBadge,
+│   │   │                    # CurrentTabsPanel, HomeTabGroupsPanel, HomeLiveGroupRow,
+│   │   │                    # HomeSavedGroupRow (extracted from HomeView)
 │   │   └── subscriptions/   # SubscriptionForm, SubscriptionList, SubscriptionRow,
 │   │                        # SubscriptionCalendar, SubscriptionAnalytics,
 │   │                        # SubscriptionSummaryStrip, QuickAddTemplates
 │   └── stores/              # sidepanel.store.ts (navigation, filters, sort)
 ├── popup/                   # Compact quick-action UI
-├── dashboard/               # Full-page management
-│   ├── pages/               # SessionsPage, AutoSavesPage, TabGroupsPage,
-│   │                        # ImportExportPage, SettingsPage
-│   ├── components/          # Sidebar, SessionDetail, StatsWidget, BulkToolbar
-│   └── stores/              # dashboard.store.ts
 ├── newtab/                  # Start-tab (new tab page override)
 │   ├── App.tsx              # Root: data loading, layout router, overlays
 │   ├── index.html/tsx       # Entry point
-│   ├── stores/              # newtab.store.ts (single Zustand store)
+│   ├── stores/              # newtab-ui.store.ts (UI state), newtab-data.store.ts (data),
+│   │                        # newtab.store.ts (facade re-exporting both)
 │   ├── hooks/               # useNewTabSettings, useWallpaper, useClock,
 │   │                        # useKeyboardShortcuts, useBookmarkDnd
 │   ├── contexts/            # BookmarkBoardContext (board-level actions, eliminates prop-drilling)
@@ -184,10 +179,7 @@ npm run format
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+Shift+R` | Go to Sessions (Home) |
-| `Ctrl+Shift+D` | Open Dashboard |
-| `Ctrl+Shift+F` | Focus Search |
-| `Ctrl+Shift+E` | Quick Export |
+| `Ctrl+Shift+R` | Go to Home |
 
 ### Start-Tab
 
@@ -211,13 +203,11 @@ npm run format
 
 **Service Worker** handles all Chrome API interactions — tab queries, session save/restore, auto-save triggers, alarm management. Processes 15 typed message actions from UI surfaces.
 
-**Storage Layer** uses chrome.storage.local for settings/metadata and IndexedDB (`browser-hub` database) for session data (large payloads). The start-tab feature uses a separate `newtab-db` IndexedDB database for bookmarks, quick links, to-do items, and wallpaper blobs — never touched by the background service worker. Subscriptions and tab group templates are stored as flat keys in chrome.storage.local via the generic `ChromeLocalKeyAdapter<T>` class.
-
-**Content Script** (`src/content/scroll-capture.ts`) runs in web pages to capture scroll position (`window.scrollX`, `window.scrollY`) for full-fidelity session restore.
+**Storage Layer** uses chrome.storage.local for settings/metadata and IndexedDB (`browser-hub` database, v2 with `isAutoSave` and `createdAt` indexes) for session data (large payloads). The start-tab feature uses a separate `newtab-db` IndexedDB database for bookmarks, quick links, to-do items, and wallpaper blobs — never touched by the background service worker. Subscriptions and tab group templates are stored as flat keys in chrome.storage.local via the generic `ChromeLocalKeyAdapter<T>` class.
 
 **Message Protocol** — typed discriminated union messages (15 action types) between UI surfaces and service worker via `chrome.runtime.sendMessage`.
 
-**UI Surfaces** — Side Panel (primary, 6 views), Popup (quick actions), Dashboard (5 pages), Start-Tab (glassmorphism command center with 3 layout modes). All share components via `src/shared/`.
+**UI Surfaces** — Side Panel (primary, 6 views), Popup (quick actions), Start-Tab (glassmorphism command center with 3 layout modes and sidebar management panels). All share components via `src/shared/`.
 
 ## License
 
