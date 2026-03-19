@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Modal from '@shared/components/Modal';
 import Button from '@shared/components/Button';
 import type { QuickLink } from '@core/types/newtab.types';
@@ -14,6 +14,12 @@ export default function AddQuickLinkModal({ isOpen, onClose, onSave, editLink }:
   const [url, setUrl] = useState(editLink?.url ?? '');
   const [title, setTitle] = useState(editLink?.title ?? '');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    setUrl(editLink?.url ?? '');
+    setTitle(editLink?.title ?? '');
+    setError('');
+  }, [editLink, isOpen]);
 
   const validate = (): boolean => {
     try {
