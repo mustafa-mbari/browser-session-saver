@@ -266,18 +266,28 @@ export default function DashboardSidebar({
   const controlBtnRef = useRef<HTMLButtonElement>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // True for the full 2 s window — never cancelled by hover interactions
+  const autoOpenActiveRef = useRef(false);
+  // Tracks whether the mouse is currently physically over the sidebar
+  const isMouseOverRef = useRef(false);
 
   // Auto-open on mount for expand-on-hover mode, collapse after 2 s
   useEffect(() => {
     if (sidebarControl === 'expand-on-hover') {
       setIsHovering(true);
+      autoOpenActiveRef.current = true;
       autoOpenTimerRef.current = setTimeout(() => {
         autoOpenTimerRef.current = null;
-        setIsHovering(false);
+        autoOpenActiveRef.current = false;
+        // Only close if the mouse is not currently over the sidebar
+        if (!isMouseOverRef.current) {
+          setIsHovering(false);
+        }
       }, 2000);
     }
     return () => {
       if (autoOpenTimerRef.current) clearTimeout(autoOpenTimerRef.current);
+      autoOpenActiveRef.current = false;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -289,17 +299,20 @@ export default function DashboardSidebar({
 
   const handleMouseEnter = () => {
     if (sidebarControl !== 'expand-on-hover') return;
-    // Cancel any pending auto-close so hover takes over
-    if (autoOpenTimerRef.current) {
-      clearTimeout(autoOpenTimerRef.current);
-      autoOpenTimerRef.current = null;
+    isMouseOverRef.current = true;
+    // During auto-open window the sidebar is already open — don't start hover timer
+    if (autoOpenActiveRef.current) return;
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
     }
     hoverTimerRef.current = setTimeout(() => setIsHovering(true), 300);
   };
   const handleMouseLeave = () => {
     if (sidebarControl !== 'expand-on-hover' || controlOpen) return;
-    // Don't close during the auto-open window; let the timer finish naturally
-    if (autoOpenTimerRef.current) return;
+    isMouseOverRef.current = false;
+    // During auto-open window keep the sidebar open regardless of mouse position
+    if (autoOpenActiveRef.current) return;
     if (hoverTimerRef.current) {
       clearTimeout(hoverTimerRef.current);
       hoverTimerRef.current = null;
