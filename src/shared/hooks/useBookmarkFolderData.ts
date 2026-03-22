@@ -26,6 +26,7 @@ export interface BookmarkFolderActions {
   renameEntry: (id: string, title: string, url: string, category?: string, description?: string) => Promise<void>;
   deleteEntry: (id: string) => Promise<void>;
   saveCurrentTab: (categoryId: string) => Promise<BookmarkEntry | null>;
+  moveFolder: (id: string, newParentId: string) => Promise<void>;
   /** Build FolderNode tree for a single board from cached categories */
   getFolderTreeForBoard: (boardId: string) => FolderNode[];
   /** Get entries for a given category from cache */
@@ -148,6 +149,11 @@ export function useBookmarkFolderData(): BookmarkFolderState & BookmarkFolderAct
     [],
   );
 
+  const moveFolder = useCallback(async (id: string, newParentId: string): Promise<void> => {
+    await BookmarkService.updateCategory(newtabDB, id, { parentCategoryId: newParentId });
+    setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, parentCategoryId: newParentId } : c)));
+  }, []);
+
   const renameFolder = useCallback(async (id: string, name: string): Promise<void> => {
     await BookmarkService.updateCategory(newtabDB, id, { name });
     setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, name } : c)));
@@ -256,6 +262,7 @@ export function useBookmarkFolderData(): BookmarkFolderState & BookmarkFolderAct
     reload,
     createTopLevelFolder,
     createSubFolder,
+    moveFolder,
     renameFolder,
     updateFolderColor,
     deleteFolder,

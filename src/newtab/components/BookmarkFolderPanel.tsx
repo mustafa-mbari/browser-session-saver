@@ -1,6 +1,14 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  DndContext, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter,
+  type DragStartEvent, type DragEndEvent, type DragOverEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   ChevronRight,
   ChevronDown,
   Folder,
@@ -19,6 +27,9 @@ import {
   Tag,
   MoreHorizontal,
   X,
+  GripVertical,
+  Star,
+  BookMarked,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -53,6 +64,12 @@ function getDomain(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
 }
 
+function getSortedFolders(folders: BookmarkCategory[], order: string[]): BookmarkCategory[] {
+  if (!order.length) return folders;
+  const pos = new Map(order.map((id, i) => [id, i]));
+  return [...folders].sort((a, b) => (pos.get(a.id) ?? 9999) - (pos.get(b.id) ?? 9999));
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type DialogState =
@@ -69,6 +86,7 @@ type SortKey = 'title' | 'category' | 'addedAt';
 type SortDir = 'asc' | 'desc';
 
 type ColWidths = { title: number; category: number; description: number };
+type ActiveDrag = { id: string; name: string } | null;
 
 // ─── Three-dot dropdown menu (portal-based) ───────────────────────────────────
 
@@ -334,37 +352,119 @@ function BookmarkRow({ entry, colWidths, allCategories, onEdit, onDelete, onUpda
   );
 }
 
-// ─── Tree Item ────────────────────────────────────────────────────────────────
+// ─── Sortable Quick Access Item ───────────────────────────────────────────────
 
-function TreeItem({ node, depth, selectedId, onSelect, onOpenDialog, entryCount }: {
+function SortableQuickItem({ folder, isSelected, onSelect, onRemove, count }: {
+  folder: BookmarkCategory; isSelected: boolean;
+  onSelect: () => void; onRemove: () => void; count: number;
+}) {
+  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
+    id: folder.id, data: { section: 'quick' },
+  });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.3 : 1 };
+  const col = folder.color || '#6366f1';
+  return (
+    <div
+      ref={setNodeRef} style={style}
+      className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-md transition-colors cursor-pointer ${isSelected ? 'bg-white/20 text-white' : 'hover:bg-white/8 text-white/70 hover:text-white'}`}
+      onClick={onSelect}
+    >
+      <span className="opacity-0 group-hover:opacity-40 cursor-grab active:cursor-grabbing shrink-0 touch-none" {...attributes} {...listeners} onClick={(e) => e.stopPropagation()}>
+        <GripVertical size={10} />
+      </span>
+      <span className="shrink-0" style={{ color: col }}><Folder size={13} /></span>
+      <span className="truncate flex-1 text-sm">{folder.name}</span>
+      <span className="text-[10px] text-white/30 shrink-0">{count}</span>
+      <button
+        className="opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:text-red-400 transition-all shrink-0 p-0.5"
+        onClick={(e) => { e.stopPropagation(); onRemove(); }} title="Remove from Quick Access"
+      ><X size={11} /></button>
+    </div>
+  );
+}
+
+// ─── Quick Access Section ─────────────────────────────────────────────────────
+
+function QuickAccessSection({ quickIds, categories, selectedId, onSelect, onRemove, entryCount }: {
+  quickIds: string[]; categories: BookmarkCategory[];
+  selectedId: string | null; onSelect: (id: string) => void;
+  onRemove: (id: string) => void; entryCount: (id: string) => number;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const items = quickIds.map(id => categories.find(c => c.id === id)).filter((c): c is BookmarkCategory => !!c);
+  return (
+    <div className="mb-1">
+      <button className="w-full flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white/35 hover:text-white/60 transition-colors" onClick={() => setExpanded(v => !v)}>
+        {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+        <Star size={10} className="text-yellow-400 fill-yellow-400" />
+        <span className="flex-1 text-left">Quick Access</span>
+      </button>
+      {expanded && (
+        <div className="mt-0.5">
+          <SortableContext items={quickIds} strategy={verticalListSortingStrategy}>
+            {items.map(folder => (
+              <SortableQuickItem key={folder.id} folder={folder} isSelected={selectedId === folder.id} onSelect={() => onSelect(folder.id)} onRemove={() => onRemove(folder.id)} count={entryCount(folder.id)} />
+            ))}
+          </SortableContext>
+          {items.length === 0 && <p className="px-4 py-1 text-[11px] text-white/20 italic">Right-click a folder to pin it here</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Draggable Tree Item ──────────────────────────────────────────────────────
+
+function DraggableTreeItem({ node, depth, selectedId, onSelect, onOpenDialog, entryCount, pinnedIds, onPin, reparentTargetId, folderOrders }: {
   node: FolderNode; depth: number; selectedId: string | null;
-  onSelect: (id: string) => void; onOpenDialog: (d: DialogState) => void; entryCount: (id: string) => number;
+  onSelect: (id: string) => void; onOpenDialog: (d: DialogState) => void;
+  entryCount: (id: string) => number;
+  pinnedIds: string[]; onPin: (id: string) => void;
+  reparentTargetId: string | null; folderOrders: Record<string, string[]>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const isSelected = selectedId === node.folder.id;
   const hasChildren = node.children.length > 0;
-  const folderColor = node.folder.color || '#f59e0b';
+  const col = node.folder.color || '#f59e0b';
+  const isReparentTarget = reparentTargetId === node.folder.id;
+  const isPinned = pinnedIds.includes(node.folder.id);
 
-  const toggle = (e: React.MouseEvent) => { e.stopPropagation(); setExpanded((v) => !v); };
+  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
+    id: node.folder.id,
+    data: { section: 'my-folders', parentKey: node.folder.parentCategoryId ?? `board:${node.folder.boardId}` },
+  });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.3 : 1 };
+
+  const sortedChildren = useMemo(() => {
+    const order = folderOrders[node.folder.id] ?? [];
+    return getSortedFolders(node.children.map(c => c.folder), order).map(f => node.children.find(c => c.folder.id === f.id)!);
+  }, [node.children, folderOrders, node.folder.id]);
 
   return (
-    <div>
+    <div ref={setNodeRef} style={style}>
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <button
-            className={`w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-sm select-none transition-colors cursor-pointer text-left ${isSelected ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/80 hover:text-white'}`}
-            style={{ paddingLeft: `${8 + depth * 16}px` }}
+          <div
+            className={`group flex items-center gap-0.5 py-1 rounded-md text-sm select-none transition-colors cursor-pointer ${
+              isReparentTarget ? 'bg-indigo-500/20 ring-1 ring-inset ring-indigo-500/50 text-white'
+                : isSelected ? 'bg-white/20 text-white' : 'hover:bg-white/8 text-white/75 hover:text-white'
+            }`}
+            style={{ paddingLeft: `${4 + depth * 14}px`, paddingRight: '6px' }}
             onClick={() => { onSelect(node.folder.id); setExpanded(true); }}
           >
-            <span className="shrink-0 w-4 h-4 flex items-center justify-center opacity-50 hover:opacity-100" onClick={toggle}>
-              {hasChildren ? (expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />) : <span className="w-3" />}
+            <span className="opacity-0 group-hover:opacity-40 cursor-grab active:cursor-grabbing shrink-0 touch-none px-0.5" {...attributes} {...listeners} onClick={(e) => e.stopPropagation()}>
+              <GripVertical size={10} />
             </span>
-            <span className="shrink-0" style={{ color: folderColor }}>
-              {isSelected || expanded ? <FolderOpen size={14} /> : <Folder size={14} />}
+            <span className="shrink-0 w-4 h-4 flex items-center justify-center opacity-40 hover:opacity-100" onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}>
+              {hasChildren ? (expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />) : <span className="w-3" />}
             </span>
-            <span className="truncate flex-1">{node.folder.name}</span>
-            <span className="text-[10px] text-white/30 shrink-0">{entryCount(node.folder.id)}</span>
-          </button>
+            <span className="shrink-0" style={{ color: col }}>
+              {isSelected || expanded ? <FolderOpen size={13} /> : <Folder size={13} />}
+            </span>
+            <span className="truncate flex-1 text-[13px] pl-1">{node.folder.name}</span>
+            {isPinned && <Star size={8} className="text-yellow-400 fill-yellow-400 opacity-60 shrink-0" />}
+            <span className="text-[10px] text-white/25 shrink-0 pl-1">{entryCount(node.folder.id)}</span>
+          </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuLabel>Folder</ContextMenuLabel>
@@ -375,6 +475,16 @@ function TreeItem({ node, depth, selectedId, onSelect, onOpenDialog, entryCount 
           <ContextMenuItem onClick={() => onOpenDialog({ type: 'add-entry', categoryId: node.folder.id })}>
             <Plus size={13} className="mr-2" /> Add Bookmark
           </ContextMenuItem>
+          <ContextMenuSeparator />
+          {isPinned ? (
+            <ContextMenuItem onClick={() => onPin(node.folder.id)}>
+              <Star size={13} className="mr-2 text-yellow-400" /> Remove from Quick Access
+            </ContextMenuItem>
+          ) : (
+            <ContextMenuItem onClick={() => onPin(node.folder.id)}>
+              <Star size={13} className="mr-2" /> Add to Quick Access
+            </ContextMenuItem>
+          )}
           <ContextMenuSeparator />
           <ContextMenuItem onClick={() => onOpenDialog({ type: 'rename-folder', folder: node.folder })}>
             <Pencil size={13} className="mr-2" /> Rename
@@ -388,42 +498,129 @@ function TreeItem({ node, depth, selectedId, onSelect, onOpenDialog, entryCount 
         </ContextMenuContent>
       </ContextMenu>
       {expanded && hasChildren && (
-        <div>
-          {node.children.map((child) => (
-            <TreeItem key={child.folder.id} node={child} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} onOpenDialog={onOpenDialog} entryCount={entryCount} />
+        <SortableContext items={sortedChildren.map(c => c.folder.id)} strategy={verticalListSortingStrategy}>
+          {sortedChildren.map(child => (
+            <DraggableTreeItem key={child.folder.id} node={child} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} onOpenDialog={onOpenDialog} entryCount={entryCount} pinnedIds={pinnedIds} onPin={onPin} reparentTargetId={reparentTargetId} folderOrders={folderOrders} />
           ))}
+        </SortableContext>
+      )}
+    </div>
+  );
+}
+
+// ─── My Folders Section ───────────────────────────────────────────────────────
+
+function MyFoldersSection({ boards, getFolderTreeForBoard, selectedId, onSelect, onOpenDialog, entryCount, pinnedIds, onPin, reparentTargetId, folderOrders }: {
+  boards: Board[]; getFolderTreeForBoard: (boardId: string) => FolderNode[];
+  selectedId: string | null; onSelect: (id: string) => void;
+  onOpenDialog: (d: DialogState) => void; entryCount: (id: string) => number;
+  pinnedIds: string[]; onPin: (id: string) => void;
+  reparentTargetId: string | null; folderOrders: Record<string, string[]>;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  return (
+    <div className="mb-1">
+      <button className="w-full flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white/35 hover:text-white/60 transition-colors" onClick={() => setExpanded(v => !v)}>
+        {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+        <FolderOpen size={10} className="text-amber-400" />
+        <span className="flex-1 text-left">My Folders</span>
+      </button>
+      {expanded && (
+        <div>
+          {boards.length === 0 && <p className="px-4 py-1 text-[11px] text-white/20 italic">No boards yet</p>}
+          {boards.map(board => {
+            const tree = getFolderTreeForBoard(board.id);
+            const order = folderOrders[`board:${board.id}`] ?? [];
+            const sorted = getSortedFolders(tree.map(n => n.folder), order).map(f => tree.find(n => n.folder.id === f.id)!);
+            return (
+              <div key={board.id} className="mb-0.5">
+                <div className="flex items-center gap-1 px-2 py-0.5 text-[11px] text-white/30">
+                  <span>{board.icon}</span>
+                  <span className="truncate flex-1 font-medium tracking-wide">{board.name}</span>
+                  <button className="p-0.5 rounded hover:bg-white/10 hover:text-white/60 transition-colors" onClick={() => onOpenDialog({ type: 'new-folder', boardId: board.id })} title="New folder">
+                    <Plus size={10} />
+                  </button>
+                </div>
+                <SortableContext items={sorted.map(n => n.folder.id)} strategy={verticalListSortingStrategy}>
+                  {sorted.map(node => (
+                    <DraggableTreeItem key={node.folder.id} node={node} depth={0} selectedId={selectedId} onSelect={onSelect} onOpenDialog={onOpenDialog} entryCount={entryCount} pinnedIds={pinnedIds} onPin={onPin} reparentTargetId={reparentTargetId} folderOrders={folderOrders} />
+                  ))}
+                </SortableContext>
+                {sorted.length === 0 && <p className="px-5 py-0.5 text-[11px] text-white/20 italic">No folders</p>}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
-// ─── Board Section ────────────────────────────────────────────────────────────
+// ─── Browser Folder Node ──────────────────────────────────────────────────────
 
-function BoardSection({ board, tree, selectedId, onSelect, onOpenDialog, entryCount }: {
-  board: Board; tree: FolderNode[]; selectedId: string | null;
-  onSelect: (id: string) => void; onOpenDialog: (d: DialogState) => void; entryCount: (id: string) => number;
-}) {
-  const [expanded, setExpanded] = useState(true);
+function BrowserFolderNode({ node, depth }: { node: chrome.bookmarks.BookmarkTreeNode; depth: number }) {
+  const [expanded, setExpanded] = useState(depth < 1);
+  const isFolder = !node.url;
+  const hasChildren = isFolder && !!node.children?.length;
+  if (isFolder) {
+    return (
+      <div>
+        <button
+          className="w-full flex items-center gap-1 py-1 text-[12px] text-white/55 hover:bg-white/8 hover:text-white/85 rounded-md transition-colors"
+          style={{ paddingLeft: `${6 + depth * 14}px`, paddingRight: '6px' }}
+          onClick={() => setExpanded(v => !v)}
+        >
+          <span className="shrink-0 w-4 flex items-center justify-center">
+            {hasChildren ? (expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />) : <span className="w-3" />}
+          </span>
+          <Folder size={12} className="shrink-0 text-yellow-400/70" />
+          <span className="truncate flex-1 text-left pl-0.5">{node.title || '—'}</span>
+          {hasChildren && <span className="text-[10px] text-white/20 shrink-0">{node.children!.length}</span>}
+        </button>
+        {expanded && hasChildren && node.children!.map(child => (
+          <BrowserFolderNode key={child.id} node={child} depth={depth + 1} />
+        ))}
+      </div>
+    );
+  }
   return (
-    <div className="mb-1">
-      <button
-        className="w-full flex items-center gap-2 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-white/40 hover:text-white/60 transition-colors"
-        onClick={() => setExpanded((v) => !v)}
-      >
+    <button
+      className="w-full flex items-center gap-1 py-1 text-[11px] text-white/40 hover:bg-white/8 hover:text-white/75 rounded-md transition-colors truncate text-left"
+      style={{ paddingLeft: `${6 + depth * 14}px`, paddingRight: '6px' }}
+      onClick={() => window.open(node.url, '_blank', 'noopener')} title={node.url}
+    >
+      <Globe size={10} className="shrink-0 opacity-40" />
+      <span className="truncate pl-0.5">{node.title || getDomain(node.url!)}</span>
+    </button>
+  );
+}
+
+// ─── Browser Bookmarks Section ────────────────────────────────────────────────
+
+function BrowserBookmarksSection() {
+  const [expanded, setExpanded] = useState(false);
+  const [tree, setTree] = useState<chrome.bookmarks.BookmarkTreeNode[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const handleToggle = () => {
+    setExpanded(v => !v);
+    if (!tree && !loading) {
+      setLoading(true);
+      chrome.bookmarks.getTree(result => { setTree(result); setLoading(false); });
+    }
+  };
+  const roots = tree ? (tree[0]?.children ?? []) : [];
+  return (
+    <div>
+      <button className="w-full flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white/35 hover:text-white/60 transition-colors" onClick={handleToggle}>
         {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-        <span className="mr-1">{board.icon}</span>
-        <span className="truncate flex-1 text-left">{board.name}</span>
-        <span className="ml-auto p-0.5 hover:bg-white/10 rounded" onClick={(e) => { e.stopPropagation(); onOpenDialog({ type: 'new-folder', boardId: board.id }); }}>
-          <Plus size={11} />
-        </span>
+        <BookMarked size={10} className="text-sky-400" />
+        <span className="flex-1 text-left">Browser Bookmarks</span>
       </button>
       {expanded && (
-        <div>
-          {tree.map((node) => (
-            <TreeItem key={node.folder.id} node={node} depth={0} selectedId={selectedId} onSelect={onSelect} onOpenDialog={onOpenDialog} entryCount={entryCount} />
-          ))}
-          {tree.length === 0 && <p className="px-6 py-1 text-xs text-white/25 italic">No folders</p>}
+        <div className="mt-0.5">
+          {loading && <p className="px-4 py-1 text-[11px] text-white/30 italic">Loading…</p>}
+          {!loading && roots.map(root => <BrowserFolderNode key={root.id} node={root} depth={0} />)}
+          {!loading && roots.length === 0 && tree && <p className="px-4 py-1 text-[11px] text-white/20 italic">No browser bookmarks</p>}
         </div>
       )}
     </div>
@@ -562,6 +759,93 @@ export default function BookmarkFolderPanel() {
     });
   }, []);
 
+  // ── Quick Access & Folder Ordering ───────────────────────────────────────
+  const [quickAccessIds, setQuickAccessIds] = useState<string[]>([]);
+  const [folderOrders, setFolderOrders] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    chrome.storage.local.get(['bookmark_quick_access', 'bookmark_folder_orders'], (result) => {
+      if (result['bookmark_quick_access']) setQuickAccessIds(result['bookmark_quick_access'] as string[]);
+      if (result['bookmark_folder_orders']) setFolderOrders(result['bookmark_folder_orders'] as Record<string, string[]>);
+    });
+  }, []);
+
+  const toggleQuickAccess = useCallback((id: string) => {
+    setQuickAccessIds(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+      chrome.storage.local.set({ bookmark_quick_access: next });
+      return next;
+    });
+  }, []);
+
+  // ── Drag and Drop ─────────────────────────────────────────────────────────
+  const [activeDrag, setActiveDrag] = useState<ActiveDrag>(null);
+  const activeDragIdRef = useRef<string | null>(null);
+  const [reparentTargetId, setReparentTargetId] = useState<string | null>(null);
+  const reparentTargetRef = useRef<string | null>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverIdRef = useRef<string | null>(null);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  const handleDragStart = useCallback(({ active }: DragStartEvent) => {
+    const folder = data.categories.find(c => c.id === active.id);
+    if (folder) { setActiveDrag({ id: folder.id, name: folder.name }); activeDragIdRef.current = folder.id; }
+  }, [data.categories]);
+
+  const handleDragOver = useCallback(({ over }: DragOverEvent) => {
+    const overId = (over?.id ?? null) as string | null;
+    if (overId === hoverIdRef.current) return;
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverIdRef.current = overId;
+    setReparentTargetId(null); reparentTargetRef.current = null;
+    if (overId && overId !== activeDragIdRef.current) {
+      hoverTimerRef.current = setTimeout(() => {
+        setReparentTargetId(overId); reparentTargetRef.current = overId;
+      }, 450);
+    }
+  }, []);
+
+  const handleDragEnd = useCallback(({ active, over }: DragEndEvent) => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    const reparentId = reparentTargetRef.current;
+    setReparentTargetId(null); reparentTargetRef.current = null;
+    hoverIdRef.current = null; setActiveDrag(null); activeDragIdRef.current = null;
+    if (!over) return;
+    // Reparent: hovered over a different folder for 450ms
+    if (reparentId && reparentId !== active.id) {
+      void data.moveFolder(active.id as string, reparentId);
+      return;
+    }
+    if (active.id === over.id) return;
+    const section = (active.data.current as { section?: string })?.section;
+    if (section === 'quick') {
+      setQuickAccessIds(prev => {
+        const oi = prev.indexOf(active.id as string), ni = prev.indexOf(over.id as string);
+        if (oi === -1 || ni === -1) return prev;
+        const next = arrayMove(prev, oi, ni);
+        chrome.storage.local.set({ bookmark_quick_access: next }); return next;
+      });
+      return;
+    }
+    if (section === 'my-folders') {
+      const af = data.categories.find(c => c.id === active.id);
+      const of_ = data.categories.find(c => c.id === over.id);
+      if (!af || !of_) return;
+      const aKey = af.parentCategoryId ?? `board:${af.boardId}`;
+      const oKey = of_.parentCategoryId ?? `board:${of_.boardId}`;
+      if (aKey !== oKey) return;
+      const siblings = data.categories.filter(c => c.boardId === af.boardId && (c.parentCategoryId ?? `board:${c.boardId}`) === aKey);
+      const current = folderOrders[aKey] ?? siblings.map(s => s.id);
+      const sorted = getSortedFolders(siblings, current);
+      const oi = sorted.findIndex(s => s.id === active.id), ni = sorted.findIndex(s => s.id === over.id);
+      if (oi === -1 || ni === -1) return;
+      const newOrder = arrayMove(sorted.map(s => s.id), oi, ni);
+      setFolderOrders(prev => { const u = { ...prev, [aKey]: newOrder }; chrome.storage.local.set({ bookmark_folder_orders: u }); return u; });
+    }
+  }, [data, folderOrders]);
+
+  // ─────────────────────────────────────────────────────────────────────────
   const startResize = useCallback((col: keyof ColWidths, e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
@@ -700,16 +984,27 @@ export default function BookmarkFolderPanel() {
 
       {/* ── Body ── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Left: Tree */}
+        {/* Left: 3-Section Tree */}
         <div className="w-60 shrink-0 border-r border-white/8 flex flex-col min-h-0">
-          <ScrollArea className="flex-1">
-            <div className="p-2">
-              {data.boards.length === 0 && <p className="px-3 py-4 text-xs text-white/30 text-center italic">No boards yet</p>}
-              {data.boards.map((board) => (
-                <BoardSection key={board.id} board={board} tree={data.getFolderTreeForBoard(board.id)} selectedId={selectedFolderId} onSelect={setSelectedFolderId} onOpenDialog={setDialogState} entryCount={entryCount} />
-              ))}
-            </div>
-          </ScrollArea>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+            <ScrollArea className="flex-1">
+              <div className="p-2 space-y-0.5">
+                <QuickAccessSection quickIds={quickAccessIds} categories={data.categories} selectedId={selectedFolderId} onSelect={setSelectedFolderId} onRemove={toggleQuickAccess} entryCount={entryCount} />
+                <div className="border-t border-white/5 my-1" />
+                <MyFoldersSection boards={data.boards} getFolderTreeForBoard={data.getFolderTreeForBoard} selectedId={selectedFolderId} onSelect={setSelectedFolderId} onOpenDialog={setDialogState} entryCount={entryCount} pinnedIds={quickAccessIds} onPin={toggleQuickAccess} reparentTargetId={reparentTargetId} folderOrders={folderOrders} />
+                <div className="border-t border-white/5 my-1" />
+                <BrowserBookmarksSection />
+              </div>
+            </ScrollArea>
+            <DragOverlay dropAnimation={null}>
+              {activeDrag && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-indigo-500/40 text-sm text-white shadow-2xl pointer-events-none" style={{ background: 'rgba(30,30,50,0.95)', backdropFilter: 'blur(20px)' }}>
+                  <Folder size={13} className="text-indigo-400 shrink-0" />
+                  <span className="font-medium truncate max-w-[140px]">{activeDrag.name}</span>
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
         </div>
 
         {/* Right: Content */}
