@@ -155,6 +155,76 @@ export async function deleteEntry(db: NewTabDB, id: string): Promise<void> {
   await db.delete(ENTRIES, id);
 }
 
+/**
+ * Creates a top-level folder for the Folders explorer WITHOUT adding it to
+ * the board's categoryIds. The folder is stored in the DB but is NOT a
+ * dashboard widget until explicitly linked via addExistingFolderAsWidget().
+ */
+export async function createTopLevelFolder(
+  db: NewTabDB,
+  boardId: string,
+  name: string,
+): Promise<BookmarkCategory> {
+  const cat: BookmarkCategory = {
+    id: generateId(),
+    boardId,
+    name,
+    icon: '📁',
+    color: '#6366f1',
+    bookmarkIds: [],
+    collapsed: false,
+    cardType: 'bookmark',
+    createdAt: nowISO(),
+  };
+  await db.put(CATEGORIES, cat);
+  return cat;
+}
+
+/**
+ * Removes a category ID from Board.categoryIds (hides the widget on the
+ * dashboard) WITHOUT deleting the category record or its entries.
+ * The folder remains accessible from the Folders explorer.
+ */
+export async function removeWidgetFromBoard(db: NewTabDB, categoryId: string): Promise<void> {
+  const cat = await db.get<BookmarkCategory>(CATEGORIES, categoryId);
+  if (!cat) return;
+  const board = await db.get<Board>(BOARDS, cat.boardId);
+  if (board) {
+    await db.put(BOARDS, {
+      ...board,
+      categoryIds: board.categoryIds.filter((cid) => cid !== categoryId),
+      updatedAt: nowISO(),
+    });
+  }
+}
+
+/**
+ * Adds an existing category (folder) to the specified board's categoryIds,
+ * making it appear as a widget on the dashboard. If the folder was previously
+ * owned by a different board its boardId is updated to the target board.
+ * Idempotent — no-op if already in the list.
+ */
+export async function addExistingFolderAsWidget(
+  db: NewTabDB,
+  categoryId: string,
+  targetBoardId: string,
+): Promise<void> {
+  const board = await db.get<Board>(BOARDS, targetBoardId);
+  if (!board) return;
+  if (!board.categoryIds.includes(categoryId)) {
+    await db.put(BOARDS, {
+      ...board,
+      categoryIds: [...board.categoryIds, categoryId],
+      updatedAt: nowISO(),
+    });
+  }
+  // Re-assign the folder's boardId to the target board if it differs
+  const cat = await db.get<BookmarkCategory>(CATEGORIES, categoryId);
+  if (cat && cat.boardId !== targetBoardId) {
+    await db.put(CATEGORIES, { ...cat, boardId: targetBoardId });
+  }
+}
+
 // ─── Nested Folder Support ────────────────────────────────────────────────────
 
 /** A folder node in the recursive tree used by the Bookmark Explorer */

@@ -119,22 +119,9 @@ export function useBookmarkFolderData(): BookmarkFolderState & BookmarkFolderAct
 
   const createTopLevelFolder = useCallback(
     async (boardId: string, name: string): Promise<BookmarkCategory> => {
-      const cat = await BookmarkService.saveCategory(newtabDB, {
-        boardId,
-        name,
-        icon: '📁',
-        color: '#6366f1',
-        bookmarkIds: [],
-        collapsed: false,
-        cardType: 'bookmark',
-      });
+      const cat = await BookmarkService.createTopLevelFolder(newtabDB, boardId, name);
       setCategories((prev) => [...prev, cat]);
-      // Also update board in local state
-      setBoards((prev) =>
-        prev.map((b) =>
-          b.id === boardId ? { ...b, categoryIds: [...b.categoryIds, cat.id] } : b,
-        ),
-      );
+      // Board.categoryIds is unchanged — this folder is NOT a dashboard widget
       return cat;
     },
     [],

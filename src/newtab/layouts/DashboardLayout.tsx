@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 import NewTabHeader from '@newtab/components/NewTabHeader';
 import ClockWidget from '@newtab/components/ClockWidget';
 import QuickLinksRow from '@newtab/components/QuickLinksRow';
@@ -36,10 +36,27 @@ export default function DashboardLayout() {
   const pendingResizes = useRef<Record<string, { colSpan: SpanValue; rowSpan: SpanValue }>>({});
 
   const activeBoard = boards.find((b) => b.id === settings.activeBoardId) ?? boards[0] ?? null;
-  // Only show top-level categories (no parentCategoryId) on the widget board grid
+  // Only show categories explicitly listed in the board's categoryIds
   const boardCategories = activeBoard
-    ? categories.filter((c) => c.boardId === activeBoard.id && !c.parentCategoryId)
+    ? categories.filter((c) => activeBoard.categoryIds.includes(c.id))
     : [];
+
+  // Only bookmark-type folders that are NOT already placed as a widget on any board.
+  // Dashboard widgets (created via "Create New Folder") are in board.categoryIds;
+  // Folders-page folders (created via "My Folders" +) are not.
+  const allWidgetIds = new Set(boards.flatMap((b) => b.categoryIds));
+  const availableFolders = categories.filter(
+    (c) => !c.parentCategoryId && (c.cardType === 'bookmark' || !c.cardType) && !allWidgetIds.has(c.id)
+  );
+
+  // Reload ALL categories (across every board) on every activeView change and on mount.
+  // This ensures Folders-page folders (which may have a different boardId than the
+  // active board) are always included — the same set that BookmarkFolderPanel shows.
+  useEffect(() => {
+    void BookmarkService.getAllCategories(newtabDB).then((cats) => {
+      dataStore.setCategories(cats);
+    });
+  }, [activeView]);
 
   // ── Quick Links ──────────────────────────────────────────────
   const handleAddLink = useCallback(async (data: { title: string; url: string }) => {
@@ -91,16 +108,22 @@ export default function DashboardLayout() {
   }, [entries]);
 
   const handleDeleteCategory = useCallback(async (id: string) => {
-    const boardId = categories.find((c) => c.id === id)?.boardId;
-    await BookmarkService.deleteCategory(newtabDB, id);
-    dataStore.setCategories(categories.filter((c) => c.id !== id));
-    dataStore.setEntries(entries.filter((e) => e.categoryId !== id));
+    const cat = categories.find((c) => c.id === id);
+    await BookmarkService.removeWidgetFromBoard(newtabDB, id);
+    // Keep category + entries in the store — the folder persists in the Folders explorer
+    if (cat?.boardId) {
+      dataStore.setBoards(boards.map((b) =>
+        b.id === cat.boardId
+          ? { ...b, categoryIds: b.categoryIds.filter((cid) => cid !== id) }
+          : b,
+      ));
+    }
     delete pendingResizes.current[id];
-    if (boardId && pendingReorders.current[boardId]) {
-      pendingReorders.current[boardId] = pendingReorders.current[boardId].filter((cid) => cid !== id);
+    if (cat?.boardId && pendingReorders.current[cat.boardId]) {
+      pendingReorders.current[cat.boardId] = pendingReorders.current[cat.boardId].filter((cid) => cid !== id);
     }
     setHasUnsavedLayoutChanges(true);
-  }, [categories, entries]);
+  }, [categories, boards]);
 
   const handleToggleCollapse = useCallback(async (id: string) => {
     const cat = categories.find((c) => c.id === id);
@@ -154,6 +177,22 @@ export default function DashboardLayout() {
     dataStore.setCategories([...categories, cat]);
     setHasUnsavedLayoutChanges(true);
   }, [categories]);
+
+  const handleLinkFolder = useCallback(async (categoryId: string) => {
+    if (!activeBoard) return;
+    await BookmarkService.addExistingFolderAsWidget(newtabDB, categoryId, activeBoard.id);
+    // Update boards store: add to the active board's categoryIds
+    dataStore.setBoards(boards.map((b) =>
+      b.id === activeBoard.id
+        ? { ...b, categoryIds: [...b.categoryIds, categoryId] }
+        : b,
+    ));
+    // If the folder was re-assigned to this board, sync its boardId in the store
+    dataStore.setCategories(categories.map((c) =>
+      c.id === categoryId ? { ...c, boardId: activeBoard.id } : c,
+    ));
+    setHasUnsavedLayoutChanges(true);
+  }, [activeBoard, boards, categories]);
 
   const handleResizeCategory = useCallback((id: string, colSpan: SpanValue, rowSpan: SpanValue) => {
     const cat = categories.find((c) => c.id === id);
@@ -259,7 +298,9 @@ export default function DashboardLayout() {
         entries,
         density: settings.cardDensity,
         isMain: boards[0]?.id === activeBoard.id,
+        availableFolders,
         onAddCategory: (id: string, cardType: CardType) => { void handleAddCategory(id, cardType); },
+        onLinkFolder: (categoryId: string) => { void handleLinkFolder(categoryId); },
         onDeleteCategory: (id: string) => { void handleDeleteCategory(id); },
         onToggleCollapse: (id: string) => { void handleToggleCollapse(id); },
         onAddEntry: (catId: string, title: string, url: string) => { void handleAddEntry(catId, title, url); },

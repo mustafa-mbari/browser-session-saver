@@ -27,7 +27,9 @@ interface Props extends BookmarkBoardActions {
   entries: BookmarkEntry[];
   density: CardDensity;
   isMain?: boolean;
+  availableFolders?: BookmarkCategory[];
   onAddCategory: (boardId: string, cardType: CardType) => void;
+  onLinkFolder?: (categoryId: string) => void;
   onReorderCategories: (newCategories: BookmarkCategory[]) => void;
   onImportNative: (boardId: string) => void;
   hasUnsavedLayoutChanges?: boolean;
@@ -41,7 +43,9 @@ export default function BookmarkBoard({
   entries,
   density,
   isMain = false,
+  availableFolders,
   onAddCategory,
+  onLinkFolder,
   onReorderCategories,
   onImportNative,
   hasUnsavedLayoutChanges,
@@ -167,6 +171,9 @@ export default function BookmarkBoard({
           boardId={board.id}
           onClose={() => setAddCardOpen(false)}
           onAdd={(boardId, cardType) => { onAddCategory(boardId, cardType); }}
+          availableFolders={availableFolders}
+          linkedFolderIds={board.categoryIds}
+          onLinkFolder={onLinkFolder}
         />
       </div>
     </BookmarkBoardContext.Provider>
