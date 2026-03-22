@@ -431,7 +431,7 @@ function DraggableTreeItem({ node, depth, selectedId, onSelect, onOpenDialog, en
 
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
     id: node.folder.id,
-    data: { section: 'my-folders', parentKey: node.folder.parentCategoryId ?? `board:${node.folder.boardId}` },
+    data: { section: 'my-folders', parentKey: node.folder.parentCategoryId ?? '__root__' },
   });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.3 : 1 };
 
@@ -510,46 +510,59 @@ function DraggableTreeItem({ node, depth, selectedId, onSelect, onOpenDialog, en
 
 // ─── My Folders Section ───────────────────────────────────────────────────────
 
-function MyFoldersSection({ boards, getFolderTreeForBoard, selectedId, onSelect, onOpenDialog, entryCount, pinnedIds, onPin, reparentTargetId, folderOrders }: {
-  boards: Board[]; getFolderTreeForBoard: (boardId: string) => FolderNode[];
+function MyFoldersSection({ categories, boards, selectedId, onSelect, onOpenDialog, entryCount, pinnedIds, onPin, reparentTargetId, folderOrders }: {
+  categories: BookmarkCategory[]; boards: Board[];
   selectedId: string | null; onSelect: (id: string) => void;
   onOpenDialog: (d: DialogState) => void; entryCount: (id: string) => number;
   pinnedIds: string[]; onPin: (id: string) => void;
   reparentTargetId: string | null; folderOrders: Record<string, string[]>;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const defaultBoardId = boards[0]?.id ?? '';
+
+  const nodes = useMemo<FolderNode[]>(() => {
+    function buildNodes(parentId: string): FolderNode[] {
+      return categories
+        .filter(c => c.parentCategoryId === parentId)
+        .map(f => ({ folder: f, children: buildNodes(f.id) }));
+    }
+    const topLevel = categories.filter(c => !c.parentCategoryId);
+    const order = folderOrders['__root__'] ?? [];
+    const sorted = getSortedFolders(topLevel, order);
+    return sorted.map(f => ({ folder: f, children: buildNodes(f.id) }));
+  }, [categories, folderOrders]);
+
   return (
     <div className="mb-1">
-      <button className="w-full flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white/35 hover:text-white/60 transition-colors" onClick={() => setExpanded(v => !v)}>
-        {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-        <FolderOpen size={10} className="text-amber-400" />
-        <span className="flex-1 text-left">My Folders</span>
-      </button>
+      <div className="flex items-center gap-1 px-2 py-1">
+        <button
+          className="flex items-center gap-1.5 flex-1 text-[10px] font-bold uppercase tracking-wider text-white/35 hover:text-white/60 transition-colors"
+          onClick={() => setExpanded(v => !v)}
+        >
+          {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+          <FolderOpen size={10} className="text-amber-400" />
+          <span className="text-left">My Folders</span>
+        </button>
+        {defaultBoardId && (
+          <button
+            className="p-0.5 rounded hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
+            onClick={() => onOpenDialog({ type: 'new-folder', boardId: defaultBoardId })}
+            title="New folder"
+          >
+            <Plus size={10} />
+          </button>
+        )}
+      </div>
       {expanded && (
         <div>
-          {boards.length === 0 && <p className="px-4 py-1 text-[11px] text-white/20 italic">No boards yet</p>}
-          {boards.map(board => {
-            const tree = getFolderTreeForBoard(board.id);
-            const order = folderOrders[`board:${board.id}`] ?? [];
-            const sorted = getSortedFolders(tree.map(n => n.folder), order).map(f => tree.find(n => n.folder.id === f.id)!);
-            return (
-              <div key={board.id} className="mb-0.5">
-                <div className="flex items-center gap-1 px-2 py-0.5 text-[11px] text-white/30">
-                  <span>{board.icon}</span>
-                  <span className="truncate flex-1 font-medium tracking-wide">{board.name}</span>
-                  <button className="p-0.5 rounded hover:bg-white/10 hover:text-white/60 transition-colors" onClick={() => onOpenDialog({ type: 'new-folder', boardId: board.id })} title="New folder">
-                    <Plus size={10} />
-                  </button>
-                </div>
-                <SortableContext items={sorted.map(n => n.folder.id)} strategy={verticalListSortingStrategy}>
-                  {sorted.map(node => (
-                    <DraggableTreeItem key={node.folder.id} node={node} depth={0} selectedId={selectedId} onSelect={onSelect} onOpenDialog={onOpenDialog} entryCount={entryCount} pinnedIds={pinnedIds} onPin={onPin} reparentTargetId={reparentTargetId} folderOrders={folderOrders} />
-                  ))}
-                </SortableContext>
-                {sorted.length === 0 && <p className="px-5 py-0.5 text-[11px] text-white/20 italic">No folders</p>}
-              </div>
-            );
-          })}
+          {nodes.length === 0 && (
+            <p className="px-4 py-1 text-[11px] text-white/20 italic">No folders yet</p>
+          )}
+          <SortableContext items={nodes.map(n => n.folder.id)} strategy={verticalListSortingStrategy}>
+            {nodes.map(node => (
+              <DraggableTreeItem key={node.folder.id} node={node} depth={0} selectedId={selectedId} onSelect={onSelect} onOpenDialog={onOpenDialog} entryCount={entryCount} pinnedIds={pinnedIds} onPin={onPin} reparentTargetId={reparentTargetId} folderOrders={folderOrders} />
+            ))}
+          </SortableContext>
         </div>
       )}
     </div>
@@ -832,10 +845,12 @@ export default function BookmarkFolderPanel() {
       const af = data.categories.find(c => c.id === active.id);
       const of_ = data.categories.find(c => c.id === over.id);
       if (!af || !of_) return;
-      const aKey = af.parentCategoryId ?? `board:${af.boardId}`;
-      const oKey = of_.parentCategoryId ?? `board:${of_.boardId}`;
+      const aKey = af.parentCategoryId ?? '__root__';
+      const oKey = of_.parentCategoryId ?? '__root__';
       if (aKey !== oKey) return;
-      const siblings = data.categories.filter(c => c.boardId === af.boardId && (c.parentCategoryId ?? `board:${c.boardId}`) === aKey);
+      const siblings = aKey === '__root__'
+        ? data.categories.filter(c => !c.parentCategoryId)
+        : data.categories.filter(c => c.parentCategoryId === aKey);
       const current = folderOrders[aKey] ?? siblings.map(s => s.id);
       const sorted = getSortedFolders(siblings, current);
       const oi = sorted.findIndex(s => s.id === active.id), ni = sorted.findIndex(s => s.id === over.id);
@@ -991,7 +1006,7 @@ export default function BookmarkFolderPanel() {
               <div className="p-2 space-y-0.5">
                 <QuickAccessSection quickIds={quickAccessIds} categories={data.categories} selectedId={selectedFolderId} onSelect={setSelectedFolderId} onRemove={toggleQuickAccess} entryCount={entryCount} />
                 <div className="border-t border-white/5 my-1" />
-                <MyFoldersSection boards={data.boards} getFolderTreeForBoard={data.getFolderTreeForBoard} selectedId={selectedFolderId} onSelect={setSelectedFolderId} onOpenDialog={setDialogState} entryCount={entryCount} pinnedIds={quickAccessIds} onPin={toggleQuickAccess} reparentTargetId={reparentTargetId} folderOrders={folderOrders} />
+                <MyFoldersSection categories={data.categories} boards={data.boards} selectedId={selectedFolderId} onSelect={setSelectedFolderId} onOpenDialog={setDialogState} entryCount={entryCount} pinnedIds={quickAccessIds} onPin={toggleQuickAccess} reparentTargetId={reparentTargetId} folderOrders={folderOrders} />
                 <div className="border-t border-white/5 my-1" />
                 <BrowserBookmarksSection />
               </div>
