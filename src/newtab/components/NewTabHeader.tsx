@@ -1,6 +1,6 @@
 import { forwardRef, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Paintbrush, Settings, Sun, Moon, Monitor, Clock, Globe } from 'lucide-react';
+import { Paintbrush, Settings, Sun, Moon, Monitor, Clock, Globe, Save } from 'lucide-react';
 import SearchBar from '@newtab/components/SearchBar';
 import { useTheme } from '@shared/hooks/useTheme';
 import type { AppLanguage, NewTabSettings } from '@core/types/newtab.types';
@@ -11,6 +11,9 @@ interface Props {
   onOpenWallpaper: () => void;
   onToggleClock: () => void;
   onLanguageChange: (lang: AppLanguage) => void;
+  hasUnsavedLayoutChanges?: boolean;
+  savedFeedback?: boolean;
+  onSaveLayout?: () => void;
 }
 
 const LANG_OPTIONS: { value: AppLanguage; label: string; native: string }[] = [
@@ -29,7 +32,8 @@ const THEME_ICONS = {
 const THEME_CYCLE: Array<'system' | 'light' | 'dark'> = ['system', 'light', 'dark'];
 
 const NewTabHeader = forwardRef<HTMLInputElement, Props>(
-  ({ settings, onOpenSettings, onOpenWallpaper, onToggleClock, onLanguageChange }, searchRef) => {
+  ({ settings, onOpenSettings, onOpenWallpaper, onToggleClock, onLanguageChange,
+     hasUnsavedLayoutChanges, savedFeedback, onSaveLayout }, searchRef) => {
     const { theme, setTheme } = useTheme();
     const [langOpen, setLangOpen] = useState(false);
     const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
@@ -169,6 +173,24 @@ const NewTabHeader = forwardRef<HTMLInputElement, Props>(
           >
             <Paintbrush size={16} style={{ color: 'var(--newtab-text)' }} />
           </button>
+
+          {/* Save Layout — amber indicator for unsaved layout changes */}
+          {hasUnsavedLayoutChanges && onSaveLayout && (
+            <button
+              onClick={onSaveLayout}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all border"
+              style={{
+                color: savedFeedback ? '#86efac' : '#fbbf24',
+                backgroundColor: savedFeedback ? 'rgba(134,239,172,0.12)' : 'rgba(251,191,36,0.15)',
+                borderColor: savedFeedback ? 'rgba(134,239,172,0.3)' : 'rgba(251,191,36,0.3)',
+              }}
+              aria-label={savedFeedback ? 'Layout saved' : 'Save layout changes'}
+              title={savedFeedback ? 'Layout saved' : 'Save layout changes'}
+            >
+              <Save size={13} />
+              <span>{savedFeedback ? 'Saved!' : 'Save Layout'}</span>
+            </button>
+          )}
 
           {/* Settings */}
           <button

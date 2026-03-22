@@ -258,5 +258,11 @@
   },
   "searchSessionsPlaceholder": {
     "message": "بحث في الجلسات… (#وسم للتصفية)"
+  },
+  "saveLayout": {
+    "message": "حفظ التخطيط"
+  },
+  "layoutSaved": {
+    "message": "تم الحفظ!"
   }
 }

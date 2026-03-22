@@ -355,5 +355,13 @@
   "searchSessionsPlaceholder": {
     "message": "Search sessions… (#tag to filter)",
     "description": "Sessions panel search input placeholder"
+  },
+  "saveLayout": {
+    "message": "Save Layout",
+    "description": "Button label for saving pending widget layout changes"
+  },
+  "layoutSaved": {
+    "message": "Saved!",
+    "description": "Feedback text shown briefly after layout changes are saved"
   }
 }

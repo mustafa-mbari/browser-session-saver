@@ -30,6 +30,10 @@ export default function DashboardLayout() {
   const searchRef = useRef<HTMLInputElement>(null);
   const [addLinkOpen, setAddLinkOpen] = useState(false);
   const [editLink, setEditLink] = useState<QuickLink | null>(null);
+  const [hasUnsavedLayoutChanges, setHasUnsavedLayoutChanges] = useState(false);
+  const [savedFeedback, setSavedFeedback] = useState(false);
+  const pendingReorders = useRef<Record<string, string[]>>({});
+  const pendingResizes = useRef<Record<string, { colSpan: SpanValue; rowSpan: SpanValue }>>({});
 
   const activeBoard = boards.find((b) => b.id === settings.activeBoardId) ?? boards[0] ?? null;
   // Only show top-level categories (no parentCategoryId) on the widget board grid
@@ -87,9 +91,15 @@ export default function DashboardLayout() {
   }, [entries]);
 
   const handleDeleteCategory = useCallback(async (id: string) => {
+    const boardId = categories.find((c) => c.id === id)?.boardId;
     await BookmarkService.deleteCategory(newtabDB, id);
     dataStore.setCategories(categories.filter((c) => c.id !== id));
     dataStore.setEntries(entries.filter((e) => e.categoryId !== id));
+    delete pendingResizes.current[id];
+    if (boardId && pendingReorders.current[boardId]) {
+      pendingReorders.current[boardId] = pendingReorders.current[boardId].filter((cid) => cid !== id);
+    }
+    setHasUnsavedLayoutChanges(true);
   }, [categories, entries]);
 
   const handleToggleCollapse = useCallback(async (id: string) => {
@@ -110,17 +120,16 @@ export default function DashboardLayout() {
     dataStore.setEntries([...otherEntries, ...reordered]);
   }, [entries]);
 
-  const handleReorderCategories = useCallback(async (reordered: typeof categories) => {
+  const handleReorderCategories = useCallback((reordered: typeof categories) => {
     const boardId = activeBoard?.id;
     if (boardId) {
-      await BookmarkService.updateBoard(newtabDB, boardId, {
-        categoryIds: reordered.map((c) => c.id),
-      });
+      pendingReorders.current[boardId] = reordered.map((c) => c.id);
     }
     dataStore.setCategories([
       ...categories.filter((c) => c.boardId !== boardId),
       ...reordered,
     ]);
+    setHasUnsavedLayoutChanges(true);
   }, [activeBoard, categories]);
 
   const handleImportNative = useCallback(async (boardId: string) => {
@@ -143,14 +152,16 @@ export default function DashboardLayout() {
       boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, ...getDefaultSize(cardType), cardType,
     });
     dataStore.setCategories([...categories, cat]);
+    setHasUnsavedLayoutChanges(true);
   }, [categories]);
 
-  const handleResizeCategory = useCallback(async (id: string, colSpan: SpanValue, rowSpan: SpanValue) => {
+  const handleResizeCategory = useCallback((id: string, colSpan: SpanValue, rowSpan: SpanValue) => {
     const cat = categories.find((c) => c.id === id);
     if (!cat) return;
     const clamped = clampSize(cat.cardType ?? 'bookmark', colSpan, rowSpan);
-    await BookmarkService.updateCategory(newtabDB, id, clamped);
+    pendingResizes.current[id] = clamped;
     dataStore.setCategories(categories.map((c) => (c.id === id ? { ...c, ...clamped } : c)));
+    setHasUnsavedLayoutChanges(true);
   }, [categories]);
 
   const handleUpdateNote = useCallback(async (id: string, noteContent: string) => {
@@ -194,7 +205,22 @@ export default function DashboardLayout() {
     );
     dataStore.setCategories([...categories, newCat]);
     dataStore.setEntries([...entries, ...newEntries]);
+    setHasUnsavedLayoutChanges(true);
   }, [categories, entries]);
+
+  const handleSaveLayout = useCallback(async () => {
+    for (const [boardId, categoryIds] of Object.entries(pendingReorders.current)) {
+      await BookmarkService.updateBoard(newtabDB, boardId, { categoryIds });
+    }
+    for (const [id, size] of Object.entries(pendingResizes.current)) {
+      await BookmarkService.updateCategory(newtabDB, id, size);
+    }
+    pendingReorders.current = {};
+    pendingResizes.current = {};
+    setHasUnsavedLayoutChanges(false);
+    setSavedFeedback(true);
+    setTimeout(() => setSavedFeedback(false), 2000);
+  }, []);
 
   const handleNewBoard = useCallback(async () => {
     const board = await BookmarkService.saveBoard(newtabDB, {
@@ -267,6 +293,9 @@ export default function DashboardLayout() {
           await updateNewTabSettings({ language: lang }); // ensure persisted before reload
           window.location.reload();
         }}
+        hasUnsavedLayoutChanges={hasUnsavedLayoutChanges}
+        savedFeedback={savedFeedback}
+        onSaveLayout={() => { void handleSaveLayout(); }}
       />
 
       {/* ── Body: sidebar + main ── */}

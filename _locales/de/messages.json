@@ -264,5 +264,11 @@
   },
   "searchSessionsPlaceholder": {
     "message": "Sitzungen suchen… (#Tag zum Filtern)"
+  },
+  "saveLayout": {
+    "message": "Layout speichern"
+  },
+  "layoutSaved": {
+    "message": "Gespeichert!"
   }
 }
