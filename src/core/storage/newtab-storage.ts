@@ -1,5 +1,5 @@
 const NEWTAB_DB_NAME = 'newtab-db';
-const NEWTAB_DB_VERSION = 1;
+const NEWTAB_DB_VERSION = 2;
 
 const Stores = {
   quickLinks: 'quickLinks',
@@ -20,32 +20,45 @@ export class NewTabDB {
     this.dbPromise = new Promise((resolve, reject) => {
       const request = indexedDB.open(NEWTAB_DB_NAME, NEWTAB_DB_VERSION);
 
-      request.onupgradeneeded = () => {
+      request.onupgradeneeded = (event) => {
         const db = request.result;
+        const oldVersion = event.oldVersion;
 
-        if (!db.objectStoreNames.contains(Stores.quickLinks)) {
-          db.createObjectStore(Stores.quickLinks, { keyPath: 'id' });
+        // v1 stores
+        if (oldVersion < 1) {
+          if (!db.objectStoreNames.contains(Stores.quickLinks)) {
+            db.createObjectStore(Stores.quickLinks, { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains(Stores.boards)) {
+            db.createObjectStore(Stores.boards, { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains(Stores.bookmarkCategories)) {
+            const catStore = db.createObjectStore(Stores.bookmarkCategories, { keyPath: 'id' });
+            catStore.createIndex('boardId', 'boardId', { unique: false });
+          }
+          if (!db.objectStoreNames.contains(Stores.bookmarkEntries)) {
+            const entryStore = db.createObjectStore(Stores.bookmarkEntries, { keyPath: 'id' });
+            entryStore.createIndex('categoryId', 'categoryId', { unique: false });
+          }
+          if (!db.objectStoreNames.contains(Stores.todoLists)) {
+            db.createObjectStore(Stores.todoLists, { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains(Stores.todoItems)) {
+            const itemStore = db.createObjectStore(Stores.todoItems, { keyPath: 'id' });
+            itemStore.createIndex('listId', 'listId', { unique: false });
+          }
+          if (!db.objectStoreNames.contains(Stores.wallpaperImages)) {
+            db.createObjectStore(Stores.wallpaperImages, { keyPath: 'id' });
+          }
         }
-        if (!db.objectStoreNames.contains(Stores.boards)) {
-          db.createObjectStore(Stores.boards, { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains(Stores.bookmarkCategories)) {
-          const catStore = db.createObjectStore(Stores.bookmarkCategories, { keyPath: 'id' });
-          catStore.createIndex('boardId', 'boardId', { unique: false });
-        }
-        if (!db.objectStoreNames.contains(Stores.bookmarkEntries)) {
-          const entryStore = db.createObjectStore(Stores.bookmarkEntries, { keyPath: 'id' });
-          entryStore.createIndex('categoryId', 'categoryId', { unique: false });
-        }
-        if (!db.objectStoreNames.contains(Stores.todoLists)) {
-          db.createObjectStore(Stores.todoLists, { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains(Stores.todoItems)) {
-          const itemStore = db.createObjectStore(Stores.todoItems, { keyPath: 'id' });
-          itemStore.createIndex('listId', 'listId', { unique: false });
-        }
-        if (!db.objectStoreNames.contains(Stores.wallpaperImages)) {
-          db.createObjectStore(Stores.wallpaperImages, { keyPath: 'id' });
+
+        // v2: add parentCategoryId index to bookmarkCategories for nested folder queries
+        if (oldVersion < 2) {
+          const tx = request.transaction!;
+          const catStore = tx.objectStore(Stores.bookmarkCategories);
+          if (!catStore.indexNames.contains('parentCategoryId')) {
+            catStore.createIndex('parentCategoryId', 'parentCategoryId', { unique: false });
+          }
         }
       };
 

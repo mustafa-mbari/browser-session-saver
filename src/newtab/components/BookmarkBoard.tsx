@@ -6,7 +6,8 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
-import { LayoutGrid, Download } from 'lucide-react';
+import { LayoutGrid, Download, FolderOpen } from 'lucide-react';
+import { useNewTabUIStore } from '@newtab/stores/newtab-ui.store';
 import BookmarkCategoryCard from './BookmarkCategoryCard';
 import AddCardModal from './AddCardModal';
 import type {
@@ -56,6 +57,7 @@ export default function BookmarkBoard({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const { handleDragEnd } = useSortableCategories(categories, onReorderCategories);
   const [addCardOpen, setAddCardOpen] = useState(false);
+  const setActiveView = useNewTabUIStore((s) => s.setActiveView);
 
   const actions: BookmarkBoardActions = {
     onAddEntry, onDeleteEntry, onRenameEntry, onDeleteCategory,
@@ -81,6 +83,15 @@ export default function BookmarkBoard({
                 Import Bookmarks
               </button>
             )}
+            <button
+              onClick={() => setActiveView('folder-explorer')}
+              className="glass flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm hover:bg-white/20 transition-colors"
+              style={{ color: 'var(--newtab-text)' }}
+              aria-label="Bookmarks Folders"
+            >
+              <FolderOpen size={14} />
+              Folders
+            </button>
             <button
               onClick={() => setAddCardOpen(true)}
               className="glass flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm hover:bg-white/20 transition-colors"

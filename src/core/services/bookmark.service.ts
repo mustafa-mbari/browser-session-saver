@@ -155,6 +155,141 @@ export async function deleteEntry(db: NewTabDB, id: string): Promise<void> {
   await db.delete(ENTRIES, id);
 }
 
+// ─── Nested Folder Support ────────────────────────────────────────────────────
+
+/** A folder node in the recursive tree used by the Bookmark Explorer */
+export interface FolderNode {
+  folder: BookmarkCategory;
+  children: FolderNode[];
+}
+
+/**
+ * Returns all BookmarkCategories across all boards (used by the explorer to
+ * load all folders in a single query).
+ */
+export async function getAllCategories(db: NewTabDB): Promise<BookmarkCategory[]> {
+  return db.getAll<BookmarkCategory>(CATEGORIES);
+}
+
+/**
+ * Returns all BookmarkEntries across all categories (used by the explorer).
+ */
+export async function getAllEntries(db: NewTabDB): Promise<BookmarkEntry[]> {
+  return db.getAll<BookmarkEntry>(ENTRIES);
+}
+
+/**
+ * Returns the direct child folders of the given parent category.
+ */
+export async function getSubFolders(
+  db: NewTabDB,
+  parentCategoryId: string,
+): Promise<BookmarkCategory[]> {
+  return db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'parentCategoryId', parentCategoryId);
+}
+
+/**
+ * Returns the top-level categories for a board (those with no parentCategoryId).
+ */
+export async function getTopLevelCategories(
+  db: NewTabDB,
+  boardId: string,
+): Promise<BookmarkCategory[]> {
+  const all = await getCategories(db, boardId);
+  return all.filter((c) => !c.parentCategoryId);
+}
+
+/**
+ * Recursively builds a FolderNode tree for the given board.
+ * Top-level nodes are categories without a parentCategoryId.
+ */
+export async function getFolderTree(db: NewTabDB, boardId: string): Promise<FolderNode[]> {
+  const all = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'boardId', boardId);
+  const byParent = new Map<string, BookmarkCategory[]>();
+  for (const cat of all) {
+    const key = cat.parentCategoryId ?? '__root__';
+    if (!byParent.has(key)) byParent.set(key, []);
+    byParent.get(key)!.push(cat);
+  }
+  function buildNodes(parentKey: string): FolderNode[] {
+    return (byParent.get(parentKey) ?? []).map((folder) => ({
+      folder,
+      children: buildNodes(folder.id),
+    }));
+  }
+  return buildNodes('__root__');
+}
+
+/**
+ * Returns the breadcrumb path from the root to the given folder
+ * (inclusive). Returns [] if the folder doesn't exist.
+ */
+export async function getFolderPath(db: NewTabDB, folderId: string): Promise<BookmarkCategory[]> {
+  const path: BookmarkCategory[] = [];
+  let current = await db.get<BookmarkCategory>(CATEGORIES, folderId);
+  while (current) {
+    path.unshift(current);
+    if (!current.parentCategoryId) break;
+    current = await db.get<BookmarkCategory>(CATEGORIES, current.parentCategoryId);
+  }
+  return path;
+}
+
+/**
+ * Creates a sub-folder nested inside the given parent category.
+ * Sub-folders are NOT added to the board's categoryIds (they live outside the
+ * widget grid) and have no colSpan / rowSpan.
+ */
+export async function createSubFolder(
+  db: NewTabDB,
+  parentCategoryId: string,
+  name: string,
+  boardId: string,
+): Promise<BookmarkCategory> {
+  const cat: BookmarkCategory = {
+    id: generateId(),
+    boardId,
+    parentCategoryId,
+    name,
+    icon: '📁',
+    color: '#6366f1',
+    bookmarkIds: [],
+    collapsed: false,
+    cardType: 'bookmark',
+    createdAt: nowISO(),
+  };
+  await db.put(CATEGORIES, cat);
+  return cat;
+}
+
+/**
+ * Recursively deletes a folder and all its sub-folders and entries.
+ * Also removes the folder from the parent board's categoryIds if applicable.
+ */
+export async function deleteFolderRecursive(db: NewTabDB, id: string): Promise<void> {
+  // Delete all entries in this category
+  const entries = await db.getAllByIndex<BookmarkEntry>(ENTRIES, 'categoryId', id);
+  await Promise.all(entries.map((e) => db.delete(ENTRIES, e.id)));
+
+  // Recursively delete sub-folders
+  const subFolders = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'parentCategoryId', id);
+  await Promise.all(subFolders.map((sf) => deleteFolderRecursive(db, sf.id)));
+
+  // Remove from board's categoryIds if it was a top-level category
+  const cat = await db.get<BookmarkCategory>(CATEGORIES, id);
+  if (cat && !cat.parentCategoryId) {
+    const board = await db.get<Board>(BOARDS, cat.boardId);
+    if (board) {
+      await db.put(BOARDS, {
+        ...board,
+        categoryIds: board.categoryIds.filter((cid) => cid !== id),
+        updatedAt: nowISO(),
+      });
+    }
+  }
+  await db.delete(CATEGORIES, id);
+}
+
 // ─── Native Import ─────────────────────────────────────────────────────────────
 
 function flattenBookmarkTree(

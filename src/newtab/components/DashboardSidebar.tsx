@@ -16,6 +16,7 @@ import {
   User,
   PanelLeft,
   Check,
+  FolderOpen,
 } from 'lucide-react';
 import Tooltip from '@shared/components/Tooltip';
 import ContextMenu from '@shared/components/ContextMenu';
@@ -263,6 +264,22 @@ export default function DashboardSidebar({
   const [isHovering, setIsHovering] = useState(false);
   const [controlOpen, setControlOpen] = useState(false);
   const controlBtnRef = useRef<HTMLButtonElement>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-open on mount for expand-on-hover mode, collapse after 2 s
+  useEffect(() => {
+    if (sidebarControl === 'expand-on-hover') {
+      setIsHovering(true);
+      autoOpenTimerRef.current = setTimeout(() => {
+        autoOpenTimerRef.current = null;
+        setIsHovering(false);
+      }, 2000);
+    }
+    return () => {
+      if (autoOpenTimerRef.current) clearTimeout(autoOpenTimerRef.current);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Derive effective collapsed state from sidebarControl mode
   const effectiveCollapsed =
@@ -271,10 +288,23 @@ export default function DashboardSidebar({
     !isHovering; // expand-on-hover
 
   const handleMouseEnter = () => {
-    if (sidebarControl === 'expand-on-hover') setIsHovering(true);
+    if (sidebarControl !== 'expand-on-hover') return;
+    // Cancel any pending auto-close so hover takes over
+    if (autoOpenTimerRef.current) {
+      clearTimeout(autoOpenTimerRef.current);
+      autoOpenTimerRef.current = null;
+    }
+    hoverTimerRef.current = setTimeout(() => setIsHovering(true), 300);
   };
   const handleMouseLeave = () => {
-    if (sidebarControl === 'expand-on-hover' && !controlOpen) setIsHovering(false);
+    if (sidebarControl !== 'expand-on-hover' || controlOpen) return;
+    // Don't close during the auto-open window; let the timer finish naturally
+    if (autoOpenTimerRef.current) return;
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setIsHovering(false);
   };
 
   if (effectiveCollapsed) {
@@ -312,6 +342,7 @@ export default function DashboardSidebar({
         ))}
         <div className="w-full border-t border-white/10 my-1" />
         {[
+          { view: 'folder-explorer' as NewTabView, icon: <FolderOpen size={14} />, label: 'Folders' },
           { view: 'sessions' as NewTabView, icon: <Clock size={14} />, label: 'Sessions' },
           { view: 'tab-groups' as NewTabView, icon: <Layers size={13} />, label: 'Tab Groups' },
           { view: 'import-export' as NewTabView, icon: <ArrowDownUp size={13} />, label: 'Import/Export' },
@@ -422,6 +453,12 @@ export default function DashboardSidebar({
 
         {sessionsExpanded && (
           <div className="flex flex-col gap-0.5 px-2">
+            <NavItem
+              icon={<FolderOpen size={13} />}
+              label="Folders"
+              active={activeView === 'folder-explorer'}
+              onClick={() => onViewChange('folder-explorer')}
+            />
             <NavItem
               icon={<Clock size={13} />}
               label="Sessions"

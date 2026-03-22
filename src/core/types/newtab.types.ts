@@ -32,6 +32,8 @@ export interface BookmarkCategory {
   quoteIndex?: number;
   quoteChangedAt?: string;
   createdAt: string;
+  /** When set, this category is a sub-folder nested inside the given parent category */
+  parentCategoryId?: string;
 }
 
 export interface BookmarkEntry {
@@ -43,6 +45,10 @@ export interface BookmarkEntry {
   addedAt: string;
   isNative: boolean;
   nativeId?: string;
+  /** User-defined label / tag for this bookmark */
+  category?: string;
+  /** Optional free-text note about this bookmark */
+  description?: string;
 }
 
 export interface QuickLink {

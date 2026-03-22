@@ -9,6 +9,7 @@ import TabGroupsPanel from '@newtab/components/TabGroupsPanel';
 import ImportExportPanel from '@newtab/components/ImportExportPanel';
 import SubscriptionsPanel from '@newtab/components/SubscriptionsPanel';
 import SettingsView from '@newtab/components/SettingsView';
+import BookmarkFolderPanel from '@newtab/components/BookmarkFolderPanel';
 import AddQuickLinkModal from '@newtab/components/AddQuickLinkModal';
 import { useNewTabUIStore } from '@newtab/stores/newtab-ui.store';
 import { useNewTabDataStore } from '@newtab/stores/newtab-data.store';
@@ -31,8 +32,9 @@ export default function DashboardLayout() {
   const [editLink, setEditLink] = useState<QuickLink | null>(null);
 
   const activeBoard = boards.find((b) => b.id === settings.activeBoardId) ?? boards[0] ?? null;
+  // Only show top-level categories (no parentCategoryId) on the widget board grid
   const boardCategories = activeBoard
-    ? categories.filter((c) => c.boardId === activeBoard.id)
+    ? categories.filter((c) => c.boardId === activeBoard.id && !c.parentCategoryId)
     : [];
 
   // ── Quick Links ──────────────────────────────────────────────
@@ -249,7 +251,7 @@ export default function DashboardLayout() {
     : null;
 
   // Determine if current view is a "management" view (hides clock/quick links)
-  const isSessionView = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions', 'settings'].includes(activeView);
+  const isSessionView = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions', 'settings', 'folder-explorer'].includes(activeView);
 
   return (
     <div className="relative z-10 h-screen flex flex-col overflow-hidden">
@@ -323,6 +325,13 @@ export default function DashboardLayout() {
                   <p className="text-sm opacity-70">
                     Click <span className="font-medium">+ New Board</span> in the sidebar to get started
                   </p>
+                </div>
+              )}
+
+              {/* Bookmark folder explorer */}
+              {activeView === 'folder-explorer' && (
+                <div className="h-[calc(100vh-120px)]">
+                  <BookmarkFolderPanel />
                 </div>
               )}
 

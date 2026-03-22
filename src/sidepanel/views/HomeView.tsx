@@ -8,6 +8,7 @@ import SearchBar from '../components/SearchBar';
 import SessionList from '../components/SessionList';
 import CurrentTabsPanel from '../components/CurrentTabsPanel';
 import HomeTabGroupsPanel from '../components/HomeTabGroupsPanel';
+import BookmarksPanel from '../components/BookmarksPanel';
 import Toast, { type ToastData } from '@shared/components/Toast';
 import Button from '@shared/components/Button';
 import { generateId } from '@core/utils/uuid';
@@ -19,18 +20,20 @@ import { formatRelative } from '@core/utils/date';
 const PROMPT_KEY = 'session_restore_prompt';
 const PROMPT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
-type HomeTab = 'session' | 'tab' | 'tab-group';
+type HomeTab = 'session' | 'tab' | 'tab-group' | 'bookmarks';
 
 const HOME_TABS: { key: HomeTab; label: string }[] = [
   { key: 'session',   label: 'Session' },
   { key: 'tab',       label: 'Tab' },
   { key: 'tab-group', label: 'Tab Group' },
+  { key: 'bookmarks', label: 'Folders' },
 ];
 
 const SEARCH_PLACEHOLDERS: Record<HomeTab, string> = {
   session: 'Search sessions… (#tag to filter)',
   tab: 'Search open tabs…',
   'tab-group': 'Search tab groups…',
+  bookmarks: 'Search bookmarks…',
 };
 
 export default function HomeView() {
@@ -202,12 +205,14 @@ export default function HomeView() {
         ))}
       </div>
 
-      {/* Search bar — always visible, adapts per tab */}
-      <SearchBar
-        onSearch={handleSearch}
-        placeholder={SEARCH_PLACEHOLDERS[activeHomeTab]}
-        showFilters={activeHomeTab === 'session'}
-      />
+      {/* Search bar — hide on bookmarks tab (tree has its own layout) */}
+      {activeHomeTab !== 'bookmarks' && (
+        <SearchBar
+          onSearch={handleSearch}
+          placeholder={SEARCH_PLACEHOLDERS[activeHomeTab]}
+          showFilters={activeHomeTab === 'session'}
+        />
+      )}
 
       {/* Startup restore banner */}
       {activeHomeTab === 'session' && !restorePromptDismissed && restorePromptSession && (
@@ -252,11 +257,18 @@ export default function HomeView() {
       {activeHomeTab === 'tab-group' && (
         <HomeTabGroupsPanel sessions={sessions} loading={loading} query={searchQuery} onToast={addToast} />
       )}
+      {activeHomeTab === 'bookmarks' && (
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <BookmarksPanel />
+        </div>
+      )}
 
-      {/* Footer */}
-      <div className="px-3 py-2 border-t border-[var(--color-border)] flex items-center justify-end text-xs text-[var(--color-text-secondary)]">
-        <span>{sessions.length} session{sessions.length !== 1 ? 's' : ''}</span>
-      </div>
+      {/* Footer — hide on bookmarks tab */}
+      {activeHomeTab !== 'bookmarks' && (
+        <div className="px-3 py-2 border-t border-[var(--color-border)] flex items-center justify-end text-xs text-[var(--color-text-secondary)]">
+          <span>{sessions.length} session{sessions.length !== 1 ? 's' : ''}</span>
+        </div>
+      )}
 
       {/* Quick Actions — at the bottom */}
       <QuickActions onToast={addToast} />

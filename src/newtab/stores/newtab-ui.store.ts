@@ -8,6 +8,7 @@ import { updateNewTabSettings } from '@core/services/newtab-settings.service';
 
 export type NewTabView =
   | 'bookmarks'
+  | 'folder-explorer'
   | 'sessions'
   | 'auto-saves'
   | 'tab-groups'
