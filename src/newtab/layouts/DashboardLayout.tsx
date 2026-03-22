@@ -273,6 +273,9 @@ export default function DashboardLayout() {
         onRefreshQuote: (id: string, idx: number, at: string) => { void handleRefreshQuote(id, idx, at); },
         onRenameCard: (id: string, name: string) => { void handleRenameCard(id, name); },
         onDuplicateCard: (id: string) => { void handleDuplicateCard(id); },
+        hasUnsavedLayoutChanges,
+        savedFeedback,
+        onSaveLayout: () => { void handleSaveLayout(); },
       }
     : null;
 
@@ -293,9 +296,6 @@ export default function DashboardLayout() {
           await updateNewTabSettings({ language: lang }); // ensure persisted before reload
           window.location.reload();
         }}
-        hasUnsavedLayoutChanges={hasUnsavedLayoutChanges}
-        savedFeedback={savedFeedback}
-        onSaveLayout={() => { void handleSaveLayout(); }}
       />
 
       {/* ── Body: sidebar + main ── */}

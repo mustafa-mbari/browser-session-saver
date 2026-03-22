@@ -6,7 +6,7 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
-import { LayoutGrid, Download, FolderOpen } from 'lucide-react';
+import { LayoutGrid, Download, FolderOpen, Save } from 'lucide-react';
 import { useNewTabUIStore } from '@newtab/stores/newtab-ui.store';
 import BookmarkCategoryCard from './BookmarkCategoryCard';
 import AddCardModal from './AddCardModal';
@@ -30,6 +30,9 @@ interface Props extends BookmarkBoardActions {
   onAddCategory: (boardId: string, cardType: CardType) => void;
   onReorderCategories: (newCategories: BookmarkCategory[]) => void;
   onImportNative: (boardId: string) => void;
+  hasUnsavedLayoutChanges?: boolean;
+  savedFeedback?: boolean;
+  onSaveLayout?: () => void;
 }
 
 export default function BookmarkBoard({
@@ -41,6 +44,9 @@ export default function BookmarkBoard({
   onAddCategory,
   onReorderCategories,
   onImportNative,
+  hasUnsavedLayoutChanges,
+  savedFeedback,
+  onSaveLayout,
   // Actions forwarded via context
   onAddEntry,
   onDeleteEntry,
@@ -92,6 +98,22 @@ export default function BookmarkBoard({
               <FolderOpen size={14} />
               Folders
             </button>
+            {hasUnsavedLayoutChanges && onSaveLayout && (
+              <button
+                onClick={onSaveLayout}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border"
+                style={{
+                  color: savedFeedback ? '#86efac' : '#fbbf24',
+                  backgroundColor: savedFeedback ? 'rgba(134,239,172,0.12)' : 'rgba(251,191,36,0.15)',
+                  borderColor: savedFeedback ? 'rgba(134,239,172,0.3)' : 'rgba(251,191,36,0.3)',
+                }}
+                aria-label={savedFeedback ? 'Layout saved' : 'Save layout changes'}
+                title={savedFeedback ? 'Layout saved' : 'Save layout changes'}
+              >
+                <Save size={14} />
+                {savedFeedback ? 'Saved!' : 'Save Layout changes'}
+              </button>
+            )}
             <button
               onClick={() => setAddCardOpen(true)}
               className="glass flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm hover:bg-white/20 transition-colors"

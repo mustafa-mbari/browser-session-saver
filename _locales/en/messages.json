@@ -357,7 +357,7 @@
     "description": "Sessions panel search input placeholder"
   },
   "saveLayout": {
-    "message": "Save Layout",
+    "message": "Save Layout changes",
     "description": "Button label for saving pending widget layout changes"
   },
   "layoutSaved": {
