@@ -4,7 +4,7 @@ export type CardType = 'bookmark' | 'clock' | 'note' | 'todo' | 'subscription' |
 export type CardDensity = 'comfortable' | 'compact';
 export type SearchEngine = 'google' | 'bing' | 'duckduckgo' | 'brave' | 'custom';
 export type ClockFormat = '12h' | '24h';
-export type BackgroundType = 'solid' | 'gradient' | 'image' | 'none';
+export type BackgroundType = 'solid' | 'gradient' | 'image' | 'bundled' | 'none';
 export type TodoPriority = 'high' | 'medium' | 'low' | 'none';
 export type AppLanguage = 'auto' | 'en' | 'ar' | 'de';
 
@@ -106,6 +106,7 @@ export interface NewTabSettings {
   backgroundGradientStops: string[];
   backgroundGradientAngle: number;
   backgroundImageId?: string;
+  backgroundBundledPath?: string;
   backgroundBlur: number;
   backgroundDimming: number;
   backgroundSaturation: number;
@@ -132,7 +133,8 @@ export const DEFAULT_NEWTAB_SETTINGS: NewTabSettings = {
   showTodo: true,
   showSessions: true,
   showBookmarks: true,
-  backgroundType: 'gradient',
+  backgroundType: 'bundled',
+  backgroundBundledPath: 'Custom_Image_1.jpg',
   backgroundColor: '#1a1a2e',
   backgroundGradientStops: ['#0f0c29', '#302b63', '#24243e'],
   backgroundGradientAngle: 180,

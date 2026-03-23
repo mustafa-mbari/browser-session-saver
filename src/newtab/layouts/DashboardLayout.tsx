@@ -19,7 +19,7 @@ import * as QuickLinksService from '@core/services/quicklinks.service';
 import * as BookmarkService from '@core/services/bookmark.service';
 import { getFaviconUrl } from '@core/utils/favicon';
 import { DEFAULT_NEWTAB_SETTINGS } from '@core/types/newtab.types';
-import type { QuickLink, CardType, SpanValue } from '@core/types/newtab.types';
+import type { QuickLink, CardType, SpanValue, BookmarkCategory } from '@core/types/newtab.types';
 import { getDefaultSize, clampSize } from '@core/config/widget-config';
 
 export default function DashboardLayout() {
@@ -36,9 +36,12 @@ export default function DashboardLayout() {
   const pendingResizes = useRef<Record<string, { colSpan: SpanValue; rowSpan: SpanValue }>>({});
 
   const activeBoard = boards.find((b) => b.id === settings.activeBoardId) ?? boards[0] ?? null;
-  // Only show categories explicitly listed in the board's categoryIds
+  // Derive board widget order from board.categoryIds so that deferred reorders
+  // (pendingReorders) survive the useEffect category reload on view changes.
   const boardCategories = activeBoard
-    ? categories.filter((c) => activeBoard.categoryIds.includes(c.id))
+    ? activeBoard.categoryIds
+        .map((id) => categories.find((c) => c.id === id))
+        .filter((c): c is BookmarkCategory => c !== undefined)
     : [];
 
   // Only bookmark-type folders that are NOT already placed as a widget on any board.
@@ -147,13 +150,17 @@ export default function DashboardLayout() {
     const boardId = activeBoard?.id;
     if (boardId) {
       pendingReorders.current[boardId] = reordered.map((c) => c.id);
+      // Update boards state so boardCategories order survives the useEffect category reload
+      dataStore.setBoards(boards.map((b) =>
+        b.id === boardId ? { ...b, categoryIds: reordered.map((c) => c.id) } : b,
+      ));
     }
     dataStore.setCategories([
       ...categories.filter((c) => c.boardId !== boardId),
       ...reordered,
     ]);
     setHasUnsavedLayoutChanges(true);
-  }, [activeBoard, categories]);
+  }, [activeBoard, categories, boards]);
 
   const handleImportNative = useCallback(async (boardId: string) => {
     await BookmarkService.importNativeBookmarks(newtabDB, boardId);
@@ -175,8 +182,12 @@ export default function DashboardLayout() {
       boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, ...getDefaultSize(cardType), cardType,
     });
     dataStore.setCategories([...categories, cat]);
+    // Update boards state so the new widget passes the boardCategories filter immediately
+    dataStore.setBoards(boards.map((b) =>
+      b.id === boardId ? { ...b, categoryIds: [...b.categoryIds, cat.id] } : b,
+    ));
     setHasUnsavedLayoutChanges(true);
-  }, [categories]);
+  }, [categories, boards]);
 
   const handleLinkFolder = useCallback(async (categoryId: string) => {
     if (!activeBoard) return;
@@ -244,8 +255,12 @@ export default function DashboardLayout() {
     );
     dataStore.setCategories([...categories, newCat]);
     dataStore.setEntries([...entries, ...newEntries]);
+    // Update boards state so the duplicate passes the boardCategories filter immediately
+    dataStore.setBoards(boards.map((b) =>
+      b.id === newCat.boardId ? { ...b, categoryIds: [...b.categoryIds, newCat.id] } : b,
+    ));
     setHasUnsavedLayoutChanges(true);
-  }, [categories, entries]);
+  }, [categories, entries, boards]);
 
   const handleSaveLayout = useCallback(async () => {
     for (const [boardId, categoryIds] of Object.entries(pendingReorders.current)) {

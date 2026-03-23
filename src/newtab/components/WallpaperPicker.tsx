@@ -205,9 +205,40 @@ export default function WallpaperPicker({ isOpen, onClose, settings, onUpdate }:
             </label>
           </section>
 
-          {/* Custom Image */}
+          {/* Preset Images */}
           <section>
-            <SectionHeader icon={ImageIcon} label="Custom Image" />
+            <SectionHeader icon={ImageIcon} label="Preset Images" />
+            <button
+              onClick={() => onUpdate({ backgroundType: 'bundled', backgroundBundledPath: 'Custom_Image_1.jpg' })}
+              className={`relative w-full h-24 rounded-xl overflow-hidden border-2 transition-all hover:scale-[1.02] ${
+                settings.backgroundType === 'bundled' && settings.backgroundBundledPath === 'Custom_Image_1.jpg'
+                  ? 'border-blue-400 ring-2 ring-blue-400/40'
+                  : 'border-white/12 hover:border-white/30'
+              }`}
+              aria-label="Custom Image 1"
+            >
+              <img
+                src={chrome.runtime.getURL('Custom_Image_1.jpg')}
+                alt="Custom Image 1"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 flex items-end p-2 bg-gradient-to-t from-black/50 to-transparent">
+                <span className="text-xs font-medium text-white">Custom Image 1</span>
+              </div>
+              {settings.backgroundType === 'bundled' && settings.backgroundBundledPath === 'Custom_Image_1.jpg' && (
+                <div
+                  className="absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: '#60a5fa', boxShadow: '0 0 8px rgba(96,165,250,0.7)' }}
+                >
+                  <span className="text-white text-[8px] font-bold">✓</span>
+                </div>
+              )}
+            </button>
+          </section>
+
+          {/* Custom Image Upload */}
+          <section>
+            <SectionHeader icon={Upload} label="Upload Image" />
             <input
               ref={fileInputRef}
               type="file"

@@ -21,7 +21,12 @@
       "Bash(npx vitest:*)",
       "Bash(powershell -File -:*)",
       "Bash(findstr:*)",
-      "Bash(powershell -Command \"Set-Location ''e:\\\\AntiGravity_Projects\\\\browser-session-saver\\\\browser-session-saver''; npx tsc --noEmit 2>&1; Write-Host ''TSC_DONE''; npm test 2>&1 | Select-String -Pattern ''passed|failed|Tests''\")"
+      "Bash(powershell -Command \"Set-Location ''e:\\\\AntiGravity_Projects\\\\browser-session-saver\\\\browser-session-saver''; npx tsc --noEmit 2>&1; Write-Host ''TSC_DONE''; npm test 2>&1 | Select-String -Pattern ''passed|failed|Tests''\")",
+      "Bash(ls:*)",
+      "Bash(magick:*)",
+      "Bash(convert:*)",
+      "Bash(node -e:*)",
+      "Bash(powershell -Command:*)"
     ]
   }
 }

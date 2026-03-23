@@ -8,6 +8,11 @@ export function useWallpaper(settings: NewTabSettings): { backgroundStyle: CSSPr
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    if (settings.backgroundType === 'bundled') {
+      const path = settings.backgroundBundledPath;
+      setImageUrl(path ? chrome.runtime.getURL(path) : null);
+      return;
+    }
     if (settings.backgroundType !== 'image' || !settings.backgroundImageId) {
       setImageUrl(null);
       return;
@@ -25,7 +30,7 @@ export function useWallpaper(settings: NewTabSettings): { backgroundStyle: CSSPr
     return () => {
       cancelled = true;
     };
-  }, [settings.backgroundType, settings.backgroundImageId]);
+  }, [settings.backgroundType, settings.backgroundImageId, settings.backgroundBundledPath]);
 
   useEffect(() => {
     const urls = objectUrlsRef.current;
@@ -36,7 +41,7 @@ export function useWallpaper(settings: NewTabSettings): { backgroundStyle: CSSPr
 
   const base = buildBackgroundStyle(settings);
 
-  if (settings.backgroundType === 'image' && imageUrl) {
+  if ((settings.backgroundType === 'image' || settings.backgroundType === 'bundled') && imageUrl) {
     const backgroundStyle: CSSProperties = {
       ...base,
       backgroundImage: `url(${imageUrl})`,

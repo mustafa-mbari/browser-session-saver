@@ -13,6 +13,13 @@ export default function ImportExportView() {
   const [importResult, setImportResult] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Dashboard export/import state
+  const [exportingDashboard, setExportingDashboard] = useState(false);
+  const [importingDashboard, setImportingDashboard] = useState(false);
+  const [dashboardImportResult, setDashboardImportResult] = useState<string | null>(null);
+  const [showDashboardWarning, setShowDashboardWarning] = useState(false);
+  const dashboardFileInputRef = useRef<HTMLInputElement>(null);
+
   const mimeTypes: Record<string, string> = {
     json: 'application/json',
     html: 'text/html',
@@ -69,9 +76,62 @@ export default function ImportExportView() {
     await processImportFile(file);
   };
 
+  const handleExportDashboard = async () => {
+    setExportingDashboard(true);
+    try {
+      const { exportDashboardAsJSON } = await import('@core/services/newtab-export.service');
+      const json = await exportDashboardAsJSON();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `browser-hub-dashboard-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // Silent fail — loading state clears
+    }
+    setExportingDashboard(false);
+  };
+
+  const processDashboardImportFile = useCallback(async (file: File) => {
+    setImportingDashboard(true);
+    setDashboardImportResult(null);
+
+    try {
+      const text = await file.text();
+      const { importDashboardFromJSON } = await import('@core/services/newtab-export.service');
+      const result = await importDashboardFromJSON(text);
+
+      if (result.success && result.counts) {
+        const { boards, categories, entries, todoItems } = result.counts;
+        setDashboardImportResult(
+          `Dashboard imported: ${boards} board${boards !== 1 ? 's' : ''}, ` +
+          `${categories} widget${categories !== 1 ? 's' : ''}, ` +
+          `${entries} bookmark${entries !== 1 ? 's' : ''}, ` +
+          `${todoItems} todo item${todoItems !== 1 ? 's' : ''}`,
+        );
+      } else {
+        setDashboardImportResult(result.error ?? 'Import failed');
+      }
+    } catch {
+      setDashboardImportResult('Failed to read file');
+    }
+
+    setImportingDashboard(false);
+    setShowDashboardWarning(false);
+    if (dashboardFileInputRef.current) dashboardFileInputRef.current.value = '';
+  }, []);
+
+  const handleDashboardImportChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processDashboardImportFile(file);
+  };
+
   return (
     <div className="flex-1 overflow-auto p-3 space-y-6">
-      {/* Export */}
+      {/* Export Sessions */}
       <section>
         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
           <Download size={16} />
@@ -124,7 +184,30 @@ export default function ImportExportView() {
         </div>
       </section>
 
-      {/* Import */}
+      {/* Export Dashboard */}
+      <section>
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <Download size={16} />
+          Export Dashboard
+        </h3>
+        <div className="space-y-3">
+          <p className="text-xs text-[var(--color-text-secondary)]">
+            Exports all boards, widgets, bookmarks, quick links, todo lists, and settings as JSON.
+            Wallpaper images are not included.
+          </p>
+          <Button
+            icon={Download}
+            size="sm"
+            fullWidth
+            loading={exportingDashboard}
+            onClick={handleExportDashboard}
+          >
+            Export Dashboard as JSON
+          </Button>
+        </div>
+      </section>
+
+      {/* Import Sessions */}
       <section>
         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
           <Upload size={16} />
@@ -161,6 +244,64 @@ export default function ImportExportView() {
         {importResult && (
           <p className={`text-sm mt-2 ${importResult.includes('success') ? 'text-success' : 'text-error'}`}>
             {importResult}
+          </p>
+        )}
+      </section>
+
+      {/* Import Dashboard */}
+      <section>
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <Upload size={16} />
+          Import Dashboard
+        </h3>
+        {!showDashboardWarning ? (
+          <div className="space-y-3">
+            <div className="rounded-card border border-amber-400 bg-amber-50 dark:bg-amber-900/20 p-3 text-xs text-amber-800 dark:text-amber-300">
+              <strong>This will replace all existing dashboard data</strong> — boards, widgets,
+              bookmarks, quick links, and todos — with the contents of the file. This cannot be
+              undone. Wallpaper images will not be affected.
+            </div>
+            <Button
+              variant="danger"
+              size="sm"
+              fullWidth
+              onClick={() => setShowDashboardWarning(true)}
+            >
+              I understand, choose a file
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div
+              className="border-2 border-dashed border-[var(--color-border)] rounded-card p-6 text-center cursor-pointer hover:border-primary transition-colors"
+              onClick={() => dashboardFileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const file = e.dataTransfer.files[0];
+                if (file) processDashboardImportFile(file);
+              }}
+            >
+              <Upload size={24} className="mx-auto mb-2 text-[var(--color-text-secondary)]" />
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                Drop a dashboard JSON file here or click to browse
+              </p>
+            </div>
+            <input
+              ref={dashboardFileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleDashboardImportChange}
+              className="hidden"
+            />
+          </>
+        )}
+        {importingDashboard && (
+          <p className="text-sm text-primary mt-2">Importing dashboard data...</p>
+        )}
+        {dashboardImportResult && (
+          <p className={`text-sm mt-2 ${dashboardImportResult.includes('imported') ? 'text-success' : 'text-error'}`}>
+            {dashboardImportResult}
           </p>
         )}
       </section>

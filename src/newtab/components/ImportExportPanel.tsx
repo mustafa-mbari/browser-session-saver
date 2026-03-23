@@ -29,6 +29,13 @@ export default function ImportExportPanel() {
   const [importResult, setImportResult] = useState<{ imported: number; errors: string[] } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Dashboard export/import state
+  const [exportingDashboard, setExportingDashboard] = useState(false);
+  const [importingDashboard, setImportingDashboard] = useState(false);
+  const [dashboardImportResult, setDashboardImportResult] = useState<string | null>(null);
+  const [showDashboardWarning, setShowDashboardWarning] = useState(false);
+  const dashboardFileRef = useRef<HTMLInputElement>(null);
+
   const handleExport = async () => {
     const response = await sendMessage<string>({
       action: 'EXPORT_SESSIONS',
@@ -68,6 +75,50 @@ export default function ImportExportPanel() {
     if (fileRef.current) fileRef.current.value = '';
   }, [sendMessage, refreshSessions]);
 
+  const handleExportDashboard = async () => {
+    setExportingDashboard(true);
+    try {
+      const { exportDashboardAsJSON } = await import('@core/services/newtab-export.service');
+      const json = await exportDashboardAsJSON();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `browser-hub-dashboard-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // Silent fail
+    }
+    setExportingDashboard(false);
+  };
+
+  const processDashboardFile = useCallback(async (file: File) => {
+    setImportingDashboard(true);
+    setDashboardImportResult(null);
+    try {
+      const text = await file.text();
+      const { importDashboardFromJSON } = await import('@core/services/newtab-export.service');
+      const result = await importDashboardFromJSON(text);
+      if (result.success && result.counts) {
+        const { boards, categories, entries, todoItems } = result.counts;
+        setDashboardImportResult(
+          `Imported: ${boards} board${boards !== 1 ? 's' : ''}, ` +
+          `${categories} widget${categories !== 1 ? 's' : ''}, ` +
+          `${entries} bookmark${entries !== 1 ? 's' : ''}, ` +
+          `${todoItems} todo item${todoItems !== 1 ? 's' : ''}`,
+        );
+      } else {
+        setDashboardImportResult(result.error ?? 'Import failed');
+      }
+    } catch {
+      setDashboardImportResult('Failed to read file');
+    }
+    setImportingDashboard(false);
+    setShowDashboardWarning(false);
+    if (dashboardFileRef.current) dashboardFileRef.current.value = '';
+  }, []);
+
   return (
     <div className="pt-4 w-full">
       <h2 className="text-xl font-semibold mb-5" style={{ color: 'var(--newtab-text)' }}>
@@ -75,7 +126,7 @@ export default function ImportExportPanel() {
       </h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* ── Export ── */}
+        {/* ── Export Sessions ── */}
         <div className="glass-panel rounded-xl p-5 flex flex-col gap-4">
           <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--newtab-text)' }}>
             <Download size={15} className="opacity-70" />
@@ -113,7 +164,7 @@ export default function ImportExportPanel() {
           </button>
         </div>
 
-        {/* ── Import ── */}
+        {/* ── Import Sessions ── */}
         <div className="glass-panel rounded-xl p-5 flex flex-col gap-4">
           <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--newtab-text)' }}>
             <Upload size={15} className="opacity-70" />
@@ -168,6 +219,103 @@ export default function ImportExportPanel() {
               {importResult.errors.length > 3 && (
                 <p>…and {importResult.errors.length - 3} more</p>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Export Dashboard ── */}
+        <div className="glass-panel rounded-xl p-5 flex flex-col gap-4">
+          <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--newtab-text)' }}>
+            <Download size={15} className="opacity-70" />
+            Export Dashboard
+          </h3>
+          <p className="text-xs" style={{ color: 'var(--newtab-text-secondary)' }}>
+            Exports all boards, widgets, bookmarks, quick links, todo lists, and settings as a
+            JSON file. Wallpaper images are not included.
+          </p>
+
+          <button
+            onClick={() => { void handleExportDashboard(); }}
+            disabled={exportingDashboard}
+            className="mt-auto flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/25 disabled:opacity-50"
+            style={{ background: 'rgba(255,255,255,0.15)', color: 'var(--newtab-text)' }}
+          >
+            {exportingDashboard ? (
+              <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Download size={14} />
+            )}
+            Export Dashboard as JSON
+          </button>
+        </div>
+
+        {/* ── Import Dashboard ── */}
+        <div className="glass-panel rounded-xl p-5 flex flex-col gap-4">
+          <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--newtab-text)' }}>
+            <Upload size={15} className="opacity-70" />
+            Import Dashboard
+          </h3>
+
+          {!showDashboardWarning ? (
+            <>
+              <div
+                className="rounded-xl px-4 py-3 text-xs"
+                style={{ background: 'rgba(255,159,10,0.15)', color: 'rgba(255,159,10,0.9)' }}
+              >
+                <strong>This will replace all existing dashboard data</strong> — boards, widgets,
+                bookmarks, quick links, and todos. This cannot be undone. Wallpaper images will
+                not be affected.
+              </div>
+              <button
+                onClick={() => setShowDashboardWarning(true)}
+                className="flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-red-500/30"
+                style={{ background: 'rgba(255,69,58,0.2)', color: '#ff453a' }}
+              >
+                I understand, choose a file
+              </button>
+            </>
+          ) : (
+            <>
+              <div
+                className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center cursor-pointer hover:border-white/40 hover:bg-white/5 transition-all"
+                onClick={() => dashboardFileRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files[0];
+                  if (file) void processDashboardFile(file);
+                }}
+              >
+                <Upload size={28} className="mx-auto mb-2 opacity-40" style={{ color: 'var(--newtab-text)' }} />
+                <p className="text-sm font-medium" style={{ color: 'var(--newtab-text)' }}>
+                  Drop dashboard JSON or click to browse
+                </p>
+              </div>
+              <input
+                ref={dashboardFileRef}
+                type="file"
+                accept=".json"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) void processDashboardFile(f); }}
+                className="hidden"
+              />
+            </>
+          )}
+
+          {importingDashboard && (
+            <p className="text-xs text-center" style={{ color: 'var(--newtab-text-secondary)' }}>
+              Importing dashboard data...
+            </p>
+          )}
+
+          {dashboardImportResult && (
+            <div
+              className="rounded-lg px-3 py-2 text-xs"
+              style={{
+                background: dashboardImportResult.includes('Imported') ? 'rgba(52,200,89,0.15)' : 'rgba(255,69,58,0.15)',
+                color: dashboardImportResult.includes('Imported') ? '#34c859' : '#ff453a',
+              }}
+            >
+              {dashboardImportResult}
             </div>
           )}
         </div>

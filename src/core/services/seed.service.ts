@@ -24,50 +24,6 @@ export async function seedDefaultData(db: NewTabDB): Promise<SeedResult> {
 
   const mainBoardId = generateId();
 
-  const noteCard: BookmarkCategory = {
-    id: generateId(),
-    boardId: mainBoardId,
-    name: 'Note',
-    icon: '📝',
-    color: '#f59e0b',
-    bookmarkIds: [],
-    collapsed: false,
-    colSpan: 1,
-    rowSpan: 1,
-    cardType: 'note',
-    noteContent: '',
-    createdAt: ts(base, 0),
-  };
-
-  const clockCard: BookmarkCategory = {
-    id: generateId(),
-    boardId: mainBoardId,
-    name: 'Clock',
-    icon: '🕐',
-    color: '#06b6d4',
-    bookmarkIds: [],
-    collapsed: false,
-    colSpan: 1,
-    rowSpan: 1,
-    cardType: 'clock',
-    createdAt: ts(base, 1),
-  };
-
-  const todoCard: BookmarkCategory = {
-    id: generateId(),
-    boardId: mainBoardId,
-    name: 'To-Do',
-    icon: '✅',
-    color: '#22c55e',
-    bookmarkIds: [],
-    collapsed: false,
-    colSpan: 1,
-    rowSpan: 1,
-    cardType: 'todo',
-    noteContent: '[]',
-    createdAt: ts(base, 2),
-  };
-
   const privateCard: BookmarkCategory = {
     id: generateId(),
     boardId: mainBoardId,
@@ -76,10 +32,10 @@ export async function seedDefaultData(db: NewTabDB): Promise<SeedResult> {
     color: '#6366f1',
     bookmarkIds: [],
     collapsed: false,
-    colSpan: 1,
-    rowSpan: 2,
+    colSpan: 3,
+    rowSpan: 3,
     cardType: 'bookmark',
-    createdAt: ts(base, 3),
+    createdAt: ts(base, 0),
   };
 
   const workCard: BookmarkCategory = {
@@ -90,13 +46,13 @@ export async function seedDefaultData(db: NewTabDB): Promise<SeedResult> {
     color: '#3b82f6',
     bookmarkIds: [],
     collapsed: false,
-    colSpan: 1,
-    rowSpan: 2,
+    colSpan: 3,
+    rowSpan: 3,
     cardType: 'bookmark',
-    createdAt: ts(base, 4),
+    createdAt: ts(base, 1),
   };
 
-  const mainCards = [noteCard, clockCard, todoCard, privateCard, workCard];
+  const mainCards = [privateCard, workCard];
 
   const mainBoard: Board = {
     id: mainBoardId,

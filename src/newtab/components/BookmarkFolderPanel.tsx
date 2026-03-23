@@ -526,7 +526,7 @@ function MyFoldersSection({ categories, boards, selectedId, onSelect, onOpenDial
         .filter(c => c.parentCategoryId === parentId)
         .map(f => ({ folder: f, children: buildNodes(f.id) }));
     }
-    const topLevel = categories.filter(c => !c.parentCategoryId);
+    const topLevel = categories.filter(c => !c.parentCategoryId && (c.cardType === 'bookmark' || !c.cardType));
     const order = folderOrders['__root__'] ?? [];
     const sorted = getSortedFolders(topLevel, order);
     return sorted.map(f => ({ folder: f, children: buildNodes(f.id) }));

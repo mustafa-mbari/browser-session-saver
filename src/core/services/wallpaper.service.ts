@@ -62,6 +62,6 @@ export function buildBackgroundStyle(settings: NewTabSettings): CSSProperties {
     return { ...base, backgroundColor: '#000000' };
   }
 
-  // 'image' type: caller injects backgroundImage via the hook
+  // 'image' and 'bundled' types: caller injects backgroundImage via the hook
   return base;
 }
