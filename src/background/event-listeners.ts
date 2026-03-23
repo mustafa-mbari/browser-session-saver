@@ -55,6 +55,10 @@ async function handleMessage(message: Message): Promise<MessageResponse> {
       return handleRestoreSelectedTabs(message.payload);
     case 'UPDATE_SESSION_TABS':
       return handleUpdateSessionTabs(message.payload);
+    case 'OPEN_DOWNLOAD':
+      return handleOpenDownload(message.payload);
+    case 'SHOW_DOWNLOAD':
+      return handleShowDownload(message.payload);
     default:
       return { success: false, error: 'Unknown action' };
   }
@@ -515,6 +519,24 @@ async function handleUpdateSessionTabs(payload: {
   });
 
   return { success: true, data: { addedCount: newTabs.length, removedCount } };
+}
+
+async function handleOpenDownload(payload: { downloadId: number }): Promise<MessageResponse> {
+  try {
+    chrome.downloads.open(payload.downloadId);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+async function handleShowDownload(payload: { downloadId: number }): Promise<MessageResponse> {
+  try {
+    chrome.downloads.show(payload.downloadId);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
 }
 
 async function getCurrentWindowId(): Promise<number> {

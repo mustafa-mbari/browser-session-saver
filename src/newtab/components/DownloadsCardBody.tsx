@@ -174,8 +174,7 @@ export default function DownloadsCardBody({ colSpan: _colSpan, rowSpan: _rowSpan
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                   <button
                     onClick={() => {
-                      try { chrome.downloads.open(item.id); }
-                      catch (e) { console.error('[Downloads] open failed:', e); }
+                      void chrome.runtime.sendMessage({ action: 'OPEN_DOWNLOAD', payload: { downloadId: item.id } });
                     }}
                     className="p-1 rounded transition-colors hover:bg-white/10"
                     title="Open file"
@@ -191,8 +190,7 @@ export default function DownloadsCardBody({ colSpan: _colSpan, rowSpan: _rowSpan
                   </button>
                   <button
                     onClick={() => {
-                      try { chrome.downloads.show(item.id); }
-                      catch (e) { console.error('[Downloads] show failed:', e); }
+                      void chrome.runtime.sendMessage({ action: 'SHOW_DOWNLOAD', payload: { downloadId: item.id } });
                     }}
                     className="p-1 rounded transition-colors hover:bg-white/10"
                     title="Show in folder"

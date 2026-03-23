@@ -46,7 +46,9 @@ export type Message =
   | { action: 'MERGE_SESSIONS'; payload: { sessionIds: string[]; targetName: string } }
   | { action: 'DIFF_SESSIONS'; payload: { sessionIdA: string; sessionIdB: string } }
   | { action: 'RESTORE_SELECTED_TABS'; payload: { sessionId: string; tabIds: string[]; mode: RestoreMode } }
-  | { action: 'UPDATE_SESSION_TABS'; payload: { sessionId: string } };
+  | { action: 'UPDATE_SESSION_TABS'; payload: { sessionId: string } }
+  | { action: 'OPEN_DOWNLOAD'; payload: { downloadId: number } }
+  | { action: 'SHOW_DOWNLOAD'; payload: { downloadId: number } };
 
 export interface MessageResponse<T = unknown> {
   success: boolean;
