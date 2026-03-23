@@ -1,4 +1,6 @@
-# CLAUDE.md — Browser Hub Project Guide
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
@@ -7,18 +9,20 @@ Browser Hub is a Chrome extension (Manifest V3) that saves, restores, and manage
 ## Commands
 
 ```bash
-npm run dev      # Vite dev server with HMR
-npm run build    # Production build → dist/
-npm test         # Vitest unit tests
-npm run lint     # ESLint
-npm run format   # Prettier
+npm run dev           # Vite dev server with HMR
+npm run build         # tsc type-check + Vite production build → dist/
+npm test              # Vitest unit tests (run once)
+npm run test:watch    # Vitest in watch mode
+npx vitest run tests/unit/path/to/file.test.ts  # Run a single test file
+npm run lint          # ESLint
+npm run format        # Prettier
 ```
 
 ## Architecture
 
 - **Background service worker** (`src/background/`) — all Chrome API calls, auto-save engine, message handling
 - **Core layer** (`src/core/`) — framework-agnostic types, services, storage, utilities
-- **UI surfaces** — Side Panel (`src/sidepanel/`), Popup (`src/popup/`), Start-Tab (`src/newtab/`)
+- **UI surfaces** — Side Panel (`src/sidepanel/`), Popup (`src/popup/`), Start-Tab (`src/newtab/`); each has its own `index.html` entry point bundled by `@crxjs/vite-plugin` from `manifest.json`
 - **Shared** (`src/shared/`) — reusable components, hooks, styles, i18n utilities used by all UI surfaces
 
 ## Key Conventions
@@ -97,6 +101,7 @@ npm run format   # Prettier
 - Top nav tabs: Quick Links, Frequently Visited, Tabs, Activity — plus sidebar panels for Sessions, Auto-Saves, Tab Groups, Import/Export, Subscriptions
 - Heavy sidebar panels (`SessionsPanel`, `AutoSavesPanel`, `TabGroupsPanel`, `SubscriptionsPanel`) are `React.lazy`-loaded to keep initial bundle small
 - `BookmarkBoardContext` provides board-level actions to deep children without prop-drilling; use `useBookmarkBoardActions()` hook inside the provider
+- Session management features (SessionBulkToolbar, SessionDiffModal, SettingsPanel, AutoSavesPanel) live in `src/newtab/components/`
 
 ## Subscriptions Feature Notes
 
@@ -117,11 +122,6 @@ npm run format   # Prettier
 - Start-tab: `TabGroupsCardBody` widget type, `TabGroupsPanel` sidebar view
 - Auto-save: live groups automatically saved as templates when viewed
 - `ChromeGroupColor` type from `src/core/types/session.types.ts` (9 colors: grey, blue, red, yellow, green, pink, purple, cyan, orange)
-
-## Start-Tab Management
-
-- Session management features (SessionBulkToolbar, SessionDiffModal, SettingsPanel, AutoSavesPanel) live in `src/newtab/components/`
-- Full session management is available through the start-tab sidebar panels
 
 ## Testing
 
