@@ -264,5 +264,29 @@
   },
   "layoutSaved": {
     "message": "تم الحفظ!"
+  },
+  "weatherWidgetLabel": {
+    "message": "الطقس"
+  },
+  "weatherWidgetDesc": {
+    "message": "توقعات الطقس لليوم وغداً لموقعك"
+  },
+  "weatherToday": {
+    "message": "اليوم"
+  },
+  "weatherTomorrow": {
+    "message": "غداً"
+  },
+  "weatherGeoDenied": {
+    "message": "تم رفض الوصول إلى الموقع. فعّله في إعدادات المتصفح لرؤية الطقس."
+  },
+  "weatherError": {
+    "message": "تعذّر تحميل الطقس. تحقق من اتصالك."
+  },
+  "weatherRetry": {
+    "message": "إعادة المحاولة"
+  },
+  "weatherRefresh": {
+    "message": "تحديث"
   }
 }

@@ -270,5 +270,29 @@
   },
   "layoutSaved": {
     "message": "Gespeichert!"
+  },
+  "weatherWidgetLabel": {
+    "message": "Wetter"
+  },
+  "weatherWidgetDesc": {
+    "message": "Heutiger und morgiger Wetterbericht für deinen Standort"
+  },
+  "weatherToday": {
+    "message": "Heute"
+  },
+  "weatherTomorrow": {
+    "message": "Morgen"
+  },
+  "weatherGeoDenied": {
+    "message": "Standortzugriff verweigert. Aktiviere ihn in den Browsereinstellungen, um das Wetter zu sehen."
+  },
+  "weatherError": {
+    "message": "Wetter konnte nicht geladen werden. Überprüfe deine Verbindung."
+  },
+  "weatherRetry": {
+    "message": "Erneut versuchen"
+  },
+  "weatherRefresh": {
+    "message": "Aktualisieren"
   }
 }

@@ -53,6 +53,18 @@ const CARD_TYPES: CardTypeOption[] = [
     label: 'Chrome Bookmarks',
     description: 'Browse your Chrome bookmarks tree',
   },
+  {
+    type: 'weather',
+    icon: '🌤️',
+    label: 'Weather',
+    description: "Today's and tomorrow's forecast for your location",
+  },
+  {
+    type: 'downloads',
+    icon: '⬇️',
+    label: 'Recent Downloads',
+    description: 'Shows the last 5 files downloaded in Chrome',
+  },
 ];
 
 type BookmarkSubOption = 'create-new' | 'link-existing';

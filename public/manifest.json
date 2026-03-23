@@ -13,9 +13,15 @@
     "sidePanel",
     "activeTab",
     "topSites",
-    "bookmarks"
+    "bookmarks",
+    "downloads",
+    "downloads.open"
   ],
   "optional_permissions": ["history"],
+  "host_permissions": [
+    "https://api.open-meteo.com/*",
+    "https://ipinfo.io/*"
+  ],
   "chrome_url_overrides": {
     "newtab": "src/newtab/index.html"
   },

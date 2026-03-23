@@ -17,6 +17,8 @@ export const WIDGET_CONFIG: Record<CardType, WidgetSizeConfig> = {
   subscription:       { minW: 3, minH: 2, maxW: 9, maxH: 6, defaultW: 4, defaultH: 3 },
   'tab-groups':       { minW: 2, minH: 2, maxW: 9, maxH: 6, defaultW: 3, defaultH: 3 },
   'native-bookmarks': { minW: 2, minH: 3, maxW: 9, maxH: 9, defaultW: 2, defaultH: 4 },
+  weather:            { minW: 3, minH: 3, maxW: 6, maxH: 6, defaultW: 3, defaultH: 3 },
+  downloads:          { minW: 2, minH: 3, maxW: 6, maxH: 6, defaultW: 2, defaultH: 3 },
 };
 
 export function getDefaultSize(cardType: CardType): { colSpan: SpanValue; rowSpan: SpanValue } {

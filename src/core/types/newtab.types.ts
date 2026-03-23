@@ -1,6 +1,6 @@
 export type LayoutMode = 'minimal' | 'focus' | 'dashboard';
 export type SpanValue = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-export type CardType = 'bookmark' | 'clock' | 'note' | 'todo' | 'subscription' | 'tab-groups' | 'native-bookmarks';
+export type CardType = 'bookmark' | 'clock' | 'note' | 'todo' | 'subscription' | 'tab-groups' | 'native-bookmarks' | 'weather' | 'downloads';
 export type CardDensity = 'comfortable' | 'compact';
 export type SearchEngine = 'google' | 'bing' | 'duckduckgo' | 'brave' | 'custom';
 export type ClockFormat = '12h' | '24h';

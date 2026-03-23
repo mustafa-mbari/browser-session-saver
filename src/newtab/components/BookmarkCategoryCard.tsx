@@ -15,6 +15,8 @@ import ClockWidget from '@newtab/components/ClockWidget';
 import SubscriptionCardBody from '@newtab/components/SubscriptionCardBody';
 import TabGroupsCardBody from '@newtab/components/TabGroupsCardBody';
 import NativeBookmarksCardBody from '@newtab/components/NativeBookmarksCardBody';
+import WeatherCardBody from '@newtab/components/WeatherCardBody';
+import DownloadsCardBody from '@newtab/components/DownloadsCardBody';
 
 interface Props {
   category: BookmarkCategory;
@@ -238,6 +240,12 @@ export default function BookmarkCategoryCard({
           )}
           {cardType === 'native-bookmarks' && (
             <NativeBookmarksCardBody colSpan={colSpan} rowSpan={rowSpan} />
+          )}
+          {cardType === 'weather' && (
+            <WeatherCardBody colSpan={colSpan} rowSpan={rowSpan} />
+          )}
+          {cardType === 'downloads' && (
+            <DownloadsCardBody colSpan={colSpan} rowSpan={rowSpan} />
           )}
         </div>
       )}

@@ -159,6 +159,8 @@ export default function FocusLayout() {
       subscription:       { name: 'Subscriptions',   icon: '💳', color: '#8b5cf6' },
       'tab-groups':       { name: 'Tab Groups',       icon: '🗂️', color: '#06b6d4' },
       'native-bookmarks': { name: 'Chrome Bookmarks', icon: '🔗', color: '#e05d44' },
+      weather:            { name: 'Weather',          icon: '🌤️', color: '#38bdf8' },
+      downloads:          { name: 'Recent Downloads', icon: '⬇️', color: '#6366f1' },
     };
     const cat = await BookmarkService.saveCategory(newtabDB, {
       boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, ...getDefaultSize(cardType), cardType,

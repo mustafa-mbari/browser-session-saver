@@ -363,5 +363,37 @@
   "layoutSaved": {
     "message": "Saved!",
     "description": "Feedback text shown briefly after layout changes are saved"
+  },
+  "weatherWidgetLabel": {
+    "message": "Weather",
+    "description": "Weather widget type label in AddCardModal"
+  },
+  "weatherWidgetDesc": {
+    "message": "Today's and tomorrow's forecast for your location",
+    "description": "Weather widget type description in AddCardModal"
+  },
+  "weatherToday": {
+    "message": "Today",
+    "description": "Weather widget — today column label"
+  },
+  "weatherTomorrow": {
+    "message": "Tomorrow",
+    "description": "Weather widget — tomorrow column label"
+  },
+  "weatherGeoDenied": {
+    "message": "Location access denied. Enable it in browser settings to see weather.",
+    "description": "Weather widget — geolocation permission denied message"
+  },
+  "weatherError": {
+    "message": "Couldn't load weather. Check your connection.",
+    "description": "Weather widget — fetch error message"
+  },
+  "weatherRetry": {
+    "message": "Retry",
+    "description": "Weather widget — retry button label"
+  },
+  "weatherRefresh": {
+    "message": "Refresh",
+    "description": "Weather widget — manual refresh button label"
   }
 }
