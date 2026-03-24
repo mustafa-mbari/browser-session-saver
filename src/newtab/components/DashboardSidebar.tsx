@@ -330,10 +330,10 @@ export default function DashboardSidebar({
       >
         <button
           onClick={() => {
-            if (sidebarControl === 'expand-on-hover') {
-              onSidebarControlChange?.('expanded');
+            if (onSidebarControlChange) {
+              onSidebarControlChange('expanded');
             } else {
-              onSidebarControlChange?.('expanded') ?? onToggle();
+              onToggle();
             }
           }}
           className="p-1 rounded hover:bg-white/10 transition-colors mb-2"
@@ -412,7 +412,7 @@ export default function DashboardSidebar({
           Menu
         </span>
         <button
-          onClick={() => onSidebarControlChange?.('collapsed') ?? onToggle()}
+          onClick={() => onSidebarControlChange ? onSidebarControlChange('collapsed') : onToggle()}
           className="p-1 rounded hover:bg-white/10 transition-colors"
           aria-label="Collapse sidebar"
         >
