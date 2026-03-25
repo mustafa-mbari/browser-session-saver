@@ -19,10 +19,10 @@ const TS = { color: 'var(--newtab-text-secondary)' } as React.CSSProperties;
 
 // ── Top utility section definitions ────────────────────────────────────────
 const TOP_SECTIONS: Array<{ key: PromptSectionKey; label: string; icon: React.ReactNode }> = [
-  { key: 'start',        label: 'Start',     icon: <Home size={12} /> },
-  { key: 'quick-access', label: 'Pinned',    icon: <ZapIcon size={12} /> },
-  { key: 'all',          label: 'All',       icon: <LayoutList size={12} /> },
-  { key: 'favorites',    label: 'Favorites', icon: <StarIcon size={12} /> },
+  { key: 'start',        label: 'Start',     icon: <Home size={14} /> },
+  { key: 'quick-access', label: 'Pinned',    icon: <ZapIcon size={14} /> },
+  { key: 'all',          label: 'All',       icon: <LayoutList size={14} /> },
+  { key: 'favorites',    label: 'Favorites', icon: <StarIcon size={14} /> },
 ];
 
 // ── Prompt row card ─────────────────────────────────────────────────────────
@@ -533,7 +533,7 @@ function MiniSourceSection({
     <div className="mb-1">
       {/* Section header */}
       <div
-        className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer text-xs transition-colors ${
+        className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-colors ${
           isSourceActive ? 'bg-amber-500/20 text-amber-300' : 'hover:bg-white/10'
         }`}
         style={isSourceActive ? undefined : TS}
@@ -546,11 +546,11 @@ function MiniSourceSection({
           {expanded ? <ChevronDown size={9} /> : <ChevronRight size={9} />}
         </span>
         <span className="shrink-0">{icon}</span>
-        <span className="flex-1 truncate font-semibold uppercase tracking-wide text-[9px]">{label}</span>
-        {totalCount > 0 && <span className="opacity-40 text-[9px]">{totalCount}</span>}
+        <span className="flex-1 truncate font-semibold text-sm">{label}</span>
+        {totalCount > 0 && <span className="opacity-40 text-xs">{totalCount}</span>}
         <button
           onClick={(e) => { e.stopPropagation(); setAddingRoot(true); setExpanded(true); }}
-          className="shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-amber-500/20 hover:text-amber-300 transition-all"
+          className="hidden group-hover:flex shrink-0 p-0.5 rounded hover:bg-amber-500/20 hover:text-amber-300 transition-colors"
           title={`New folder in ${label}`}
         >
           <Plus size={10} />
@@ -745,7 +745,7 @@ export default function PromptsPanel() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
+      <div className="flex items-center justify-between px-3 py-3 border-b border-white/10 shrink-0">
         <div className="flex items-center gap-2">
           <Sparkles size={18} className="text-amber-400" />
           <span className="font-bold text-base" style={T}>Prompt Manager</span>
@@ -774,7 +774,7 @@ export default function PromptsPanel() {
       {/* Two-pane body */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: section nav (compact) */}
-        <nav className="w-32 shrink-0 border-r border-white/10 flex flex-col overflow-y-auto py-2 px-1 select-none">
+        <nav className="w-44 shrink-0 border-r border-white/10 flex flex-col overflow-y-auto py-2 px-1.5 select-none">
           {/* Top 4 utility sections */}
           <div className="space-y-0.5 mb-2">
             {TOP_SECTIONS.map(({ key, label, icon }) => {
@@ -784,7 +784,7 @@ export default function PromptsPanel() {
                 <button
                   key={key}
                   onClick={() => handleNavigate({ kind: 'section', key })}
-                  className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                  className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm transition-colors ${
                     isActive ? 'bg-amber-500/20 text-amber-300' : 'hover:bg-white/10'
                   }`}
                   style={isActive ? undefined : TS}
@@ -806,7 +806,7 @@ export default function PromptsPanel() {
           <MiniSourceSection
             source="local"
             label="My Prompts"
-            icon={<Monitor size={11} />}
+            icon={<Monitor size={13} />}
             prompts={prompts}
             folders={folders}
             nav={nav}
@@ -821,7 +821,7 @@ export default function PromptsPanel() {
           <MiniSourceSection
             source="app"
             label="App Prompts"
-            icon={<Globe size={11} />}
+            icon={<Globe size={13} />}
             prompts={prompts}
             folders={folders}
             nav={nav}
@@ -833,7 +833,7 @@ export default function PromptsPanel() {
         {/* Right: content */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Section title + search */}
-          <div className="px-4 pt-3 pb-2.5 shrink-0 space-y-2.5">
+          <div className="px-3 pt-3 pb-2.5 shrink-0 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-sm font-bold" style={T}>
                 {sectionLabel}
@@ -880,7 +880,7 @@ export default function PromptsPanel() {
           </div>
 
           {/* Prompt list */}
-          <div className="flex-1 overflow-y-auto px-4 pb-4">
+          <div className="flex-1 overflow-y-auto px-3 pb-4">
             {/* Inline form */}
             {formOpen && (
               <InlinePromptForm

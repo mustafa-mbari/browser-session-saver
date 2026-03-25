@@ -324,7 +324,7 @@ export default function DashboardSidebar({
   if (effectiveCollapsed) {
     return (
       <div
-        className="glass-panel h-full flex flex-col items-center py-4 gap-1 border-r border-white/10 w-12 shrink-0"
+        className="glass-panel h-full flex flex-col items-center py-4 gap-1 border-r border-white/10 w-10 shrink-0"
         style={{ transition: 'width 0.2s ease' }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -346,7 +346,7 @@ export default function DashboardSidebar({
           <Tooltip key={board.id} content={board.name} position="right">
             <button
               onClick={() => { onSelectBoard(board); onViewChange('bookmarks'); }}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
                 activeBoard?.id === board.id && activeView === 'bookmarks' ? 'bg-white/20' : 'hover:bg-white/10'
               }`}
             >
@@ -365,7 +365,7 @@ export default function DashboardSidebar({
           <Tooltip key={view} content={label} position="right">
             <button
               onClick={() => onViewChange(view)}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
                 activeView === view ? 'bg-white/20' : 'hover:bg-white/10'
               }`}
               aria-label={label}
@@ -378,7 +378,7 @@ export default function DashboardSidebar({
         <Tooltip content="Subscriptions" position="right">
           <button
             onClick={() => onViewChange('subscriptions')}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
               activeView === 'subscriptions' ? 'bg-white/20' : 'hover:bg-white/10'
             }`}
             aria-label="Subscriptions"
@@ -389,7 +389,7 @@ export default function DashboardSidebar({
         <Tooltip content="Prompts" position="right">
           <button
             onClick={() => onViewChange('prompts')}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
               activeView === 'prompts' ? 'bg-white/20' : 'hover:bg-white/10'
             }`}
             aria-label="Prompts"
@@ -398,7 +398,7 @@ export default function DashboardSidebar({
           </button>
         </Tooltip>
         <div className="mt-auto pt-2">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center mx-auto"
+          <div className="w-7 h-7 rounded-full flex items-center justify-center mx-auto"
             style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.3)' }}
           >
             <User size={14} style={{ color: '#818cf8' }} />

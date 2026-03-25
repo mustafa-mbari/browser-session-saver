@@ -233,8 +233,8 @@ export default function PromptsView() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)] shrink-0">
-        <span className="text-sm font-semibold text-[var(--color-text)] truncate">
+      <div className="flex items-center justify-between px-2 py-2 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)] shrink-0">
+        <span className="text-base font-semibold text-[var(--color-text)] truncate">
           {sectionTitle}
           <span className="ml-1.5 text-xs font-normal text-[var(--color-text-secondary)]">
             ({visiblePrompts.length})
@@ -265,7 +265,7 @@ export default function PromptsView() {
       {/* Two-pane body */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Section nav */}
-        <div className="w-44 shrink-0 border-r border-[var(--color-border)] overflow-hidden">
+        <div className="w-56 shrink-0 border-r border-[var(--color-border)] overflow-hidden">
           <PromptSectionNav
             prompts={prompts}
             folders={folders}

@@ -19,10 +19,10 @@ interface PromptSectionNavProps {
 // ── Top utility sections ────────────────────────────────────────────────────
 
 const TOP_SECTIONS: Array<{ key: PromptSectionKey; label: string; icon: React.ReactNode }> = [
-  { key: 'start',        label: 'Start',     icon: <Home size={14} /> },
-  { key: 'quick-access', label: 'Pinned',    icon: <Zap size={14} /> },
-  { key: 'all',          label: 'All',       icon: <LayoutList size={14} /> },
-  { key: 'favorites',    label: 'Favorites', icon: <Star size={14} /> },
+  { key: 'start',        label: 'Start',     icon: <Home size={16} /> },
+  { key: 'quick-access', label: 'Pinned',    icon: <Zap size={16} /> },
+  { key: 'all',          label: 'All',       icon: <LayoutList size={16} /> },
+  { key: 'favorites',    label: 'Favorites', icon: <Star size={16} /> },
 ];
 
 // ── FolderTreeItem ──────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ function FolderTreeItem({
   };
 
   const FolderIcon = expanded && children.length > 0 ? FolderOpen : Folder;
-  const indentPx = depth * 10 + 8;
+  const indentPx = depth * 12 + 8;
 
   return (
     <div>
@@ -137,10 +137,10 @@ function FolderTreeItem({
             }}
             onBlur={() => void handleRenameSubmit()}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 min-w-0 text-sm bg-transparent border-b border-amber-400 outline-none text-[var(--color-text)]"
+            className="flex-1 min-w-0 text-base bg-transparent border-b border-amber-400 outline-none text-[var(--color-text)]"
           />
         ) : (
-          <span className="flex-1 min-w-0 text-sm truncate" title={folder.name}>
+          <span className="flex-1 min-w-0 text-base truncate" title={folder.name}>
             {folder.name}
           </span>
         )}
@@ -302,7 +302,7 @@ function SourceSection({
         <span className="shrink-0">{icon}</span>
 
         {/* Label */}
-        <span className={`flex-1 text-sm font-semibold truncate ${
+        <span className={`flex-1 text-base font-semibold truncate ${
           isSourceActive ? '' : 'opacity-80'
         }`}>
           {label}
@@ -318,7 +318,7 @@ function SourceSection({
         {/* + New folder button */}
         <button
           onClick={(e) => { e.stopPropagation(); setAddingRoot(true); setExpanded(true); }}
-          className="shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-amber-500/15 hover:text-amber-500 text-[var(--color-text-secondary)] transition-all"
+          className="hidden group-hover:flex shrink-0 p-0.5 rounded hover:bg-amber-500/15 hover:text-amber-500 text-[var(--color-text-secondary)] transition-colors"
           title={`New folder in ${label}`}
         >
           <Plus size={12} />
@@ -396,7 +396,7 @@ export default function PromptSectionNav({
   onDeleteFolder,
 }: PromptSectionNavProps) {
   return (
-    <nav className="flex flex-col h-full overflow-y-auto py-2 px-1 select-none">
+    <nav className="flex flex-col h-full overflow-y-auto py-2 px-1.5 select-none">
       {/* ── Top 4 utility sections ───────────────────────────── */}
       <div className="space-y-0.5 mb-3">
         {TOP_SECTIONS.map(({ key, label, icon }) => {
@@ -412,7 +412,7 @@ export default function PromptSectionNav({
             <button
               key={key}
               onClick={() => onNavigate({ kind: 'section', key })}
-              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors ${
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-base transition-colors ${
                 isActive
                   ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold'
                   : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text)]'
@@ -437,7 +437,7 @@ export default function PromptSectionNav({
       <SourceSection
         source="local"
         label="My Prompts"
-        icon={<Monitor size={13} />}
+        icon={<Monitor size={15} />}
         prompts={prompts}
         folders={folders}
         nav={nav}
@@ -454,7 +454,7 @@ export default function PromptSectionNav({
       <SourceSection
         source="app"
         label="App Prompts"
-        icon={<Globe size={13} />}
+        icon={<Globe size={15} />}
         prompts={prompts}
         folders={folders}
         nav={nav}
