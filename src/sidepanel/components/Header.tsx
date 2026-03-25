@@ -1,4 +1,4 @@
-import { ArrowLeft, Settings, Sun, Moon, CreditCard } from 'lucide-react';
+import { ArrowLeft, Settings, Sun, Moon, CreditCard, Sparkles } from 'lucide-react';
 import { useSidePanelStore } from '../stores/sidepanel.store';
 import { useTheme } from '@shared/hooks/useTheme';
 import AutoSaveBadge from './AutoSaveBadge';
@@ -38,6 +38,18 @@ export default function Header() {
       <div className="flex items-center gap-2">
         <AutoSaveBadge />
         <button
+          onClick={() => navigateTo('prompts')}
+          className={`p-1.5 rounded transition-colors ${
+            currentView === 'prompts'
+              ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20'
+              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+          }`}
+          aria-label="Prompt Manager"
+          title="Prompt Manager (Ctrl+Shift+P)"
+        >
+          <Sparkles size={16} />
+        </button>
+        <button
           onClick={() => navigateTo('subscriptions')}
           className={`p-1.5 rounded transition-colors ${
             currentView === 'subscriptions'
@@ -75,6 +87,7 @@ function viewTitle(view: string): string {
     settings: 'Settings',
     'import-export': 'Import / Export',
     subscriptions: 'Subscriptions',
+    prompts: 'Prompt Manager',
   };
   return titles[view] ?? 'Browser Hub';
 }

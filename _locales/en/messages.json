@@ -395,5 +395,153 @@
   "weatherRefresh": {
     "message": "Refresh",
     "description": "Weather widget — manual refresh button label"
+  },
+  "promptManager": {
+    "message": "Prompt Manager",
+    "description": "Prompt Manager page title"
+  },
+  "promptManagerDesc": {
+    "message": "Create, organize, and reuse AI prompts",
+    "description": "Prompt Manager description"
+  },
+  "addPrompt": {
+    "message": "Add Prompt",
+    "description": "Button to add a new prompt"
+  },
+  "editPrompt": {
+    "message": "Edit Prompt",
+    "description": "Button/title to edit a prompt"
+  },
+  "deletePrompt": {
+    "message": "Delete Prompt",
+    "description": "Button to delete a prompt"
+  },
+  "copyPrompt": {
+    "message": "Copy",
+    "description": "Button to copy prompt content to clipboard"
+  },
+  "usePrompt": {
+    "message": "Use",
+    "description": "Button to use a prompt (fill variables and copy)"
+  },
+  "promptCopied": {
+    "message": "Copied!",
+    "description": "Feedback shown after copying a prompt"
+  },
+  "promptSaved": {
+    "message": "Prompt saved",
+    "description": "Feedback shown after saving a prompt"
+  },
+  "promptDeleted": {
+    "message": "Prompt deleted",
+    "description": "Feedback shown after deleting a prompt"
+  },
+  "promptTitle": {
+    "message": "Title",
+    "description": "Label for the prompt title field"
+  },
+  "promptContent": {
+    "message": "Content",
+    "description": "Label for the prompt content field"
+  },
+  "promptDescription": {
+    "message": "Description",
+    "description": "Label for the optional prompt description field"
+  },
+  "promptCategory": {
+    "message": "Category",
+    "description": "Label for the prompt category field"
+  },
+  "promptTags": {
+    "message": "Tags",
+    "description": "Label for the prompt tags field"
+  },
+  "promptFavorite": {
+    "message": "Mark as favorite",
+    "description": "Checkbox label to mark a prompt as favorite"
+  },
+  "promptPin": {
+    "message": "Pin",
+    "description": "Button to pin a prompt"
+  },
+  "promptUnpin": {
+    "message": "Unpin",
+    "description": "Button to unpin a prompt"
+  },
+  "promptConfirmDelete": {
+    "message": "Click again to confirm",
+    "description": "Confirmation hint for delete action"
+  },
+  "promptSearchPlaceholder": {
+    "message": "Search prompts...",
+    "description": "Placeholder text in the prompt search input"
+  },
+  "promptFilterByTag": {
+    "message": "Filter by tag",
+    "description": "Label for tag filter"
+  },
+  "promptFilterByCategory": {
+    "message": "Filter by category",
+    "description": "Label for category filter"
+  },
+  "promptFavoritesOnly": {
+    "message": "Favorites only",
+    "description": "Checkbox label to show favorites only"
+  },
+  "promptSortBy": {
+    "message": "Sort",
+    "description": "Sort label in prompt list"
+  },
+  "promptGroupByCategory": {
+    "message": "Group by category",
+    "description": "Checkbox to group prompts by category"
+  },
+  "promptVariablesTitle": {
+    "message": "Fill Variables",
+    "description": "Title of the prompt variables modal"
+  },
+  "promptVariablesDesc": {
+    "message": "Fill in the variables below:",
+    "description": "Description in the prompt variables modal"
+  },
+  "promptCopyFinal": {
+    "message": "Copy Final Prompt",
+    "description": "Button to copy the filled-in prompt"
+  },
+  "promptRecentSection": {
+    "message": "Recently Used",
+    "description": "Section label for recently used prompts"
+  },
+  "promptPinnedSection": {
+    "message": "Pinned",
+    "description": "Section label for pinned prompts"
+  },
+  "promptCategoryNew": {
+    "message": "New category name...",
+    "description": "Placeholder for creating a new prompt category"
+  },
+  "promptTagNew": {
+    "message": "New tag name...",
+    "description": "Placeholder for creating a new prompt tag"
+  },
+  "promptsEmpty": {
+    "message": "No prompts yet",
+    "description": "Empty state title for prompt list"
+  },
+  "promptsEmptyDesc": {
+    "message": "Click \u201c+ Add Prompt\u201d to get started",
+    "description": "Empty state description for prompt list"
+  },
+  "promptWidgetLabel": {
+    "message": "Prompts",
+    "description": "Prompt Manager widget type label in AddCardModal"
+  },
+  "promptWidgetDesc": {
+    "message": "Pinned & recent AI prompts",
+    "description": "Prompt Manager widget type description in AddCardModal"
+  },
+  "managePrompts": {
+    "message": "Manage Prompts",
+    "description": "Navigation link to prompt manager"
   }
 }

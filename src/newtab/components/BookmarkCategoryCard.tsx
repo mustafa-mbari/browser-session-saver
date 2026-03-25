@@ -17,6 +17,7 @@ import TabGroupsCardBody from '@newtab/components/TabGroupsCardBody';
 import NativeBookmarksCardBody from '@newtab/components/NativeBookmarksCardBody';
 import WeatherCardBody from '@newtab/components/WeatherCardBody';
 import DownloadsCardBody from '@newtab/components/DownloadsCardBody';
+import PromptCardBody from '@newtab/components/PromptCardBody';
 
 interface Props {
   category: BookmarkCategory;
@@ -246,6 +247,9 @@ export default function BookmarkCategoryCard({
           )}
           {cardType === 'downloads' && (
             <DownloadsCardBody colSpan={colSpan} rowSpan={rowSpan} />
+          )}
+          {cardType === 'prompt-manager' && (
+            <PromptCardBody colSpan={colSpan} rowSpan={rowSpan} />
           )}
         </div>
       )}

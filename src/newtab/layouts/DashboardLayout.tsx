@@ -8,6 +8,7 @@ import SessionsPanel from '@newtab/components/SessionsPanel';
 import TabGroupsPanel from '@newtab/components/TabGroupsPanel';
 import ImportExportPanel from '@newtab/components/ImportExportPanel';
 import SubscriptionsPanel from '@newtab/components/SubscriptionsPanel';
+import PromptsPanel from '@newtab/components/PromptsPanel';
 import SettingsView from '@newtab/components/SettingsView';
 import BookmarkFolderPanel from '@newtab/components/BookmarkFolderPanel';
 import AddQuickLinkModal from '@newtab/components/AddQuickLinkModal';
@@ -179,6 +180,7 @@ export default function DashboardLayout() {
       'native-bookmarks': { name: 'Chrome Bookmarks', icon: '🔗', color: '#e05d44' },
       weather:            { name: 'Weather',          icon: '🌤️', color: '#38bdf8' },
       downloads:          { name: 'Recent Downloads', icon: '⬇️', color: '#6366f1' },
+      'prompt-manager':   { name: 'Prompts',           icon: '✨', color: '#f59e0b' },
     };
     const cat = await BookmarkService.saveCategory(newtabDB, {
       boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, ...getDefaultSize(cardType), cardType,
@@ -338,7 +340,7 @@ export default function DashboardLayout() {
     : null;
 
   // Determine if current view is a "management" view (hides clock/quick links)
-  const isSessionView = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions', 'settings', 'folder-explorer'].includes(activeView);
+  const isSessionView = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions', 'settings', 'folder-explorer', 'prompts'].includes(activeView);
 
   return (
     <div className="relative z-10 h-screen flex flex-col overflow-hidden">
@@ -429,6 +431,9 @@ export default function DashboardLayout() {
 
               {/* Subscriptions */}
               {activeView === 'subscriptions' && <SubscriptionsPanel />}
+
+              {/* Prompts */}
+              {activeView === 'prompts' && <PromptsPanel />}
 
               {/* Settings */}
               {activeView === 'settings' && (

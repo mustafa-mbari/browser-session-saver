@@ -13,6 +13,7 @@ export default function App() {
     'Ctrl+Shift+F': () => focusSearch?.(),
     'Ctrl+Shift+E': () => navigateTo('import-export'),
     'Ctrl+Shift+B': () => navigateTo('subscriptions'),
+    'Ctrl+Shift+P': () => navigateTo('prompts'),
   });
 
   return (

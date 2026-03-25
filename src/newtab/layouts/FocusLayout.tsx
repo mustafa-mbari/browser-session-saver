@@ -161,6 +161,7 @@ export default function FocusLayout() {
       'native-bookmarks': { name: 'Chrome Bookmarks', icon: '🔗', color: '#e05d44' },
       weather:            { name: 'Weather',          icon: '🌤️', color: '#38bdf8' },
       downloads:          { name: 'Recent Downloads', icon: '⬇️', color: '#6366f1' },
+      'prompt-manager':   { name: 'Prompts',           icon: '✨', color: '#f59e0b' },
     };
     const cat = await BookmarkService.saveCategory(newtabDB, {
       boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, ...getDefaultSize(cardType), cardType,

@@ -13,6 +13,7 @@ import {
   Settings,
   Trash2,
   CreditCard,
+  Sparkles,
   User,
   PanelLeft,
   Check,
@@ -385,6 +386,17 @@ export default function DashboardSidebar({
             <CreditCard size={14} style={{ color: 'var(--newtab-text-secondary)' }} />
           </button>
         </Tooltip>
+        <Tooltip content="Prompts" position="right">
+          <button
+            onClick={() => onViewChange('prompts')}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+              activeView === 'prompts' ? 'bg-white/20' : 'hover:bg-white/10'
+            }`}
+            aria-label="Prompts"
+          >
+            <Sparkles size={14} style={{ color: 'var(--newtab-text-secondary)' }} />
+          </button>
+        </Tooltip>
         <div className="mt-auto pt-2">
           <div className="w-8 h-8 rounded-full flex items-center justify-center mx-auto"
             style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.3)' }}
@@ -509,6 +521,19 @@ export default function DashboardSidebar({
             label="Manage Subscriptions"
             active={activeView === 'subscriptions'}
             onClick={() => onViewChange('subscriptions')}
+          />
+        </div>
+      </div>
+
+      {/* ── PROMPTS ── */}
+      <div className="mt-1">
+        <SectionLabel label="Prompts" />
+        <div className="flex flex-col gap-0.5 px-2">
+          <NavItem
+            icon={<Sparkles size={13} />}
+            label="Manage Prompts"
+            active={activeView === 'prompts'}
+            onClick={() => onViewChange('prompts')}
           />
         </div>
       </div>

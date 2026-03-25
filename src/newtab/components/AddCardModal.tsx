@@ -65,6 +65,12 @@ const CARD_TYPES: CardTypeOption[] = [
     label: 'Recent Downloads',
     description: 'Shows the last 5 files downloaded in Chrome',
   },
+  {
+    type: 'prompt-manager',
+    icon: '✨',
+    label: 'Prompts',
+    description: 'Pinned & recent AI prompts at a glance',
+  },
 ];
 
 type BookmarkSubOption = 'create-new' | 'link-existing';

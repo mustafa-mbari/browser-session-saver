@@ -5,6 +5,7 @@ import TabGroupsView from '../views/TabGroupsView';
 import SettingsView from '../views/SettingsView';
 import ImportExportView from '../views/ImportExportView';
 import SubscriptionsView from '../views/SubscriptionsView';
+import PromptsView from '../views/PromptsView';
 
 export default function NavigationStack() {
   const { currentView } = useSidePanelStore();
@@ -20,6 +21,8 @@ export default function NavigationStack() {
       return <ImportExportView />;
     case 'subscriptions':
       return <SubscriptionsView />;
+    case 'prompts':
+      return <PromptsView />;
     case 'home':
     default:
       return <HomeView />;

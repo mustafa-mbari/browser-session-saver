@@ -14,6 +14,7 @@ export type NewTabView =
   | 'tab-groups'
   | 'import-export'
   | 'subscriptions'
+  | 'prompts'
   | 'settings';
 
 interface NewTabUIState {
