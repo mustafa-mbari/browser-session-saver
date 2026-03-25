@@ -6,3 +6,5 @@ coverage/
 .env
 .DS_Store
 Thumbs.db
+# Windows null device accidentally created as a file
+nul

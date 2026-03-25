@@ -774,7 +774,7 @@ export default function PromptsPanel() {
       {/* Two-pane body */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: section nav (compact) */}
-        <nav className="w-44 shrink-0 border-r border-white/10 flex flex-col overflow-y-auto py-2 px-1.5 select-none">
+        <nav className="w-52 shrink-0 border-r border-white/10 flex flex-col overflow-y-auto py-2 px-1.5 select-none">
           {/* Top 4 utility sections */}
           <div className="space-y-0.5 mb-2">
             {TOP_SECTIONS.map(({ key, label, icon }) => {

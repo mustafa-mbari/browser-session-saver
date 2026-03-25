@@ -87,6 +87,17 @@ npm run format        # Prettier
 - `src/shared/components/ErrorBoundary.tsx` — Class component error boundary wrapping all major UI sections
 - `src/core/services/newtab-settings.service.ts` — Read/write NewTabSettings via `getSettingsStorage()`
 
+## Dashboard Layout — `isSessionView` pattern
+
+`src/newtab/layouts/DashboardLayout.tsx` splits the scrollable content area into two branches based on `isSessionView` (defined as any view that is NOT the bookmarks board):
+
+- **Non-session views** (bookmarks): rendered inside `overflow-y-auto px-[6%] pb-6` — centred with generous side padding, scrollable
+- **Session/management views** (prompts, sessions, subscriptions, tab-groups, import-export, settings, folder-explorer): rendered inside `overflow-hidden h-full p-[5%]` — full remaining width with uniform 5% inset padding on all sides, no scroll wrapper
+
+**Do not add `px-[6%]` or side-padding to the `isSessionView` branch** — these panels are full-page and provide their own internal layout. Putting them inside the padded scroll container causes the content to be severely squeezed (wastes ~12% of width on each side).
+
+The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on each side) from all edges without shrinking the panels themselves.
+
 ## Start-Tab Notes
 
 - The start-tab surface manages its own data directly — no background service worker roundtrip for bookmarks/todos/wallpapers
