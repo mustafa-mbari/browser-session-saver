@@ -34,7 +34,14 @@ export class IndexedDBAdapter implements IStorage {
         }
       };
 
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        const db = request.result;
+        // Clear cached promise if the connection closes unexpectedly (e.g. SW suspension)
+        db.onclose = () => { this.dbPromise = null; };
+        // Clear cached promise and close if another context upgrades the DB version
+        db.onversionchange = () => { db.close(); this.dbPromise = null; };
+        resolve(db);
+      };
       request.onerror = () => {
         this.dbPromise = null; // Clear cache so the next call can retry
         reject(request.error);

@@ -19,10 +19,10 @@ interface PromptSectionNavProps {
 // ── Top utility sections ────────────────────────────────────────────────────
 
 const TOP_SECTIONS: Array<{ key: PromptSectionKey; label: string; icon: React.ReactNode }> = [
-  { key: 'start',        label: 'Start Page',   icon: <Home size={13} /> },
-  { key: 'quick-access', label: 'Quick Access', icon: <Zap size={13} /> },
-  { key: 'all',          label: 'All Prompts',  icon: <LayoutList size={13} /> },
-  { key: 'favorites',    label: 'Favorites',    icon: <Star size={13} /> },
+  { key: 'start',        label: 'Start',     icon: <Home size={14} /> },
+  { key: 'quick-access', label: 'Pinned',    icon: <Zap size={14} /> },
+  { key: 'all',          label: 'All',       icon: <LayoutList size={14} /> },
+  { key: 'favorites',    label: 'Favorites', icon: <Star size={14} /> },
 ];
 
 // ── FolderTreeItem ──────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ function FolderTreeItem({
   };
 
   const FolderIcon = expanded && children.length > 0 ? FolderOpen : Folder;
-  const indentPx = depth * 12 + 10;
+  const indentPx = depth * 10 + 8;
 
   return (
     <div>
@@ -137,17 +137,17 @@ function FolderTreeItem({
             }}
             onBlur={() => void handleRenameSubmit()}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 min-w-0 text-xs bg-transparent border-b border-amber-400 outline-none text-[var(--color-text)]"
+            className="flex-1 min-w-0 text-sm bg-transparent border-b border-amber-400 outline-none text-[var(--color-text)]"
           />
         ) : (
-          <span className="flex-1 min-w-0 text-xs truncate" title={folder.name}>
+          <span className="flex-1 min-w-0 text-sm truncate" title={folder.name}>
             {folder.name}
           </span>
         )}
 
         {/* Count */}
         {!renaming && promptCount > 0 && (
-          <span className="text-[10px] opacity-40 shrink-0 tabular-nums">{promptCount}</span>
+          <span className="text-xs opacity-40 shrink-0 tabular-nums">{promptCount}</span>
         )}
 
         {/* Hover actions */}
@@ -283,7 +283,7 @@ function SourceSection({
     <div className="mb-1">
       {/* Section header row */}
       <div
-        className={`group flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors ${
+        className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
           isSourceActive
             ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
             : 'hover:bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)]'
@@ -295,22 +295,22 @@ function SourceSection({
           className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"
           onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
         >
-          {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+          {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         </span>
 
         {/* Icon */}
         <span className="shrink-0">{icon}</span>
 
         {/* Label */}
-        <span className={`flex-1 text-xs font-semibold uppercase tracking-wide truncate ${
-          isSourceActive ? '' : 'opacity-70'
+        <span className={`flex-1 text-sm font-semibold truncate ${
+          isSourceActive ? '' : 'opacity-80'
         }`}>
           {label}
         </span>
 
         {/* Total count */}
         {totalCount > 0 && (
-          <span className={`text-[10px] shrink-0 tabular-nums ${isSourceActive ? 'text-amber-500' : 'opacity-40'}`}>
+          <span className={`text-xs shrink-0 tabular-nums ${isSourceActive ? 'text-amber-500' : 'opacity-40'}`}>
             {totalCount}
           </span>
         )}
@@ -357,7 +357,7 @@ function SourceSection({
 
           {/* Empty hint */}
           {rootFolders.length === 0 && !addingRoot && (
-            <p className="pl-8 py-1 text-[10px] text-[var(--color-text-secondary)] opacity-40 italic">
+            <p className="pl-6 py-1 text-xs text-[var(--color-text-secondary)] opacity-40 italic">
               Click + to create a folder
             </p>
           )}
@@ -396,7 +396,7 @@ export default function PromptSectionNav({
   onDeleteFolder,
 }: PromptSectionNavProps) {
   return (
-    <nav className="flex flex-col h-full overflow-y-auto py-2 px-1.5 select-none">
+    <nav className="flex flex-col h-full overflow-y-auto py-2 px-1 select-none">
       {/* ── Top 4 utility sections ───────────────────────────── */}
       <div className="space-y-0.5 mb-3">
         {TOP_SECTIONS.map(({ key, label, icon }) => {
@@ -412,16 +412,16 @@ export default function PromptSectionNav({
             <button
               key={key}
               onClick={() => onNavigate({ kind: 'section', key })}
-              className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors ${
                 isActive
-                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 font-medium'
+                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold'
                   : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text)]'
               }`}
             >
               <span className="shrink-0">{icon}</span>
               <span className="flex-1 text-left truncate">{label}</span>
               {count > 0 && (
-                <span className={`text-[10px] shrink-0 tabular-nums ${isActive ? 'text-amber-500' : 'opacity-40'}`}>
+                <span className={`text-xs shrink-0 tabular-nums ${isActive ? 'text-amber-500' : 'opacity-40'}`}>
                   {count}
                 </span>
               )}

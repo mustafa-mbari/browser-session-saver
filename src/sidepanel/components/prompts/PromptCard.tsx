@@ -63,33 +63,33 @@ export default function PromptCard({
       {/* Main row */}
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="w-full text-left px-3 py-2.5 flex items-start gap-2"
+        className="w-full text-left px-2.5 py-2.5 flex items-start gap-2"
         aria-expanded={expanded}
       >
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-0.5">
+          <div className="flex items-center gap-1.5 mb-1">
             {prompt.isPinned && (
-              <Pin size={10} className="text-amber-500 shrink-0" />
+              <Pin size={12} className="text-amber-500 shrink-0" />
             )}
-            <span className="text-sm font-medium text-[var(--color-text)] truncate">
+            <span className="text-base font-semibold text-[var(--color-text)] truncate">
               {prompt.title}
             </span>
             {prompt.isFavorite && (
-              <Star size={11} className="text-amber-400 fill-amber-400 shrink-0" />
+              <Star size={13} className="text-amber-400 fill-amber-400 shrink-0" />
             )}
           </div>
           {!expanded && (
-            <p className="text-xs text-[var(--color-text-secondary)] truncate">
+            <p className="text-sm text-[var(--color-text-secondary)] truncate">
               {prompt.content}
             </p>
           )}
           {/* Tag chips */}
           {promptTags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1">
+            <div className="flex flex-wrap gap-1 mt-1.5">
               {promptTags.map((tag) => (
                 <span
                   key={tag.id}
-                  className="px-1.5 py-0.5 rounded-full text-[10px] font-medium text-white"
+                  className="px-2 py-0.5 rounded-full text-xs font-medium text-white"
                   style={{ backgroundColor: tag.color }}
                 >
                   {tag.name}
@@ -99,29 +99,29 @@ export default function PromptCard({
           )}
         </div>
         <div className="shrink-0 text-[var(--color-text-secondary)] mt-0.5">
-          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
       </button>
 
       {/* Expanded detail */}
       {expanded && (
-        <div className="px-3 pb-3 space-y-2 border-t border-[var(--color-border)]">
+        <div className="px-2.5 pb-2.5 space-y-2 border-t border-[var(--color-border)]">
           {/* Full content */}
-          <div className="mt-2 rounded-lg bg-[var(--color-bg-secondary)] p-2.5">
-            <p className="text-xs text-[var(--color-text)] whitespace-pre-wrap break-words leading-relaxed">
+          <div className="mt-2 rounded-lg bg-[var(--color-bg-secondary)] p-3">
+            <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap break-words leading-relaxed">
               {prompt.content}
             </p>
           </div>
 
           {/* Meta */}
-          <div className="flex flex-wrap items-center gap-2 text-[10px] text-[var(--color-text-secondary)]">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-secondary)]">
             {/* Source badge */}
             <span className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-medium ${
               prompt.source === 'app'
                 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
             }`}>
-              {prompt.source === 'app' ? <Globe size={9} /> : <Monitor size={9} />}
+              {prompt.source === 'app' ? <Globe size={11} /> : <Monitor size={11} />}
               {prompt.source === 'app' ? 'App' : 'Local'}
             </span>
             {category && (

@@ -126,7 +126,10 @@ async function saveClosedWindowFromCache(
       true, // mergeWithExisting
     );
   } catch (error) {
-    console.error('Window close auto-save failed:', error);
+    const detail = error instanceof DOMException
+      ? `${error.name}: ${error.message}`
+      : String(error);
+    console.error('Window close auto-save failed:', detail);
   }
 }
 
@@ -181,7 +184,10 @@ async function performAutoSave(trigger: AutoSaveTrigger): Promise<void> {
       mergeWithExisting,
     );
   } catch (error) {
-    console.error('Auto-save failed:', error);
+    const detail = error instanceof DOMException
+      ? `${error.name}: ${error.message}`
+      : String(error);
+    console.error('Auto-save failed:', detail);
   } finally {
     _isSaving = false;
 

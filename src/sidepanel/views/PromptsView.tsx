@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Sparkles } from 'lucide-react';
 import type {
   Prompt,
   PromptCategory,
@@ -151,6 +151,24 @@ export default function PromptsView() {
     return cat;
   }, []);
 
+  const [seeding, setSeeding] = useState(false);
+
+  const handleSeedDemoData = useCallback(async () => {
+    setSeeding(true);
+    await PromptStorage.seedDemoData();
+    const [p, c, t, f] = await Promise.all([
+      PromptStorage.getAll(),
+      PromptStorage.getCategories(),
+      PromptStorage.getTags(),
+      PromptStorage.getFolders(),
+    ]);
+    setPrompts(p);
+    setCategories(c);
+    setTags(t);
+    setFolders(f);
+    setSeeding(false);
+  }, []);
+
   const openAdd = () => { setEditPrompt(null); setFormOpen(true); };
   const openEdit = (p: Prompt) => { setEditPrompt(p); setFormOpen(true); };
   const closeForm = () => { setFormOpen(false); setEditPrompt(null); };
@@ -222,19 +240,32 @@ export default function PromptsView() {
             ({visiblePrompts.length})
           </span>
         </span>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600 transition-colors shrink-0"
-        >
-          <Plus size={13} />
-          New
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {prompts.length === 0 && (
+            <button
+              onClick={() => void handleSeedDemoData()}
+              disabled={seeding}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] text-xs font-medium hover:bg-[var(--color-bg-hover)] transition-colors disabled:opacity-50"
+              title="Load sample prompts"
+            >
+              <Sparkles size={13} />
+              {seeding ? 'Loading…' : 'Samples'}
+            </button>
+          )}
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600 transition-colors"
+          >
+            <Plus size={13} />
+            New
+          </button>
+        </div>
       </div>
 
       {/* Two-pane body */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Section nav (w-40 for more breathing room) */}
-        <div className="w-40 shrink-0 border-r border-[var(--color-border)] overflow-hidden">
+        {/* Left: Section nav */}
+        <div className="w-44 shrink-0 border-r border-[var(--color-border)] overflow-hidden">
           <PromptSectionNav
             prompts={prompts}
             folders={folders}
