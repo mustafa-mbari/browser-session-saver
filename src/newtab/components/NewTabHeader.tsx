@@ -1,6 +1,6 @@
 import { forwardRef, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Paintbrush, Settings, Sun, Moon, Monitor, Clock, Globe } from 'lucide-react';
+import { Paintbrush, Settings, Sun, Moon, Monitor, Globe } from 'lucide-react';
 import SearchBar from '@newtab/components/SearchBar';
 import { useTheme } from '@shared/hooks/useTheme';
 import type { AppLanguage, NewTabSettings } from '@core/types/newtab.types';
@@ -9,7 +9,6 @@ interface Props {
   settings: NewTabSettings;
   onOpenSettings: () => void;
   onOpenWallpaper: () => void;
-  onToggleClock: () => void;
   onLanguageChange: (lang: AppLanguage) => void;
 }
 
@@ -29,7 +28,7 @@ const THEME_ICONS = {
 const THEME_CYCLE: Array<'system' | 'light' | 'dark'> = ['system', 'light', 'dark'];
 
 const NewTabHeader = forwardRef<HTMLInputElement, Props>(
-  ({ settings, onOpenSettings, onOpenWallpaper, onToggleClock, onLanguageChange }, searchRef) => {
+  ({ settings, onOpenSettings, onOpenWallpaper, onLanguageChange }, searchRef) => {
     const { theme, setTheme } = useTheme();
     const [langOpen, setLangOpen] = useState(false);
     const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
@@ -86,19 +85,6 @@ const NewTabHeader = forwardRef<HTMLInputElement, Props>(
 
         {/* Actions */}
         <div className="flex items-center gap-1 shrink-0">
-          {/* Clock toggle */}
-          <button
-            onClick={onToggleClock}
-            className="p-1.5 rounded-lg hover:bg-white/15 transition-colors"
-            aria-label={settings.showClock ? 'Hide clock' : 'Show clock'}
-            title={settings.showClock ? 'Hide clock' : 'Show clock'}
-          >
-            <Clock
-              size={16}
-              style={{ color: settings.showClock ? 'var(--newtab-text)' : 'rgba(255,255,255,0.3)' }}
-            />
-          </button>
-
           {/* Language switcher */}
           <button
             ref={langBtnRef}

@@ -128,7 +128,7 @@ export const DEFAULT_NEWTAB_SETTINGS: NewTabSettings = {
   cardDensity: 'comfortable',
   searchEngine: 'google',
   clockFormat: '12h',
-  showClock: true,
+  showClock: false,
   showQuickLinks: true,
   showTodo: true,
   showSessions: true,

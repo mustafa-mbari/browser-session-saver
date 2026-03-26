@@ -350,7 +350,6 @@ export default function DashboardLayout() {
         settings={settings}
         onOpenSettings={() => uiStore.toggleSettings()}
         onOpenWallpaper={() => uiStore.toggleWallpaper()}
-        onToggleClock={() => uiStore.updateSettings({ showClock: !settings.showClock })}
         onLanguageChange={async (lang) => {
           uiStore.updateSettings({ language: lang }); // update React state
           await updateNewTabSettings({ language: lang }); // ensure persisted before reload

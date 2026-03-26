@@ -355,12 +355,11 @@ export default function DashboardSidebar({
           </Tooltip>
         ))}
         <div className="w-full border-t border-white/10 my-1" />
+        {/* Browser Hub */}
         {[
           { view: 'folder-explorer' as NewTabView, icon: <FolderOpen size={14} />, label: 'Folders' },
           { view: 'sessions' as NewTabView, icon: <Clock size={14} />, label: 'Sessions' },
           { view: 'tab-groups' as NewTabView, icon: <Layers size={13} />, label: 'Tab Groups' },
-          { view: 'import-export' as NewTabView, icon: <ArrowDownUp size={13} />, label: 'Import/Export' },
-          { view: 'settings' as NewTabView, icon: <Settings size={13} />, label: 'Settings' },
         ].map(({ view, icon, label }) => (
           <Tooltip key={view} content={label} position="right">
             <button
@@ -375,28 +374,41 @@ export default function DashboardSidebar({
           </Tooltip>
         ))}
         <div className="w-full border-t border-white/10 my-1" />
-        <Tooltip content="Subscriptions" position="right">
-          <button
-            onClick={() => onViewChange('subscriptions')}
-            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
-              activeView === 'subscriptions' ? 'bg-white/20' : 'hover:bg-white/10'
-            }`}
-            aria-label="Subscriptions"
-          >
-            <CreditCard size={14} style={{ color: 'var(--newtab-text-secondary)' }} />
-          </button>
-        </Tooltip>
-        <Tooltip content="Prompts" position="right">
-          <button
-            onClick={() => onViewChange('prompts')}
-            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
-              activeView === 'prompts' ? 'bg-white/20' : 'hover:bg-white/10'
-            }`}
-            aria-label="Prompts"
-          >
-            <Sparkles size={14} style={{ color: 'var(--newtab-text-secondary)' }} />
-          </button>
-        </Tooltip>
+        {/* Manager */}
+        {[
+          { view: 'prompts' as NewTabView, icon: <Sparkles size={14} />, label: 'Prompts' },
+          { view: 'subscriptions' as NewTabView, icon: <CreditCard size={14} />, label: 'Subscriptions' },
+        ].map(({ view, icon, label }) => (
+          <Tooltip key={view} content={label} position="right">
+            <button
+              onClick={() => onViewChange(view)}
+              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                activeView === view ? 'bg-white/20' : 'hover:bg-white/10'
+              }`}
+              aria-label={label}
+            >
+              <span style={{ color: 'var(--newtab-text-secondary)' }}>{icon}</span>
+            </button>
+          </Tooltip>
+        ))}
+        <div className="w-full border-t border-white/10 my-1" />
+        {/* Settings */}
+        {[
+          { view: 'settings' as NewTabView, icon: <Settings size={13} />, label: 'Settings' },
+          { view: 'import-export' as NewTabView, icon: <ArrowDownUp size={13} />, label: 'Import/Export' },
+        ].map(({ view, icon, label }) => (
+          <Tooltip key={view} content={label} position="right">
+            <button
+              onClick={() => onViewChange(view)}
+              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                activeView === view ? 'bg-white/20' : 'hover:bg-white/10'
+              }`}
+              aria-label={label}
+            >
+              <span style={{ color: 'var(--newtab-text-secondary)' }}>{icon}</span>
+            </button>
+          </Tooltip>
+        ))}
         <div className="mt-auto pt-2">
           <div className="w-7 h-7 rounded-full flex items-center justify-center mx-auto"
             style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.3)' }}
@@ -496,44 +508,44 @@ export default function DashboardSidebar({
               active={activeView === 'tab-groups'}
               onClick={() => onViewChange('tab-groups')}
             />
-            <NavItem
-              icon={<ArrowDownUp size={13} />}
-              label="Import / Export"
-              active={activeView === 'import-export'}
-              onClick={() => onViewChange('import-export')}
-            />
-            <NavItem
-              icon={<Settings size={13} />}
-              label="Settings"
-              active={activeView === 'settings'}
-              onClick={() => onViewChange('settings')}
-            />
           </div>
         )}
       </div>
 
-      {/* ── SUBSCRIPTIONS ── */}
+      {/* ── MANAGER ── */}
       <div className="mt-1">
-        <SectionLabel label="Subscriptions" />
+        <SectionLabel label="Manager" />
         <div className="flex flex-col gap-0.5 px-2">
           <NavItem
+            icon={<Sparkles size={13} />}
+            label="Prompts"
+            active={activeView === 'prompts'}
+            onClick={() => onViewChange('prompts')}
+          />
+          <NavItem
             icon={<CreditCard size={13} />}
-            label="Manage Subscriptions"
+            label="Subscriptions"
             active={activeView === 'subscriptions'}
             onClick={() => onViewChange('subscriptions')}
           />
         </div>
       </div>
 
-      {/* ── PROMPTS ── */}
+      {/* ── SETTINGS ── */}
       <div className="mt-1">
-        <SectionLabel label="Prompts" />
+        <SectionLabel label="Settings" />
         <div className="flex flex-col gap-0.5 px-2">
           <NavItem
-            icon={<Sparkles size={13} />}
-            label="Manage Prompts"
-            active={activeView === 'prompts'}
-            onClick={() => onViewChange('prompts')}
+            icon={<Settings size={13} />}
+            label="Settings"
+            active={activeView === 'settings'}
+            onClick={() => onViewChange('settings')}
+          />
+          <NavItem
+            icon={<ArrowDownUp size={13} />}
+            label="Import / Export"
+            active={activeView === 'import-export'}
+            onClick={() => onViewChange('import-export')}
           />
         </div>
       </div>

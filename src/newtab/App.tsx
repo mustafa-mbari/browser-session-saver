@@ -70,19 +70,20 @@ export default function App() {
         setLoading(true);
         const [boards, links, lists] = await Promise.all([
           BookmarkService.getBoards(newtabDB),
-          QuickLinksService.syncTopSites(newtabDB),
+          QuickLinksService.getQuickLinks(newtabDB),
           TodoService.getTodoLists(newtabDB),
         ]);
 
-        // First launch: seed default boards and a default todo list
+        // First launch: seed default boards, quick links, and a default todo list
         if (boards.length === 0) {
           const seeded = await seedDefaultData(newtabDB);
-          const [seededBoards, seededLists] = await Promise.all([
+          const [seededBoards, seededLinks, seededLists] = await Promise.all([
             BookmarkService.getBoards(newtabDB),
+            QuickLinksService.getQuickLinks(newtabDB),
             TodoService.getTodoLists(newtabDB),
           ]);
           setBoards(seededBoards);
-          setQuickLinks(links);
+          setQuickLinks(seededLinks);
           setTodoLists(seededLists);
           uiStore.updateSettings({ activeBoardId: seeded.mainBoard.id });
 
