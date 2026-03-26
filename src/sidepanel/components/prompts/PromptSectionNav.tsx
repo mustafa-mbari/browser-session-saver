@@ -2,18 +2,26 @@ import { useState } from 'react';
 import {
   Home, Zap, LayoutList, Star, Monitor, Globe,
   Folder, FolderOpen, ChevronRight, ChevronDown,
-  Plus, Pencil, Trash2, Check, X,
+  Plus, Pencil, Trash2, Check, X, ArrowRightLeft,
 } from 'lucide-react';
 import type { Prompt, PromptFolder, PromptsNavState, PromptSectionKey } from '@core/types/prompt.types';
+
+// Predefined folder color palette (empty string = no color / default)
+const FOLDER_COLORS = [
+  '#ef4444', '#f97316', '#eab308', '#22c55e',
+  '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899',
+  '#6b7280', '',
+];
 
 interface PromptSectionNavProps {
   prompts: Prompt[];
   folders: PromptFolder[];
   nav: PromptsNavState;
   onNavigate: (nav: PromptsNavState) => void;
-  onCreateFolder: (name: string, parentId?: string) => Promise<void>;
-  onRenameFolder: (id: string, name: string) => Promise<void>;
+  onCreateFolder: (name: string, parentId?: string, source?: 'local' | 'app') => Promise<PromptFolder>;
+  onUpdateFolder: (id: string, updates: Partial<Pick<PromptFolder, 'name' | 'color'>>) => Promise<void>;
   onDeleteFolder: (id: string) => Promise<void>;
+  onMoveFolder: (id: string, newParentId: string | undefined) => Promise<void>;
 }
 
 // ── Top utility sections ────────────────────────────────────────────────────
@@ -34,10 +42,12 @@ function FolderTreeItem({
   source,
   activeFolderId,
   depth,
+  readonly,
   onSelect,
   onCreateFolder,
-  onRenameFolder,
+  onUpdateFolder,
   onDeleteFolder,
+  onMoveFolder,
 }: {
   folder: PromptFolder;
   allFolders: PromptFolder[];
@@ -45,31 +55,58 @@ function FolderTreeItem({
   source: 'local' | 'app';
   activeFolderId: string | undefined;
   depth: number;
+  readonly?: boolean;
   onSelect: (id: string) => void;
-  onCreateFolder: (name: string, parentId?: string) => Promise<void>;
-  onRenameFolder: (id: string, name: string) => Promise<void>;
+  onCreateFolder: (name: string, parentId?: string, source?: 'local' | 'app') => Promise<PromptFolder>;
+  onUpdateFolder: (id: string, updates: Partial<Pick<PromptFolder, 'name' | 'color'>>) => Promise<void>;
   onDeleteFolder: (id: string) => Promise<void>;
+  onMoveFolder: (id: string, newParentId: string | undefined) => Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameName, setRenameName] = useState(folder.name);
+  const [renameColor, setRenameColor] = useState<string>(folder.color ?? '');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [addingChild, setAddingChild] = useState(false);
   const [newChildName, setNewChildName] = useState('');
+  const [moving, setMoving] = useState(false);
 
   const children = allFolders
     .filter((f) => f.parentId === folder.id)
     .sort((a, b) => a.position - b.position);
 
   const isActive = activeFolderId === folder.id;
-  // Count only direct prompts from this source in this folder (recursive descendants for badge)
   const promptCount = prompts.filter(
     (p) => p.source === source && p.folderId === folder.id,
   ).length;
 
+  // Collect all descendant IDs (used to exclude from move targets)
+  const getDescendantIds = (id: string): Set<string> => {
+    const result = new Set<string>();
+    const queue = [id];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      result.add(current);
+      allFolders.filter((f) => f.parentId === current).forEach((f) => queue.push(f.id));
+    }
+    return result;
+  };
+
+  // Valid move targets: all folders except self and descendants
+  const moveTargets = allFolders.filter((f) => {
+    const descendants = getDescendantIds(folder.id);
+    return !descendants.has(f.id);
+  });
+
   const handleRenameSubmit = async () => {
     const name = renameName.trim();
-    if (name && name !== folder.name) await onRenameFolder(folder.id, name);
+    const colorVal = renameColor || undefined;
+    if (name) {
+      await onUpdateFolder(folder.id, {
+        name: name !== folder.name ? name : folder.name,
+        color: colorVal,
+      });
+    }
     setRenaming(false);
   };
 
@@ -85,10 +122,15 @@ function FolderTreeItem({
   const handleAddChild = async () => {
     const name = newChildName.trim();
     if (!name) return;
-    await onCreateFolder(name, folder.id);
+    await onCreateFolder(name, folder.id, source);
     setNewChildName('');
     setAddingChild(false);
     setExpanded(true);
+  };
+
+  const handleMove = async (newParentId: string | undefined) => {
+    await onMoveFolder(folder.id, newParentId);
+    setMoving(false);
   };
 
   const FolderIcon = expanded && children.length > 0 ? FolderOpen : Folder;
@@ -133,14 +175,14 @@ function FolderTreeItem({
             onChange={(e) => setRenameName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') { e.preventDefault(); void handleRenameSubmit(); }
-              if (e.key === 'Escape') setRenaming(false);
+              if (e.key === 'Escape') { setRenaming(false); setRenameName(folder.name); setRenameColor(folder.color ?? ''); }
             }}
             onBlur={() => void handleRenameSubmit()}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 min-w-0 text-base bg-transparent border-b border-amber-400 outline-none text-[var(--color-text)]"
+            className="flex-1 min-w-0 text-xs bg-transparent border-b border-amber-400 outline-none text-[var(--color-text)]"
           />
         ) : (
-          <span className="flex-1 min-w-0 text-base truncate" title={folder.name}>
+          <span className="flex-1 min-w-0 text-xs truncate" title={folder.name}>
             {folder.name}
           </span>
         )}
@@ -150,8 +192,8 @@ function FolderTreeItem({
           <span className="text-xs opacity-40 shrink-0 tabular-nums">{promptCount}</span>
         )}
 
-        {/* Hover actions */}
-        {!renaming && (
+        {/* Hover actions — only shown when not readonly */}
+        {!renaming && !readonly && (
           <span
             className="hidden group-hover:flex items-center gap-0.5 shrink-0 ml-0.5"
             onClick={(e) => e.stopPropagation()}
@@ -164,11 +206,18 @@ function FolderTreeItem({
               <Plus size={10} />
             </button>
             <button
-              onClick={() => { setRenaming(true); setRenameName(folder.name); }}
+              onClick={() => { setRenaming(true); setRenameName(folder.name); setRenameColor(folder.color ?? ''); }}
               className="p-0.5 rounded hover:bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] transition-colors"
-              title="Rename"
+              title="Rename / change color"
             >
               <Pencil size={10} />
+            </button>
+            <button
+              onClick={() => setMoving((v) => !v)}
+              className="p-0.5 rounded hover:bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] transition-colors"
+              title="Move folder"
+            >
+              <ArrowRightLeft size={10} />
             </button>
             <button
               onClick={() => void handleDelete()}
@@ -185,8 +234,63 @@ function FolderTreeItem({
         )}
       </div>
 
+      {/* Color picker (shown during rename) */}
+      {renaming && (
+        <div
+          className="flex items-center gap-1 py-1 flex-wrap"
+          style={{ paddingLeft: `${indentPx + 16}px`, paddingRight: '6px' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {FOLDER_COLORS.map((c) => (
+            <button
+              key={c === '' ? 'none' : c}
+              type="button"
+              title={c === '' ? 'No color' : c}
+              onMouseDown={(e) => { e.preventDefault(); setRenameColor(c); }}
+              className={`w-3.5 h-3.5 rounded-full border-2 transition-all ${
+                renameColor === c ? 'border-white scale-110' : 'border-transparent'
+              }`}
+              style={{ backgroundColor: c === '' ? 'transparent' : c, outline: c === '' ? '1px solid var(--color-border)' : undefined }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Move target list */}
+      {moving && !readonly && (
+        <div
+          className="py-1 space-y-0.5"
+          style={{ paddingLeft: `${indentPx + 16}px`, paddingRight: '6px' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="text-[10px] text-[var(--color-text-secondary)] opacity-60 mb-1">Move to:</p>
+          <button
+            onClick={() => void handleMove(undefined)}
+            className="w-full text-left text-xs px-2 py-1 rounded hover:bg-amber-500/15 hover:text-amber-600 text-[var(--color-text-secondary)] transition-colors"
+          >
+            Root level
+          </button>
+          {moveTargets.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => void handleMove(t.id)}
+              className="w-full text-left text-xs px-2 py-1 rounded hover:bg-amber-500/15 hover:text-amber-600 text-[var(--color-text-secondary)] transition-colors truncate"
+            >
+              <Folder size={10} className="inline mr-1" style={{ color: t.color ?? 'currentColor' }} />
+              {t.name}
+            </button>
+          ))}
+          <button
+            onClick={() => setMoving(false)}
+            className="w-full text-left text-xs px-2 py-1 rounded text-[var(--color-text-secondary)] opacity-50 hover:opacity-100 transition-opacity"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
       {/* Inline add-child input */}
-      {addingChild && (
+      {addingChild && !readonly && (
         <div
           className="flex items-center gap-1.5 py-1"
           style={{ paddingLeft: `${indentPx + 16}px`, paddingRight: '6px' }}
@@ -222,10 +326,12 @@ function FolderTreeItem({
           source={source}
           activeFolderId={activeFolderId}
           depth={depth + 1}
+          readonly={readonly}
           onSelect={onSelect}
           onCreateFolder={onCreateFolder}
-          onRenameFolder={onRenameFolder}
+          onUpdateFolder={onUpdateFolder}
           onDeleteFolder={onDeleteFolder}
+          onMoveFolder={onMoveFolder}
         />
       ))}
     </div>
@@ -241,10 +347,12 @@ function SourceSection({
   prompts,
   folders,
   nav,
+  readonly,
   onNavigate,
   onCreateFolder,
-  onRenameFolder,
+  onUpdateFolder,
   onDeleteFolder,
+  onMoveFolder,
 }: {
   source: 'local' | 'app';
   label: string;
@@ -252,10 +360,12 @@ function SourceSection({
   prompts: Prompt[];
   folders: PromptFolder[];
   nav: PromptsNavState;
+  readonly?: boolean;
   onNavigate: (nav: PromptsNavState) => void;
-  onCreateFolder: (name: string, parentId?: string) => Promise<void>;
-  onRenameFolder: (id: string, name: string) => Promise<void>;
+  onCreateFolder: (name: string, parentId?: string, source?: 'local' | 'app') => Promise<PromptFolder>;
+  onUpdateFolder: (id: string, updates: Partial<Pick<PromptFolder, 'name' | 'color'>>) => Promise<void>;
   onDeleteFolder: (id: string) => Promise<void>;
+  onMoveFolder: (id: string, newParentId: string | undefined) => Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(true);
   const [addingRoot, setAddingRoot] = useState(false);
@@ -266,14 +376,16 @@ function SourceSection({
     nav.kind === 'source' && nav.source === source ? nav.folderId : undefined;
 
   const totalCount = prompts.filter((p) => p.source === source).length;
-  const rootFolders = folders
+  // Only show folders belonging to this source section
+  const sourceFolders = folders.filter((f) => f.source === source);
+  const rootFolders = sourceFolders
     .filter((f) => !f.parentId)
     .sort((a, b) => a.position - b.position);
 
   const handleAddRootFolder = async () => {
     const name = newRootName.trim();
     if (!name) return;
-    await onCreateFolder(name);
+    await onCreateFolder(name, undefined, source);
     setNewRootName('');
     setAddingRoot(false);
     setExpanded(true);
@@ -302,9 +414,7 @@ function SourceSection({
         <span className="shrink-0">{icon}</span>
 
         {/* Label */}
-        <span className={`flex-1 text-base font-semibold truncate ${
-          isSourceActive ? '' : 'opacity-80'
-        }`}>
+        <span className={`flex-1 text-xs font-semibold truncate ${isSourceActive ? '' : 'opacity-80'}`}>
           {label}
         </span>
 
@@ -315,21 +425,23 @@ function SourceSection({
           </span>
         )}
 
-        {/* + New folder button */}
-        <button
-          onClick={(e) => { e.stopPropagation(); setAddingRoot(true); setExpanded(true); }}
-          className="hidden group-hover:flex shrink-0 p-0.5 rounded hover:bg-amber-500/15 hover:text-amber-500 text-[var(--color-text-secondary)] transition-colors"
-          title={`New folder in ${label}`}
-        >
-          <Plus size={12} />
-        </button>
+        {/* + New folder button — hidden when readonly */}
+        {!readonly && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setAddingRoot(true); setExpanded(true); }}
+            className="hidden group-hover:flex shrink-0 p-0.5 rounded hover:bg-amber-500/15 hover:text-amber-500 text-[var(--color-text-secondary)] transition-colors"
+            title={`New folder in ${label}`}
+          >
+            <Plus size={12} />
+          </button>
+        )}
       </div>
 
       {/* Expanded content */}
       {expanded && (
         <div className="mt-0.5 space-y-0.5">
           {/* New root folder inline input */}
-          {addingRoot && (
+          {addingRoot && !readonly && (
             <div className="flex items-center gap-1.5 py-1 pl-8 pr-2">
               <Folder size={12} className="shrink-0 text-[var(--color-text-secondary)]" />
               <input
@@ -356,7 +468,7 @@ function SourceSection({
           )}
 
           {/* Empty hint */}
-          {rootFolders.length === 0 && !addingRoot && (
+          {rootFolders.length === 0 && !addingRoot && !readonly && (
             <p className="pl-6 py-1 text-xs text-[var(--color-text-secondary)] opacity-40 italic">
               Click + to create a folder
             </p>
@@ -367,15 +479,17 @@ function SourceSection({
             <FolderTreeItem
               key={folder.id}
               folder={folder}
-              allFolders={folders}
+              allFolders={sourceFolders}
               prompts={prompts}
               source={source}
               activeFolderId={activeFolderId}
               depth={0}
+              readonly={readonly}
               onSelect={(id) => onNavigate({ kind: 'source', source, folderId: id })}
               onCreateFolder={onCreateFolder}
-              onRenameFolder={onRenameFolder}
+              onUpdateFolder={onUpdateFolder}
               onDeleteFolder={onDeleteFolder}
+              onMoveFolder={onMoveFolder}
             />
           ))}
         </div>
@@ -392,8 +506,9 @@ export default function PromptSectionNav({
   nav,
   onNavigate,
   onCreateFolder,
-  onRenameFolder,
+  onUpdateFolder,
   onDeleteFolder,
+  onMoveFolder,
 }: PromptSectionNavProps) {
   return (
     <nav className="flex flex-col h-full overflow-y-auto py-2 px-1.5 select-none">
@@ -412,7 +527,7 @@ export default function PromptSectionNav({
             <button
               key={key}
               onClick={() => onNavigate({ kind: 'section', key })}
-              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-base transition-colors ${
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors ${
                 isActive
                   ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold'
                   : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text)]'
@@ -443,14 +558,15 @@ export default function PromptSectionNav({
         nav={nav}
         onNavigate={onNavigate}
         onCreateFolder={onCreateFolder}
-        onRenameFolder={onRenameFolder}
+        onUpdateFolder={onUpdateFolder}
         onDeleteFolder={onDeleteFolder}
+        onMoveFolder={onMoveFolder}
       />
 
       {/* Divider */}
       <div className="mx-1 my-2 border-t border-[var(--color-border)]" />
 
-      {/* ── APP PROMPTS ──────────────────────────────────────── */}
+      {/* ── APP PROMPTS (read-only) ───────────────────────────── */}
       <SourceSection
         source="app"
         label="App Prompts"
@@ -458,10 +574,12 @@ export default function PromptSectionNav({
         prompts={prompts}
         folders={folders}
         nav={nav}
+        readonly
         onNavigate={onNavigate}
         onCreateFolder={onCreateFolder}
-        onRenameFolder={onRenameFolder}
+        onUpdateFolder={onUpdateFolder}
         onDeleteFolder={onDeleteFolder}
+        onMoveFolder={onMoveFolder}
       />
     </nav>
   );

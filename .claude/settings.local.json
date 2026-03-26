@@ -28,7 +28,11 @@
       "Bash(node -e:*)",
       "Bash(powershell -Command:*)",
       "Bash(tee:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(node_modules/.bin/vite build)",
+      "Bash(node_modules/.bin/vitest run:*)",
+      "Bash(node_modules/.bin/tsc:*)",
+      "Bash(tsc:*)"
     ]
   }
 }

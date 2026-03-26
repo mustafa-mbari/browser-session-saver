@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Search, SlidersHorizontal, Star, Clock } from 'lucide-react';
-import type { Prompt, PromptTag, PromptCategory, PromptSortField } from '@core/types/prompt.types';
+import type { Prompt, PromptTag, PromptCategory, PromptFolder, PromptSortField } from '@core/types/prompt.types';
 import { PromptService } from '@core/services/prompt.service';
 import PromptCard from './PromptCard';
 
@@ -8,6 +8,7 @@ interface PromptListProps {
   prompts: Prompt[];
   tags: PromptTag[];
   categories: PromptCategory[];
+  folders?: PromptFolder[];
   onEdit: (p: Prompt) => void;
   onDelete: (id: string) => void;
   onToggleFavorite: (id: string) => void;
@@ -20,6 +21,7 @@ export default function PromptList({
   prompts,
   tags,
   categories,
+  folders = [],
   onEdit,
   onDelete,
   onToggleFavorite,
@@ -227,6 +229,7 @@ export default function PromptList({
                   prompt={p}
                   tags={tags}
                   categories={categories}
+                  folders={folders}
                   onEdit={onEdit}
                   onDelete={onDelete}
                   onToggleFavorite={onToggleFavorite}

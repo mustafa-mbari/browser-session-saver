@@ -25,83 +25,77 @@ export default function PromptVariablesModal({ prompt, onClose, onCopy }: Prompt
     setTimeout(() => setCopied(false), 2000);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden
-      />
+  const labelCls = 'block text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)] opacity-70 mb-2';
 
-      <div className="relative w-full max-w-md rounded-2xl glass-panel shadow-2xl flex flex-col max-h-[85vh]">
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} aria-hidden />
+
+      <div className="relative w-full max-w-3xl flex flex-col bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl shadow-2xl overflow-hidden max-h-[88vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
-          <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-amber-500" />
-            <span className="font-semibold text-sm">Fill Variables</span>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] shrink-0">
+          <div className="flex items-center gap-2.5">
+            <Sparkles size={17} className="text-amber-500" />
+            <span className="font-bold text-base text-[var(--color-text)]">Fill Variables</span>
+            <span className="text-sm text-[var(--color-text-secondary)] opacity-60 truncate max-w-[240px]">
+              — {prompt.title}
+            </span>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors text-[var(--color-text-secondary)]"
             aria-label="Close"
           >
             <X size={16} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-          {/* Variable inputs */}
-          {variables.length > 0 && (
-            <div className="space-y-3">
-              <p className="text-xs text-[var(--color-text-secondary)]">
-                Fill in the variables below:
-              </p>
-              {variables.map((v) => (
-                <div key={v}>
-                  <label className="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
-                    <span className="font-mono text-amber-600 dark:text-amber-400">
-                      {'{{'}{v}{'}}'}
-                    </span>
-                  </label>
-                  <input
-                    value={values[v] ?? ''}
-                    onChange={(e) => setValues((prev) => ({ ...prev, [v]: e.target.value }))}
-                    placeholder={`Enter ${v}...`}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+        {/* Two-column body */}
+        <div className="flex flex-1 min-h-0 overflow-hidden min-h-[420px]">
+          {/* Left: variable inputs */}
+          <div className="w-[38%] shrink-0 border-r border-[var(--color-border)] overflow-y-auto px-5 py-5 space-y-5">
+            <p className={labelCls}>Variables</p>
+            {variables.map((v) => (
+              <div key={v}>
+                <label className="block text-sm font-mono text-amber-500 mb-2">
+                  {'{{'}{v}{'}}'}
+                </label>
+                <input
+                  autoFocus={variables[0] === v}
+                  value={values[v] ?? ''}
+                  onChange={(e) => setValues((prev) => ({ ...prev, [v]: e.target.value }))}
+                  placeholder={`Enter ${v}…`}
+                  className="w-full px-3 py-2.5 text-base rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors"
+                />
+              </div>
+            ))}
+          </div>
 
-          {/* Preview */}
-          <div>
-            <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-2">
-              Preview:
-            </p>
-            <div className="relative rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3">
-              <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap break-words leading-relaxed">
-                {preview}
-              </p>
-            </div>
+          {/* Right: prompt preview */}
+          <div className="flex-1 flex flex-col px-5 py-5">
+            <p className={labelCls}>Prompt Text</p>
+            <textarea
+              readOnly
+              value={preview}
+              className="flex-1 w-full px-4 py-3 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text)] resize-none focus:outline-none font-mono leading-relaxed"
+            />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-[var(--color-border)]">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--color-border)] shrink-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] transition-colors"
+            className="px-5 py-2 text-base rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] transition-colors text-[var(--color-text)]"
           >
             Cancel
           </button>
           <button
             onClick={() => void handleCopy()}
-            className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors font-medium"
+            className="flex items-center gap-2 px-5 py-2 text-base rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors font-medium"
           >
-            {copied ? <Check size={14} /> : <Copy size={14} />}
-            {copied ? 'Copied!' : 'Copy Final Prompt'}
+            {copied ? <Check size={16} /> : <Copy size={16} />}
+            {copied ? 'Copied!' : 'Copy Final'}
           </button>
         </div>
       </div>

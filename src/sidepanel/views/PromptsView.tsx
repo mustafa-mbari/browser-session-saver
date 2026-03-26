@@ -7,6 +7,8 @@ import type {
   PromptsNavState,
   PromptTag,
 } from '@core/types/prompt.types';
+
+type FolderUpdates = Partial<Pick<PromptFolder, 'name' | 'color'>>;
 import { PromptStorage } from '@core/storage/prompt-storage';
 import { PromptService } from '@core/services/prompt.service';
 import { generateId } from '@core/utils/uuid';
@@ -94,23 +96,27 @@ export default function PromptsView() {
 
   // ── Folder CRUD ───────────────────────────────────────────────────────────
 
-  const handleCreateFolder = useCallback(async (name: string, parentId?: string) => {
-    const siblings = folders.filter((f) => (f.parentId ?? null) === (parentId ?? null));
+  const handleCreateFolder = useCallback(async (name: string, parentId?: string, source: 'local' | 'app' = 'local'): Promise<PromptFolder> => {
+    const siblings = folders.filter(
+      (f) => f.source === source && (f.parentId ?? null) === (parentId ?? null),
+    );
     const folder: PromptFolder = {
       id: generateId(),
       name,
+      source,
       parentId,
       position: siblings.length,
       createdAt: new Date().toISOString(),
     };
     await PromptStorage.saveFolder(folder);
     setFolders((prev) => [...prev, folder]);
+    return folder;
   }, [folders]);
 
-  const handleRenameFolder = useCallback(async (id: string, name: string) => {
+  const handleUpdateFolder = useCallback(async (id: string, updates: FolderUpdates) => {
     const folder = folders.find((f) => f.id === id);
     if (!folder) return;
-    const updated = { ...folder, name };
+    const updated = { ...folder, ...updates };
     await PromptStorage.saveFolder(updated);
     setFolders((prev) => prev.map((f) => f.id === id ? updated : f));
   }, [folders]);
@@ -124,6 +130,17 @@ export default function PromptsView() {
       setNav({ kind: 'source', source: nav.source });
     }
   }, [folders, nav]);
+
+  const handleMoveFolder = useCallback(async (id: string, newParentId: string | undefined) => {
+    const folder = folders.find((f) => f.id === id);
+    if (!folder) return;
+    const siblings = folders.filter(
+      (f) => (f.parentId ?? undefined) === newParentId && f.id !== id,
+    );
+    const updated: PromptFolder = { ...folder, parentId: newParentId, position: siblings.length };
+    await PromptStorage.saveFolder(updated);
+    setFolders((prev) => prev.map((f) => f.id === id ? updated : f));
+  }, [folders]);
 
   // ── Tag / Category CRUD ───────────────────────────────────────────────────
 
@@ -211,27 +228,8 @@ export default function PromptsView() {
     );
   }
 
-  if (formOpen) {
-    return (
-      <div className="flex flex-col h-full">
-        <PromptForm
-          initial={editPrompt}
-          categories={categories}
-          tags={tags}
-          folders={folders}
-          defaultFolderId={formDefaults.defaultFolderId}
-          defaultSource={formDefaults.defaultSource}
-          onSave={(p) => void handleSave(p)}
-          onClose={closeForm}
-          onCreateTag={handleCreateTag}
-          onCreateCategory={handleCreateCategory}
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden relative">
       {/* Top bar */}
       <div className="flex items-center justify-between px-2 py-2 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)] shrink-0">
         <span className="text-base font-semibold text-[var(--color-text)] truncate">
@@ -252,13 +250,15 @@ export default function PromptsView() {
               {seeding ? 'Loading…' : 'Samples'}
             </button>
           )}
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600 transition-colors"
-          >
-            <Plus size={13} />
-            New
-          </button>
+          {!(nav.kind === 'source' && nav.source === 'app') && (
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600 transition-colors"
+            >
+              <Plus size={13} />
+              New
+            </button>
+          )}
         </div>
       </div>
 
@@ -272,8 +272,9 @@ export default function PromptsView() {
             nav={nav}
             onNavigate={setNav}
             onCreateFolder={handleCreateFolder}
-            onRenameFolder={handleRenameFolder}
+            onUpdateFolder={handleUpdateFolder}
             onDeleteFolder={handleDeleteFolder}
+            onMoveFolder={handleMoveFolder}
           />
         </div>
 
@@ -284,6 +285,7 @@ export default function PromptsView() {
               prompts={visiblePrompts}
               tags={tags}
               categories={categories}
+              folders={folders}
               onEdit={openEdit}
               onDelete={(id) => void handleDelete(id)}
               onToggleFavorite={(id) => void handleToggleFavorite(id)}
@@ -296,6 +298,7 @@ export default function PromptsView() {
               prompts={visiblePrompts}
               tags={tags}
               categories={categories}
+              folders={folders}
               onEdit={openEdit}
               onDelete={(id) => void handleDelete(id)}
               onToggleFavorite={(id) => void handleToggleFavorite(id)}
@@ -315,6 +318,30 @@ export default function PromptsView() {
           onCopy={(id) => { void handleCopy(id); setVariablesPrompt(null); }}
         />
       )}
+
+      {/* Prompt form modal overlay */}
+      {formOpen && (
+        <div
+          className="absolute inset-0 z-20 flex items-center justify-center p-3 bg-black/50 backdrop-blur-sm overflow-y-auto"
+          onClick={(e) => { if (e.target === e.currentTarget) closeForm(); }}
+        >
+          <div className="w-full my-auto">
+            <PromptForm
+              initial={editPrompt}
+              categories={categories}
+              tags={tags}
+              folders={folders.filter((f) => f.source === 'local')}
+              defaultFolderId={formDefaults.defaultFolderId}
+              defaultSource={formDefaults.defaultSource}
+              onSave={(p) => void handleSave(p)}
+              onClose={closeForm}
+              onCreateTag={handleCreateTag}
+              onCreateCategory={handleCreateCategory}
+              onCreateFolder={(name) => handleCreateFolder(name, undefined, 'local')}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -325,6 +352,7 @@ interface StartPageContentProps {
   prompts: Prompt[];
   tags: PromptTag[];
   categories: PromptCategory[];
+  folders: PromptFolder[];
   onEdit: (p: Prompt) => void;
   onDelete: (id: string) => void;
   onToggleFavorite: (id: string) => void;
@@ -334,7 +362,7 @@ interface StartPageContentProps {
 }
 
 function StartPageContent({
-  prompts, tags, categories, onEdit, onDelete, onToggleFavorite, onTogglePin, onCopy, onUse,
+  prompts, tags, categories, folders, onEdit, onDelete, onToggleFavorite, onTogglePin, onCopy, onUse,
 }: StartPageContentProps) {
   if (prompts.length === 0) {
     return (
@@ -357,6 +385,7 @@ function StartPageContent({
           prompt={p}
           tags={tags}
           categories={categories}
+          folders={folders}
           onEdit={onEdit}
           onDelete={onDelete}
           onToggleFavorite={onToggleFavorite}

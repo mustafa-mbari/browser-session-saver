@@ -344,21 +344,19 @@ export default function DashboardLayout() {
 
   return (
     <div className="relative z-10 h-screen flex flex-col overflow-hidden">
-      {/* ── Fixed header — hidden for management views (they have their own header) ── */}
-      {!isSessionView && (
-        <NewTabHeader
-          ref={searchRef}
-          settings={settings}
-          onOpenSettings={() => uiStore.toggleSettings()}
-          onOpenWallpaper={() => uiStore.toggleWallpaper()}
-          onToggleClock={() => uiStore.updateSettings({ showClock: !settings.showClock })}
-          onLanguageChange={async (lang) => {
-            uiStore.updateSettings({ language: lang }); // update React state
-            await updateNewTabSettings({ language: lang }); // ensure persisted before reload
-            window.location.reload();
-          }}
-        />
-      )}
+      {/* ── Fixed header ── */}
+      <NewTabHeader
+        ref={searchRef}
+        settings={settings}
+        onOpenSettings={() => uiStore.toggleSettings()}
+        onOpenWallpaper={() => uiStore.toggleWallpaper()}
+        onToggleClock={() => uiStore.updateSettings({ showClock: !settings.showClock })}
+        onLanguageChange={async (lang) => {
+          uiStore.updateSettings({ language: lang }); // update React state
+          await updateNewTabSettings({ language: lang }); // ensure persisted before reload
+          window.location.reload();
+        }}
+      />
 
       {/* ── Body: sidebar + main ── */}
       <div className="flex flex-1 overflow-hidden">
@@ -402,7 +400,7 @@ export default function DashboardLayout() {
 
           {/* Scrollable content — no side padding for full-page management views */}
           {isSessionView ? (
-            <div className="flex-1 overflow-hidden h-full py-[3%] px-[1.5%]">
+            <div className="flex-1 overflow-hidden h-full pb-[3%] px-[1.5%]">
               {activeView === 'folder-explorer' && <BookmarkFolderPanel />}
               {activeView === 'sessions' && <SessionsPanel />}
               {activeView === 'tab-groups' && <TabGroupsPanel />}

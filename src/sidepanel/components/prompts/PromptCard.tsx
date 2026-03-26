@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Copy, Check, Pencil, Trash2, Pin, PinOff, Star, ChevronDown, ChevronUp, Zap, Monitor, Globe } from 'lucide-react';
-import type { Prompt, PromptTag, PromptCategory } from '@core/types/prompt.types';
+import type { Prompt, PromptTag, PromptCategory, PromptFolder } from '@core/types/prompt.types';
 import { PromptService } from '@core/services/prompt.service';
 
 interface PromptCardProps {
   prompt: Prompt;
   tags: PromptTag[];
   categories: PromptCategory[];
+  folders?: PromptFolder[];
   onEdit: (p: Prompt) => void;
   onDelete: (id: string) => void;
   onToggleFavorite: (id: string) => void;
@@ -19,6 +20,7 @@ export default function PromptCard({
   prompt,
   tags,
   categories,
+  folders = [],
   onEdit,
   onDelete,
   onToggleFavorite,
@@ -33,6 +35,17 @@ export default function PromptCard({
   const promptTags = tags.filter((t) => prompt.tags.includes(t.id));
   const category = categories.find((c) => c.id === prompt.categoryId);
   const hasVars = PromptService.extractVariables(prompt.content).length > 0;
+
+  const folderPath = useMemo(() => {
+    if (!prompt.folderId) return [];
+    const path: string[] = [];
+    let current = folders.find((f) => f.id === prompt.folderId);
+    while (current) {
+      path.unshift(current.name);
+      current = current.parentId ? folders.find((f) => f.id === current!.parentId) : undefined;
+    }
+    return path;
+  }, [prompt.folderId, folders]);
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -71,11 +84,19 @@ export default function PromptCard({
             {prompt.isPinned && (
               <Pin size={12} className="text-amber-500 shrink-0" />
             )}
-            <span className="text-base font-semibold text-[var(--color-text)] truncate">
+            <span className="text-base font-semibold text-[var(--color-text)] truncate min-w-0">
               {prompt.title}
             </span>
             {prompt.isFavorite && (
               <Star size={13} className="text-amber-400 fill-amber-400 shrink-0" />
+            )}
+            {folderPath.length > 0 && (
+              <span
+                className="ml-auto shrink-0 text-[10px] text-[var(--color-text-secondary)] opacity-60 truncate max-w-[40%] text-right"
+                title={folderPath.join(' / ')}
+              >
+                {folderPath.join(' / ')}
+              </span>
             )}
           </div>
           {!expanded && (
