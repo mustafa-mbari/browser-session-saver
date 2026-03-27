@@ -106,8 +106,9 @@ export default function ImportExportPanel() {
           `Imported: ${boards} board${boards !== 1 ? 's' : ''}, ` +
           `${categories} widget${categories !== 1 ? 's' : ''}, ` +
           `${entries} bookmark${entries !== 1 ? 's' : ''}, ` +
-          `${todoItems} todo item${todoItems !== 1 ? 's' : ''}`,
+          `${todoItems} todo item${todoItems !== 1 ? 's' : ''}. Reloading…`,
         );
+        setTimeout(() => window.location.reload(), 1500);
       } else {
         setDashboardImportResult(result.error ?? 'Import failed');
       }
