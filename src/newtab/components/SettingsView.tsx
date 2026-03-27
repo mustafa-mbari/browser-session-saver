@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Monitor, LayoutDashboard, Focus, Minimize2 } from 'lucide-react';
-import type { LayoutMode, NewTabSettings, SearchEngine } from '@core/types/newtab.types';
+import { AlertTriangle, Monitor, ALargeSmall } from 'lucide-react';
+import type { TextSizeMode, NewTabSettings, SearchEngine } from '@core/types/newtab.types';
 import type { Settings } from '@core/types/settings.types';
 import { DEFAULT_SETTINGS } from '@core/types/settings.types';
 import { useMessaging } from '@shared/hooks/useMessaging';
@@ -18,10 +18,10 @@ interface Props {
   onClearData: () => Promise<void>;
 }
 
-const LAYOUT_OPTIONS: { value: LayoutMode; label: string; desc: string; Icon: React.ElementType }[] = [
-  { value: 'minimal',   label: 'Minimal',   desc: 'Clock & search only',         Icon: Minimize2 },
-  { value: 'focus',     label: 'Focus',     desc: 'Search + widgets',             Icon: Focus },
-  { value: 'dashboard', label: 'Dashboard', desc: 'Full layout with sidebar',     Icon: LayoutDashboard },
+const TEXT_SIZE_OPTIONS: { value: TextSizeMode; label: string; desc: string; Icon: React.ElementType }[] = [
+  { value: 'default', label: 'Default', desc: 'Standard text size',  Icon: ALargeSmall },
+  { value: 'medium',  label: 'Medium',  desc: 'All text 20% larger', Icon: ALargeSmall },
+  { value: 'large',   label: 'Large',   desc: 'All text 35% larger', Icon: ALargeSmall },
 ];
 
 const SEARCH_ENGINE_OPTIONS: { value: SearchEngine; label: string }[] = [
@@ -196,11 +196,11 @@ export default function SettingsView({ settings, boards, onUpdate, onClearData }
           <SectionTitle>Theme</SectionTitle>
           <div className="grid grid-cols-3 gap-2">
             {(['light', 'dark', 'system'] as const).map((t) => {
-              const active = settings.theme === t;
+              const active = (appSettings.theme ?? 'system') === t;
               return (
                 <button
                   key={t}
-                  onClick={() => onUpdate({ theme: t })}
+                  onClick={() => { void updateApp('theme', t); }}
                   className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm capitalize transition-colors border ${
                     active
                       ? 'border-indigo-500 bg-indigo-500/15 text-white'
@@ -215,16 +215,16 @@ export default function SettingsView({ settings, boards, onUpdate, onClearData }
           </div>
         </Card>
 
-        {/* ── Layout ── */}
+        {/* ── Text Size ── */}
         <Card>
-          <SectionTitle>Layout</SectionTitle>
+          <SectionTitle>Text Size</SectionTitle>
           <div className="grid grid-cols-3 gap-2 mb-4">
-            {LAYOUT_OPTIONS.map(({ value, label, desc, Icon }) => {
-              const active = settings.layoutMode === value;
+            {TEXT_SIZE_OPTIONS.map(({ value, label, desc, Icon }) => {
+              const active = (settings.textSize ?? 'default') === value;
               return (
                 <button
                   key={value}
-                  onClick={() => onUpdate({ layoutMode: value })}
+                  onClick={() => onUpdate({ textSize: value })}
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-xl text-center transition-colors border ${
                     active
                       ? 'border-indigo-500 bg-indigo-500/15'
@@ -242,12 +242,6 @@ export default function SettingsView({ settings, boards, onUpdate, onClearData }
               );
             })}
           </div>
-          <Toggle
-            label="Compact density"
-            desc="Reduces card padding and spacing"
-            checked={settings.cardDensity === 'compact'}
-            onChange={(v) => onUpdate({ cardDensity: v ? 'compact' : 'comfortable' })}
-          />
           {boards.length > 0 && (
             <>
               <Divider />
@@ -324,8 +318,6 @@ export default function SettingsView({ settings, boards, onUpdate, onClearData }
           <div className="flex flex-col">
             <Toggle label="Show Clock"       checked={settings.showClock}      onChange={(v) => onUpdate({ showClock: v })} />
             <Toggle label="Show Quick Links" checked={settings.showQuickLinks} onChange={(v) => onUpdate({ showQuickLinks: v })} />
-            <Toggle label="Show To-Do"       checked={settings.showTodo}       onChange={(v) => onUpdate({ showTodo: v })} />
-            <Toggle label="Show Sessions"    checked={settings.showSessions}   onChange={(v) => onUpdate({ showSessions: v })} />
           </div>
         </Card>
 

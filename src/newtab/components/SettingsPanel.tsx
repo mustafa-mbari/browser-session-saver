@@ -232,12 +232,6 @@ export default function SettingsPanel({ settings, onUpdate, onClose, onClearData
                 );
               })}
             </div>
-            <Toggle
-              label="Compact density"
-              desc="Reduces card padding and spacing"
-              checked={settings.cardDensity === 'compact'}
-              onChange={(v) => onUpdate({ cardDensity: v ? 'compact' : 'comfortable' })}
-            />
           </section>
 
           <Divider />
@@ -312,8 +306,6 @@ export default function SettingsPanel({ settings, onUpdate, onClose, onClearData
             <div className="flex flex-col">
               <Toggle label="Show Clock"       checked={settings.showClock}      onChange={(v) => onUpdate({ showClock: v })} />
               <Toggle label="Show Quick Links" checked={settings.showQuickLinks} onChange={(v) => onUpdate({ showQuickLinks: v })} />
-              <Toggle label="Show To-Do"       checked={settings.showTodo}       onChange={(v) => onUpdate({ showTodo: v })} />
-              <Toggle label="Show Sessions"    checked={settings.showSessions}   onChange={(v) => onUpdate({ showSessions: v })} />
             </div>
           </section>
 
@@ -324,11 +316,11 @@ export default function SettingsPanel({ settings, onUpdate, onClose, onClearData
             <SectionTitle>Theme</SectionTitle>
             <div className="grid grid-cols-3 gap-2">
               {(['light', 'dark', 'system'] as const).map((t) => {
-                const active = settings.theme === t;
+                const active = (appSettings.theme ?? 'system') === t;
                 return (
                   <button
                     key={t}
-                    onClick={() => onUpdate({ theme: t })}
+                    onClick={() => { void updateApp('theme', t); }}
                     className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm capitalize transition-colors border ${
                       active
                         ? 'border-indigo-500 bg-indigo-500/15 text-white'

@@ -13,12 +13,28 @@ interface Props {
 
 export default function PromptCardBody({ colSpan, rowSpan }: Props) {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [fillPrompt, setFillPrompt] = useState<Prompt | null>(null);
   const setActiveView = useNewTabUIStore((s) => s.setActiveView);
 
   useEffect(() => {
-    void PromptStorage.getAll().then(setPrompts);
+    void PromptStorage.getAll().then((data) => {
+      setPrompts(data);
+      setLoaded(true);
+    });
+
+    const handleStorageChange = (
+      changes: Record<string, chrome.storage.StorageChange>,
+      area: string,
+    ) => {
+      if (area === 'local' && 'prompts' in changes) {
+        void PromptStorage.getAll().then(setPrompts);
+      }
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChange);
+    return () => chrome.storage.onChanged.removeListener(handleStorageChange);
   }, []);
 
   const pinned = PromptService.getPinnedPrompts(prompts).slice(0, 3);
@@ -41,7 +57,7 @@ export default function PromptCardBody({ colSpan, rowSpan }: Props) {
 
   const isCompact = colSpan <= 2 && rowSpan <= 3;
 
-  if (prompts.length === 0) {
+  if (loaded && prompts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full py-4 text-center">
         <Sparkles size={24} className="text-amber-400 opacity-60 mb-2" />

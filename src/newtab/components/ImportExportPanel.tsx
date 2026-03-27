@@ -3,6 +3,7 @@ import { Download, Upload, FileJson, FileText, FileSpreadsheet, FileCode, File }
 import { useSession } from '@shared/hooks/useSession';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import type { ExportFormat } from '@core/types/messages.types';
+import { PromptStorage } from '@core/storage/prompt-storage';
 
 const EXPORT_FORMATS: { key: ExportFormat; label: string; desc: string; icon: typeof FileJson }[] = [
   { key: 'json', label: 'JSON', desc: 'Full backup with all metadata', icon: FileJson },
@@ -108,6 +109,12 @@ export default function ImportExportPanel() {
           `${entries} bookmark${entries !== 1 ? 's' : ''}, ` +
           `${todoItems} todo item${todoItems !== 1 ? 's' : ''}. Reloading…`,
         );
+        // Ensure prompts exist before reload so any Prompts widget renders correctly.
+        // seedDemoData is idempotent — it skips IDs that already exist.
+        await Promise.all([
+          PromptStorage.seedAppFolders(),
+          PromptStorage.seedDemoData(),
+        ]);
         setTimeout(() => window.location.reload(), 1500);
       } else {
         setDashboardImportResult(result.error ?? 'Import failed');
