@@ -50,6 +50,17 @@ export default function App() {
     void loadLocale(settings.language ?? 'auto');
   }, [settings.language]);
 
+  // Apply text-size scaling via data-text-size attribute on <html>
+  useEffect(() => {
+    const size = settings.textSize ?? 'default';
+    if (size === 'default') {
+      document.documentElement.removeAttribute('data-text-size');
+    } else {
+      document.documentElement.setAttribute('data-text-size', size);
+    }
+    return () => document.documentElement.removeAttribute('data-text-size');
+  }, [settings.textSize]);
+
   // Navigate to a specific view when opened with ?view=<name>
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

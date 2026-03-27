@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Settings } from '@core/types/settings.types';
 import { DEFAULT_SETTINGS } from '@core/types/settings.types';
+import { getNewTabSettings, updateNewTabSettings } from '@core/services/newtab-settings.service';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import { useSidePanelStore } from '../stores/sidepanel.store';
 
@@ -8,6 +9,7 @@ export default function SettingsView() {
   const { sendMessage } = useMessaging();
   const { navigateTo } = useSidePanelStore();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [newtabEnabled, setNewtabEnabled] = useState(true);
 
   useEffect(() => {
     // Load current settings
@@ -22,6 +24,15 @@ export default function SettingsView() {
     };
     loadSettings();
   }, [sendMessage]);
+
+  useEffect(() => {
+    void getNewTabSettings().then((s) => setNewtabEnabled(s.enabled));
+  }, []);
+
+  const toggleNewtab = async (v: boolean) => {
+    setNewtabEnabled(v);
+    await updateNewTabSettings({ enabled: v });
+  };
 
   const updateSetting = async <K extends keyof Settings>(key: K, value: Settings[K]) => {
     const updated = { ...settings, [key]: value };
@@ -119,6 +130,16 @@ export default function SettingsView() {
           checked={settings.removeClosedTabsOnUpdate ?? false}
           onChange={(v) => updateSetting('removeClosedTabsOnUpdate', v)}
           description="Off (default): updating a session only adds new tabs. On: also removes session tabs no longer open in the current window."
+        />
+      </Section>
+
+      {/* New Tab Page */}
+      <Section title="New Tab Page">
+        <Toggle
+          label="Enable New Tab Override"
+          checked={newtabEnabled}
+          onChange={(v) => void toggleNewtab(v)}
+          description="When disabled, a blank page is shown instead of Browser Hub."
         />
       </Section>
 

@@ -50,6 +50,15 @@
   * {
     box-sizing: border-box;
   }
+
+  html[data-text-size="medium"] { font-size: 19.2px; }
+  html[data-text-size="large"]  { font-size: 21.6px; }
+
+  /* Scale hardcoded pixel text sizes used in newtab labels */
+  html[data-text-size="medium"] .text-\[10px\] { font-size: 12px; }
+  html[data-text-size="medium"] .text-\[11px\] { font-size: 13px; }
+  html[data-text-size="large"]  .text-\[10px\] { font-size: 14px; }
+  html[data-text-size="large"]  .text-\[11px\] { font-size: 15px; }
 }
 
 @layer utilities {

@@ -1,4 +1,5 @@
 export type LayoutMode = 'minimal' | 'focus' | 'dashboard';
+export type TextSizeMode = 'default' | 'medium' | 'large';
 export type SpanValue = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 export type CardType = 'bookmark' | 'clock' | 'note' | 'todo' | 'subscription' | 'tab-groups' | 'native-bookmarks' | 'weather' | 'downloads' | 'prompt-manager';
 export type CardDensity = 'comfortable' | 'compact';
@@ -120,6 +121,7 @@ export interface NewTabSettings {
   sidebarCollapsed: boolean;
   sidebarControl: SidebarControl;
   language: AppLanguage;
+  textSize?: TextSizeMode;
 }
 
 export const DEFAULT_NEWTAB_SETTINGS: NewTabSettings = {
@@ -151,6 +153,7 @@ export const DEFAULT_NEWTAB_SETTINGS: NewTabSettings = {
   sidebarCollapsed: false,
   sidebarControl: 'expand-on-hover',
   language: 'auto',
+  textSize: 'default',
 };
 
 export const GRADIENT_PRESETS: GradientPreset[] = [
