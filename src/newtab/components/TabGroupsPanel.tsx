@@ -529,6 +529,7 @@ export default function TabGroupsPanel() {
   const loading = liveLoading || savedLoading;
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="pt-4 flex flex-col gap-4 w-full">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -664,6 +665,7 @@ export default function TabGroupsPanel() {
 
         </div>
       )}
+    </div>
     </div>
   );
 }

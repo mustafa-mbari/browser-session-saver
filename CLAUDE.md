@@ -47,10 +47,10 @@ cd admin && npm run build               # Production build
 - **Path aliases**: `@core/*`, `@shared/*`, `@background/*`, `@sidepanel/*`, `@popup/*`, `@newtab/*`
 - **State management**: Zustand stores per UI surface (sidepanel.store.ts; newtab split into newtab-ui.store.ts + newtab-data.store.ts with facade re-export from newtab.store.ts)
 - **Storage**: chrome.storage.local for settings, IndexedDB (`browser-hub` v2 with `isAutoSave`/`createdAt` indexes) for sessions — abstracted via `IStorage` interface (with optional `getByIndex` for indexed queries); start-tab uses a separate `newtab-db` (NewTabDB class in `src/core/storage/newtab-storage.ts`) for bookmarks/todos/wallpapers
-- **Messaging**: Typed discriminated union `Message` type between service worker and UI via `chrome.runtime.sendMessage`; 15 action types defined in `messages.types.ts`
+- **Messaging**: Typed discriminated union `Message` type between service worker and UI via `chrome.runtime.sendMessage`; 19 action types defined in `messages.types.ts`
 - **Styling**: Tailwind CSS with CSS custom properties for theme tokens, dark mode via `class` strategy. Glassmorphism utilities (`.glass`, `.glass-panel`, `.glass-dark`, `.glass-hover`, `.vignette`) defined in `@layer utilities` in `globals.css`
 - **Components**: All shared components support dark mode and include ARIA attributes
-- **Tests**: Vitest with jsdom, Chrome API mocked in `tests/setup.ts`; 186 tests across 18 files in `tests/unit/`
+- **Tests**: Vitest with jsdom, Chrome API mocked in `tests/setup.ts`; 256 tests across 21 files in `tests/unit/`
 - **i18n**: `_locales/en/messages.json` (~282 keys), `_locales/ar/messages.json`, `_locales/de/messages.json`; `t()` wrapper at `src/shared/utils/i18n.ts`
 - **Virtual scrolling**: `@tanstack/react-virtual` v3 used in `SessionsPanel` (3-column `lanes` grid) and `AutoSavesPanel` (flat list with headers); threshold ≤30 items uses plain DOM, >30 uses virtualizer
 - **Error boundaries**: `src/shared/components/ErrorBoundary.tsx` wraps all major UI sections; reports via `errorBoundaryTitle/Desc/Reload` i18n keys
@@ -59,15 +59,20 @@ cd admin && npm run build               # Production build
 - **ContextMenu accessibility**: keyboard navigation (Enter/Space to open, Escape, ArrowUp/Down, Home/End, Tab to close); roving tabindex pattern; `requestAnimationFrame` deferred focus
 - **Widget config**: `src/core/config/widget-config.ts` — `WIDGET_CONFIG` registry with per-type min/max/default sizes, `getDefaultSize()`, `clampSize()` utilities
 - **View unions**:
-  - `SidePanelView`: `'home' | 'session-detail' | 'tab-groups' | 'settings' | 'import-export' | 'subscriptions'`
-  - `CardType`: `'bookmark' | 'clock' | 'note' | 'todo' | 'subscription' | 'tab-groups'`
+  - `SidePanelView`: `'home' | 'session-detail' | 'tab-groups' | 'settings' | 'import-export' | 'subscriptions' | 'prompts' | 'cloud-sync'`
+  - `CardType`: `'bookmark' | 'clock' | 'note' | 'todo' | 'subscription' | 'tab-groups' | 'prompt-manager'`
+- **Cloud sync**: `@supabase/supabase-js` with custom `chrome.storage.local` auth adapter; no `@supabase/ssr` (no cookies in extensions). Env vars `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` injected at build time; placeholder fallbacks prevent test-time throws.
 
 ## Important Files
 
-- `public/manifest.json` — Chrome Manifest V3 with permissions (`tabs`, `tabGroups`, `storage`, `alarms`, `idle`, `sidePanel`, `activeTab`, `topSites`, `bookmarks`), `optional_permissions: [history]`, side_panel, and `chrome_url_overrides.newtab`
+- `public/manifest.json` — Chrome Manifest V3 with permissions (`tabs`, `tabGroups`, `storage`, `alarms`, `idle`, `sidePanel`, `activeTab`, `topSites`, `bookmarks`), `optional_permissions: [history]`, `host_permissions: ["https://*.supabase.co/*"]`, side_panel, and `chrome_url_overrides.newtab`
 - `src/core/types/session.types.ts` — Core data model (Session, Tab, TabGroup, AutoSaveTrigger, ChromeGroupColor)
 - `src/core/types/newtab.types.ts` — Start-tab data models: Board, BookmarkCategory, BookmarkEntry, QuickLink, TodoItem, TodoList, NewTabSettings, CardType, GRADIENT_PRESETS
-- `src/core/types/messages.types.ts` — Message protocol between SW and UI (15 action types)
+- `src/core/types/messages.types.ts` — Message protocol between SW and UI (19 action types)
+- `src/core/types/prompt.types.ts` — Prompt, PromptFolder, PromptCategory, PromptTag, PromptSectionKey, PromptFilterOptions, PromptSortField
+- `src/core/supabase/client.ts` — Singleton Supabase client using `chrome.storage.local` as auth storage adapter
+- `src/core/services/sync-auth.service.ts` — Supabase auth wrapper: `syncSignIn`, `syncSignOut`, `getSyncSession`, `getSyncUserId`, `isSyncAuthenticated`
+- `src/core/services/sync.service.ts` — Cloud sync orchestrator: `syncAll`, `pushSession`, `deleteRemoteSession`, `getSyncStatus`, `getUserQuota`; camelCase↔snake_case mappers; quota-aware (sessions/prompts/subs); status persisted to `cloud_sync_status` key
 - `src/core/types/subscription.types.ts` — Subscription, SubscriptionTemplate, BillingCycle, DueUrgency, SUPPORTED_CURRENCIES, SUBSCRIPTION_TEMPLATES (22 presets)
 - `src/core/types/tab-group.types.ts` — TabGroupTemplate, TabGroupTemplateTab
 - `src/core/config/widget-config.ts` — Widget sizing configuration registry: `WidgetSizeConfig` interface, `WIDGET_CONFIG` (per-CardType min/max/default), `getDefaultSize()`, `clampSize()`
@@ -78,7 +83,9 @@ cd admin && npm run build               # Production build
 - `src/core/storage/tab-group-template-storage.ts` — Static class adapter; key: `tab_group_templates` in chrome.storage.local
 - `src/core/constants/tab-group-colors.ts` — `GROUP_COLORS` map (ChromeGroupColor → CSS hex); imported by session and start-tab components
 - `src/core/services/subscription.service.ts` — Urgency calculation, monthly normalization, analytics, CSV import/export, currency formatting
-- `src/background/event-listeners.ts` — Central message dispatcher (15 handlers)
+- `src/core/storage/prompt-storage.ts` — chrome.storage.local adapter; keys: `prompts`, `prompt_categories`, `prompt_tags`, `prompt_folders`; includes `source` field migration
+- `src/core/services/prompt.service.ts` — `extractVariables`, `applyVariables`, `filterPrompts`, `filterBySection`, `buildFolderTree`, `sortPrompts`, `getRecentPrompts`, `getPinnedPrompts`
+- `src/background/event-listeners.ts` — Central message dispatcher (19 handlers); after session save/update: calls `syncAfterMutation` (fire-and-forget); after delete: calls `deleteRemoteSession`
 - `src/background/auto-save-engine.ts` — Auto-save trigger management; calls `upsertAutoSaveSession` so each trigger type maintains exactly one pinned entry (updated in place)
 - `src/sidepanel/views/HomeView.tsx` — Slim orchestrator (~250 LOC) for sessions, current tabs, and tab groups tabs
 - `src/sidepanel/components/CurrentTabsPanel.tsx` — Current browser tabs panel (extracted from HomeView)
@@ -87,6 +94,8 @@ cd admin && npm run build               # Production build
 - `src/sidepanel/components/HomeSavedGroupRow.tsx` — Saved tab group template row with restore/rename/delete (extracted from HomeView)
 - `src/sidepanel/views/SubscriptionsView.tsx` — Subscription management with List/Calendar/Analytics tabs
 - `src/sidepanel/views/TabGroupsView.tsx` — Live and saved tab groups management
+- `src/sidepanel/views/PromptsView.tsx` — Two-pane prompt manager: left=PromptSectionNav (sections + nested folder tree), right=PromptList or StartPageContent
+- `src/sidepanel/views/CloudSyncView.tsx` — Sign-in form (not authenticated) or quota bars + Sync Now button (authenticated); uses `SYNC_*` messages to background SW
 - `src/newtab/App.tsx` — Start-tab root component: data loading, layout selection, overlay management
 - `src/newtab/stores/newtab-ui.store.ts` — UI state store (settings, layoutMode, activeView, modals, loading)
 - `src/newtab/stores/newtab-data.store.ts` — Data state store (boards, categories, entries, quickLinks, todoLists, todoItems)
@@ -141,6 +150,32 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - Start-tab integration: `SubscriptionCardBody` widget type, `SubscriptionsPanel` sidebar view, `SubscriptionReminder` toast on start-tab load
 - Service: `src/core/services/subscription.service.ts` — urgency levels (overdue/today/urgent/soon/safe), monthly normalization, category breakdown, CSV round-trip
 
+## Prompt Manager Feature Notes
+
+- Storage: `prompts`, `prompt_categories`, `prompt_tags`, `prompt_folders` keys in `chrome.storage.local` via functions in `src/core/storage/prompt-storage.ts`; `source` field defaults to `'local'` on migration
+- Sidepanel view: `'prompts'` in `SidePanelView` union — `src/sidepanel/views/PromptsView.tsx`
+- Sections: Start Page (last 10 used), Quick Access (pinned), All, Favorites, My Prompts (local), App Prompts (app source)
+- Variable system: `{{variable}}` syntax, detected via `extractVariables()`, filled via `PromptVariablesModal`
+- Navigation: `Ctrl+Shift+P` shortcut + ✨ Sparkles button in Header
+- Start-tab widget body: `src/newtab/components/PromptCardBody.tsx` (CardType: `'prompt-manager'`)
+- Start-tab panel: `src/newtab/components/PromptsPanel.tsx` (lazy-loaded)
+- `SidePanelView` includes `'prompts'`; `CardType` includes `'prompt-manager'`
+
+## Cloud Sync Feature Notes
+
+- Package: `@supabase/supabase-js` (NOT `@supabase/ssr` — no cookies in Chrome extensions)
+- Auth storage: custom adapter wrapping `chrome.storage.local` in `src/core/supabase/client.ts`
+- Env vars: `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` in root `.env`; placeholder fallbacks prevent test-time module throws
+- Sync strategy: push-first "full snapshot" — reads ALL local data and upserts to Supabase on each cycle, up to quota limits
+- Triggers: 15-minute `chrome.alarms` alarm (`cloud-sync`) + fire-and-forget after each session save/update/delete
+- Alarm registered synchronously in `src/background/index.ts` (MV3 requirement — before any `await`)
+- Tables: `sessions`, `prompts`, `prompt_folders`, `tracked_subscriptions`; quota via `get_user_quota(p_user_id)` RPC (cached 5 min)
+- `SyncStatus` and `UserQuota` types in `src/core/services/sync.service.ts`
+- Status persisted to `cloud_sync_status` key in `chrome.storage.local`
+- Sidepanel view: `'cloud-sync'` in `SidePanelView` union — Cloud icon button in Header
+- Test mocking: `vi.mock('@core/services/sync-auth.service', ...)` and `vi.mock('@core/services/sync.service', ...)` added to `event-listeners.test.ts` to prevent real API calls
+- Supabase migrations: `supabase/migrations/` contains 11 SQL files (001–011) covering auth/profiles, plans, user_plans, promo_codes, sessions, prompts, tracked_subscriptions, bookmark_folders, admin_tables, triggers, quota_functions
+
 ## Tab Groups Feature Notes
 
 - Storage: `tab_group_templates` key in `chrome.storage.local` via `TabGroupTemplateStorage` static class in `src/core/storage/tab-group-template-storage.ts`
@@ -156,14 +191,15 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - Chrome APIs are mocked globally in `tests/setup.ts`
 - Unit tests in `tests/unit/` organized by module (utils, services, storage, contexts, config)
   - `tests/unit/utils/` — uuid, date, validators, debounce
-  - `tests/unit/services/` — search, export, import, session-count, session.service, subscription.service
-  - `tests/unit/storage/` — chrome-local-key-adapter, newtab-storage
+  - `tests/unit/services/` — search, export, import, session-count, session.service, subscription.service, prompt.service
+  - `tests/unit/storage/` — chrome-local-key-adapter, newtab-storage, prompt-storage
   - `tests/unit/contexts/` — bookmark-board-context
   - `tests/unit/components/` — ErrorBoundary, Modal
   - `tests/unit/background/` — auto-save-engine, event-listeners
   - `tests/unit/config/` — widget-config
-- 186 tests across 18 test files
+- 256 tests across 21 test files
 - Run `npm test` before committing
+- Sync services must be mocked in `event-listeners.test.ts` to prevent real Supabase calls: `vi.mock('@core/services/sync-auth.service', ...)` + `vi.mock('@core/services/sync.service', ...)`
 
 ## Do Not
 
@@ -196,7 +232,7 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - **Route groups**: `(admin)` for all authenticated admin pages, `/login` for admin login
 - **Sidebar**: Custom `AdminSidebar` with CSS transition-based collapse, 10 nav items
 - **Theme**: Same cookie-based system as web app
-- **Auth**: Admin role check via Supabase profiles table (TODO: connect to Supabase)
+- **Auth**: Admin role check via Supabase `profiles.role` column; uses service-role client (`createServiceClient`) for privileged queries
 - **Pages**: Overview, Users, Statistics, Promo Codes, Subscriptions, Webhooks, Tickets, Suggestions, Quotas, Emails
 - **UI components**: 18 shadcn components in `admin/components/ui/`
 - **Metadata**: `robots: noindex, nofollow` (not indexed by search engines)

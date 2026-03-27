@@ -1,4 +1,4 @@
-import type { Message, MessageResponse, SessionDiffResponse, SaveSessionResponse, GetSessionsResponse } from '@core/types/messages.types';
+import type { Message, MessageResponse, SessionDiffResponse, SaveSessionResponse, GetSessionsResponse, SyncSignInResponse } from '@core/types/messages.types';
 import type { Session } from '@core/types/session.types';
 import type { Settings } from '@core/types/settings.types';
 import { STORAGE_KEYS } from '@core/types/storage.types';
@@ -11,6 +11,8 @@ import { exportAsJSON, exportAsHTML, exportAsMarkdown, exportAsCSV, exportAsText
 import { importFromJSON, importFromHTML, importFromURLList } from '@core/services/import.service';
 import { generateId } from '@core/utils/uuid';
 import { isValidUrl, isValidSession } from '@core/utils/validators';
+import { syncSignIn, syncSignOut, getSyncUserId } from '@core/services/sync-auth.service';
+import { syncAll, getSyncStatus, pushSession, deleteRemoteSession } from '@core/services/sync.service';
 
 export function registerEventListeners(): void {
   chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
@@ -59,6 +61,14 @@ async function handleMessage(message: Message): Promise<MessageResponse> {
       return handleOpenDownload(message.payload);
     case 'SHOW_DOWNLOAD':
       return handleShowDownload(message.payload);
+    case 'SYNC_GET_STATUS':
+      return handleSyncGetStatus();
+    case 'SYNC_SIGN_IN':
+      return handleSyncSignIn(message.payload);
+    case 'SYNC_SIGN_OUT':
+      return handleSyncSignOut();
+    case 'SYNC_NOW':
+      return handleSyncNow();
     default:
       return { success: false, error: 'Unknown action' };
   }
@@ -109,6 +119,9 @@ async function handleSaveSession(payload: {
       await chrome.tabs.remove(tabIds);
     }
   }
+
+  // Fire-and-forget sync — does not block the save response
+  void syncAfterMutation(session);
 
   return { success: true, data: { session, isDuplicate } };
 }
@@ -217,6 +230,9 @@ async function handleDeleteSession(payload: {
   sessionId: string;
 }): Promise<MessageResponse> {
   const deleted = await SessionService.deleteSession(payload.sessionId);
+  if (deleted) {
+    void deleteRemoteSession(payload.sessionId);
+  }
   return deleted
     ? { success: true }
     : { success: false, error: 'Session not found or locked' };
@@ -283,6 +299,9 @@ async function handleUpdateSession(payload: {
   updates: Partial<Session>;
 }): Promise<MessageResponse<Session>> {
   const updated = await SessionService.updateSession(payload.sessionId, payload.updates);
+  if (updated) {
+    void syncAfterMutation(updated);
+  }
   return updated
     ? { success: true, data: updated }
     : { success: false, error: 'Session not found' };
@@ -542,4 +561,47 @@ async function handleShowDownload(payload: { downloadId: number }): Promise<Mess
 async function getCurrentWindowId(): Promise<number> {
   const window = await chrome.windows.getCurrent();
   return window.id!;
+}
+
+// ─── Cloud Sync handlers ─────────────────────────────────────────────────────
+
+async function handleSyncGetStatus(): Promise<MessageResponse> {
+  const status = await getSyncStatus();
+  return { success: true, data: status };
+}
+
+async function handleSyncSignIn(payload: {
+  email: string;
+  password: string;
+}): Promise<MessageResponse<SyncSignInResponse>> {
+  const result = await syncSignIn(payload.email, payload.password);
+  return { success: result.success, data: result, error: result.error };
+}
+
+async function handleSyncSignOut(): Promise<MessageResponse> {
+  await syncSignOut();
+  return { success: true };
+}
+
+async function handleSyncNow(): Promise<MessageResponse> {
+  const result = await syncAll();
+  if (result.success) {
+    const status = await getSyncStatus();
+    return { success: true, data: status };
+  }
+  return { success: false, error: result.error };
+}
+
+/**
+ * Fire-and-forget helper: push a single session to Supabase after a local mutation.
+ * Does NOT block the caller — failures are swallowed (user is never interrupted).
+ */
+async function syncAfterMutation(session: Session): Promise<void> {
+  try {
+    const userId = await getSyncUserId();
+    if (!userId) return;
+    await pushSession(session, userId);
+  } catch {
+    // Intentional no-op — sync errors are silent for mutations
+  }
 }

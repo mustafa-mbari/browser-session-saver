@@ -20,7 +20,8 @@
   "optional_permissions": ["history"],
   "host_permissions": [
     "https://api.open-meteo.com/*",
-    "https://ipinfo.io/*"
+    "https://ipinfo.io/*",
+    "https://*.supabase.co/*"
   ],
   "chrome_url_overrides": {
     "newtab": "src/newtab/index.html"

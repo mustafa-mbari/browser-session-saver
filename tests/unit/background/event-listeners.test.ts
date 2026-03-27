@@ -70,6 +70,25 @@ vi.mock('@core/services/import.service', () => ({
 }));
 
 // ---------------------------------------------------------------------------
+// Mock: cloud sync services (prevent real Supabase calls in tests)
+// ---------------------------------------------------------------------------
+vi.mock('@core/services/sync-auth.service', () => ({
+  syncSignIn: vi.fn().mockResolvedValue({ success: false, error: 'Not configured' }),
+  syncSignOut: vi.fn().mockResolvedValue(undefined),
+  getSyncUserId: vi.fn().mockResolvedValue(null),
+  getSyncEmail: vi.fn().mockResolvedValue(null),
+  isSyncAuthenticated: vi.fn().mockResolvedValue(false),
+  getSyncSession: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock('@core/services/sync.service', () => ({
+  syncAll: vi.fn().mockResolvedValue({ success: false, synced: { sessions: 0, prompts: 0, subs: 0 } }),
+  getSyncStatus: vi.fn().mockResolvedValue({ isAuthenticated: false, userId: null, email: null, lastSyncAt: null, isSyncing: false, quota: null, usage: null, error: null }),
+  pushSession: vi.fn().mockResolvedValue(undefined),
+  deleteRemoteSession: vi.fn().mockResolvedValue(undefined),
+}));
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 function makeTab(url: string, id = url) {

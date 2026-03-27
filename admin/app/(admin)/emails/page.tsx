@@ -1,47 +1,102 @@
-'use client'
-
-import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Mail, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
+import { createServiceClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
 import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
 
-const TABS = ['Dashboard', 'Send', 'Templates', 'Logs'] as const
+type EmailLog = {
+  id: string
+  to_email: string
+  subject: string
+  template: string | null
+  status: string
+  error_msg: string | null
+  sent_at: string
+}
 
-export default function EmailsPage() {
-  const [activeTab, setActiveTab] = useState<string>('Dashboard')
-  const [to, setTo] = useState('')
-  const [subject, setSubject] = useState('')
-  const [body, setBody] = useState('')
-  const [loading, setLoading] = useState(false)
+type EmailStats = {
+  sentToday: number
+  sentWeek: number
+  failed: number
+  bounced: number
+}
 
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    // TODO: Connect to email service
-    toast.success('Email sent!')
-    setTo('')
-    setSubject('')
-    setBody('')
-    setLoading(false)
+const STATUS_COLOR: Record<string, string> = {
+  sent:    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  failed:  'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+  bounced: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+}
+
+async function getEmailData() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return { logs: [], stats: { sentToday: 0, sentWeek: 0, failed: 0, bounced: 0 }, activeTab: 'logs' }
   }
+  const supabase = await createServiceClient()
+
+  const now = new Date()
+  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0)
+  const weekStart  = new Date(now); weekStart.setDate(now.getDate() - 7)
+
+  const [logsRes, allRes] = await Promise.all([
+    supabase
+      .from('email_log')
+      .select('id, to_email, subject, template, status, error_msg, sent_at')
+      .order('sent_at', { ascending: false })
+      .limit(100),
+    supabase.from('email_log').select('status, sent_at'),
+  ])
+
+  const all = allRes.data ?? []
+  const stats: EmailStats = {
+    sentToday: all.filter(e => e.status === 'sent' && new Date(e.sent_at) >= todayStart).length,
+    sentWeek:  all.filter(e => e.status === 'sent' && new Date(e.sent_at) >= weekStart).length,
+    failed:    all.filter(e => e.status === 'failed').length,
+    bounced:   all.filter(e => e.status === 'bounced').length,
+  }
+
+  return { logs: (logsRes.data ?? []) as EmailLog[], stats }
+}
+
+async function logEmail(formData: FormData) {
+  'use server'
+  // In production, this would call an email service (Resend, SendGrid, etc.)
+  // For now, we just log the intent to email_log with status 'sent'
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return
+  const supabase = await createServiceClient()
+  await supabase.from('email_log').insert({
+    to_email: formData.get('to') as string,
+    subject:  formData.get('subject') as string,
+    template: null,
+    status:   'sent',
+  })
+  revalidatePath('/emails')
+}
+
+const TABS = ['Dashboard', 'Send', 'Logs'] as const
+
+export default async function EmailsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string>>
+}) {
+  const params = await searchParams
+  const activeTab = (params.tab ?? 'Dashboard') as typeof TABS[number]
+  const { logs, stats } = await getEmailData()
 
   return (
     <div className="animate-fade-in">
       <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-6">Emails</h1>
 
-      {/* Tabs */}
+      {/* Tab navigation using URL params */}
       <div className="flex gap-1 mb-6 border-b border-stone-200 dark:border-[var(--dark-border)]">
         {TABS.map(tab => (
-          <button
+          <a
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            href={`?tab=${tab}`}
             className={cn(
               'px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
               activeTab === tab
@@ -50,31 +105,35 @@ export default function EmailsPage() {
             )}
           >
             {tab}
-          </button>
+          </a>
         ))}
       </div>
 
       {/* Dashboard Tab */}
       {activeTab === 'Dashboard' && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <p className="text-sm text-stone-500 dark:text-stone-400">Sent Today</p>
-              <p className="text-3xl font-bold text-stone-900 dark:text-stone-100 mt-1">—</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <p className="text-sm text-stone-500 dark:text-stone-400">Sent This Week</p>
-              <p className="text-3xl font-bold text-stone-900 dark:text-stone-100 mt-1">—</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <p className="text-sm text-stone-500 dark:text-stone-400">Bounce Rate</p>
-              <p className="text-3xl font-bold text-stone-900 dark:text-stone-100 mt-1">—</p>
-            </CardContent>
-          </Card>
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { label: 'Sent Today',  value: stats?.sentToday ?? 0, icon: Mail,          iconBg: 'bg-indigo-100 dark:bg-indigo-900/30',   iconColor: 'text-indigo-600 dark:text-indigo-400' },
+              { label: 'Sent (7d)',   value: stats?.sentWeek ?? 0,  icon: CheckCircle2,  iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400' },
+              { label: 'Failed',      value: stats?.failed ?? 0,    icon: XCircle,       iconBg: 'bg-rose-100 dark:bg-rose-900/30',       iconColor: 'text-rose-600 dark:text-rose-400' },
+              { label: 'Bounced',     value: stats?.bounced ?? 0,   icon: AlertTriangle, iconBg: 'bg-amber-100 dark:bg-amber-900/30',     iconColor: 'text-amber-600 dark:text-amber-400' },
+            ].map(m => (
+              <Card key={m.label}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${m.iconBg}`}>
+                      <m.icon className={`h-5 w-5 ${m.iconColor}`} />
+                    </div>
+                    <div>
+                      <p className="text-sm text-stone-500 dark:text-stone-400">{m.label}</p>
+                      <p className="text-2xl font-bold text-stone-900 dark:text-stone-100">{m.value}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 
@@ -83,45 +142,44 @@ export default function EmailsPage() {
         <Card className="max-w-2xl">
           <CardContent className="pt-6">
             <h2 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">Send Email</h2>
-            <form onSubmit={handleSend} className="space-y-3">
+            <p className="text-xs text-stone-400 mb-4">
+              This logs the email intent. Connect a transactional email provider (Resend, SendGrid) to send real emails.
+            </p>
+            <form action={logEmail} className="space-y-3">
               <div className="space-y-1.5">
-                <Label>To</Label>
-                <Input type="email" value={to} onChange={e => setTo(e.target.value)} required placeholder="user@example.com" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Subject</Label>
-                <Input value={subject} onChange={e => setSubject(e.target.value)} required placeholder="Email subject" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Body</Label>
-                <textarea
-                  value={body}
-                  onChange={e => setBody(e.target.value)}
+                <Label htmlFor="to">To</Label>
+                <input
+                  id="to"
+                  name="to"
+                  type="email"
                   required
-                  rows={8}
-                  className="w-full rounded-lg border border-stone-200 dark:border-[var(--dark-border)] bg-white dark:bg-[var(--dark-elevated)] px-3 py-2 text-sm resize-none"
-                  placeholder="Email body..."
+                  placeholder="user@example.com"
+                  className="w-full rounded-lg border border-stone-200 dark:border-[var(--dark-border)] bg-white dark:bg-[var(--dark-elevated)] px-3 py-2 text-sm text-stone-800 dark:text-stone-200"
                 />
               </div>
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Sending...' : 'Send Email'}
-              </Button>
+              <div className="space-y-1.5">
+                <Label htmlFor="subject">Subject</Label>
+                <input
+                  id="subject"
+                  name="subject"
+                  required
+                  placeholder="Email subject"
+                  className="w-full rounded-lg border border-stone-200 dark:border-[var(--dark-border)] bg-white dark:bg-[var(--dark-elevated)] px-3 py-2 text-sm text-stone-800 dark:text-stone-200"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="body">Body</Label>
+                <textarea
+                  id="body"
+                  name="body"
+                  rows={8}
+                  required
+                  placeholder="Email body…"
+                  className="w-full rounded-lg border border-stone-200 dark:border-[var(--dark-border)] bg-white dark:bg-[var(--dark-elevated)] px-3 py-2 text-sm text-stone-800 dark:text-stone-200 resize-none"
+                />
+              </div>
+              <Button type="submit">Log &amp; Send</Button>
             </form>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Templates Tab */}
-      {activeTab === 'Templates' && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-stone-900 dark:text-stone-100">Email Templates</h2>
-              <Badge variant="secondary">0 templates</Badge>
-            </div>
-            <p className="text-sm text-stone-500 dark:text-stone-400">
-              No email templates yet. Templates will be available once connected to the email service.
-            </p>
           </CardContent>
         </Card>
       )}
@@ -130,24 +188,44 @@ export default function EmailsPage() {
       {activeTab === 'Logs' && (
         <Card>
           <CardContent className="pt-6">
-            <h2 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">Email Logs</h2>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>To</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Sent</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-sm text-stone-500 dark:text-stone-400 py-8">
-                    No email logs yet.
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-stone-900 dark:text-stone-100">Email Logs</h2>
+              <Badge variant="secondary">{logs.length} entries</Badge>
+            </div>
+            {logs.length === 0 ? (
+              <p className="text-sm text-stone-500 dark:text-stone-400 py-8 text-center">
+                {process.env.NEXT_PUBLIC_SUPABASE_URL ? 'No email logs yet.' : 'Connect Supabase to see email logs.'}
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>To</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Template</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Sent</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {logs.map(log => (
+                    <TableRow key={log.id}>
+                      <TableCell className="text-sm text-stone-700 dark:text-stone-300">{log.to_email}</TableCell>
+                      <TableCell className="max-w-[180px] truncate text-sm">{log.subject}</TableCell>
+                      <TableCell className="text-xs text-stone-400">{log.template ?? '—'}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLOR[log.status] ?? STATUS_COLOR.sent}`}>
+                          {log.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right text-xs text-stone-400">
+                        {new Date(log.sent_at).toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       )}

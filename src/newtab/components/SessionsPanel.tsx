@@ -5,6 +5,7 @@ import {
   Search, RotateCcw, RefreshCw, MoreVertical, Pin, Star, Download, Trash2, Lock,
   FolderOpen, Layers2, Clock as ClockIcon, HardDrive,
   SlidersHorizontal, Power, Moon, Battery, WifiOff, Camera, Filter, Scissors, Calendar,
+  Save,
 } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useSession } from '@shared/hooks/useSession';
@@ -546,6 +547,17 @@ export default function SessionsPanel() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [diffResult, setDiffResult] = useState<SessionDiffResponse | null>(null);
   const [diffSessions, setDiffSessions] = useState<[Session, Session] | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const handleSaveSession = useCallback(async () => {
+    const defaultName = `Session — ${new Date().toLocaleString()}`;
+    const name = window.prompt('Session name:', defaultName);
+    if (name === null) return; // cancelled
+    setSaving(true);
+    await sendMessage({ action: 'SAVE_SESSION', payload: { name: name.trim() || defaultName } });
+    await refreshSessions();
+    setSaving(false);
+  }, [sendMessage, refreshSessions]);
 
   const autoSaves = useMemo(() => sessions.filter((s) => s.isAutoSave), [sessions]);
 
@@ -684,9 +696,23 @@ export default function SessionsPanel() {
           <h2 className="text-xl font-semibold" style={{ color: 'var(--newtab-text)' }}>
             {t('sessionsTitle')}
           </h2>
-          <span className="text-sm" style={{ color: 'var(--newtab-text-secondary)' }}>
-            {t('nSaved', String(sessions.length))}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm" style={{ color: 'var(--newtab-text-secondary)' }}>
+              {t('nSaved', String(sessions.length))}
+            </span>
+            <button
+              onClick={() => { void handleSaveSession(); }}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+              style={{ background: 'rgba(99,102,241,0.25)', color: '#a5b4fc' }}
+            >
+              {saving
+                ? <span className="animate-spin inline-block w-3 h-3 border border-current border-t-transparent rounded-full" />
+                : <Save size={12} />
+              }
+              Save Session
+            </button>
+          </div>
         </div>
 
         <SessionStatsBar sessions={sessions} />

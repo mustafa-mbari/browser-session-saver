@@ -48,7 +48,11 @@ export type Message =
   | { action: 'RESTORE_SELECTED_TABS'; payload: { sessionId: string; tabIds: string[]; mode: RestoreMode } }
   | { action: 'UPDATE_SESSION_TABS'; payload: { sessionId: string } }
   | { action: 'OPEN_DOWNLOAD'; payload: { downloadId: number } }
-  | { action: 'SHOW_DOWNLOAD'; payload: { downloadId: number } };
+  | { action: 'SHOW_DOWNLOAD'; payload: { downloadId: number } }
+  | { action: 'SYNC_GET_STATUS'; payload: Record<string, never> }
+  | { action: 'SYNC_SIGN_IN'; payload: { email: string; password: string } }
+  | { action: 'SYNC_SIGN_OUT'; payload: Record<string, never> }
+  | { action: 'SYNC_NOW'; payload: Record<string, never> };
 
 export interface MessageResponse<T = unknown> {
   success: boolean;
@@ -78,4 +82,10 @@ export interface SessionDiffResponse {
 export interface SaveSessionResponse {
   session: Session | Session[];
   isDuplicate: boolean;
+}
+
+export interface SyncSignInResponse {
+  success: boolean;
+  email?: string;
+  error?: string;
 }

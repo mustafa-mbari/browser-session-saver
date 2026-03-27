@@ -1,4 +1,4 @@
-import { ArrowLeft, Settings, Sun, Moon, CreditCard, Sparkles } from 'lucide-react';
+import { ArrowLeft, Settings, Sun, Moon, CreditCard, Sparkles, Cloud } from 'lucide-react';
 import { useSidePanelStore } from '../stores/sidepanel.store';
 import { useTheme } from '@shared/hooks/useTheme';
 import AutoSaveBadge from './AutoSaveBadge';
@@ -62,6 +62,18 @@ export default function Header() {
           <CreditCard size={16} />
         </button>
         <button
+          onClick={() => navigateTo('cloud-sync')}
+          className={`p-1.5 rounded transition-colors ${
+            currentView === 'cloud-sync'
+              ? 'text-sky-500 bg-sky-50 dark:bg-sky-900/20'
+              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+          }`}
+          aria-label="Cloud Sync"
+          title="Cloud Sync"
+        >
+          <Cloud size={16} />
+        </button>
+        <button
           onClick={toggleTheme}
           className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           aria-label="Toggle theme"
@@ -88,6 +100,7 @@ function viewTitle(view: string): string {
     'import-export': 'Import / Export',
     subscriptions: 'Subscriptions',
     prompts: 'Prompt Manager',
+    'cloud-sync': 'Cloud Sync',
   };
   return titles[view] ?? 'Browser Hub';
 }
