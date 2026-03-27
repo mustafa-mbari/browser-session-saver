@@ -18,6 +18,7 @@ import {
   PanelLeft,
   Check,
   FolderOpen,
+  Cloud,
 } from 'lucide-react';
 import Tooltip from '@shared/components/Tooltip';
 import ContextMenu from '@shared/components/ContextMenu';
@@ -264,6 +265,21 @@ export default function DashboardSidebar({
   const [sessionsExpanded, setSessionsExpanded] = useState(true);
   const [isHovering, setIsHovering] = useState(false);
   const [controlOpen, setControlOpen] = useState(false);
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [syncEmail, setSyncEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = () => {
+      chrome.storage.local.get('cloud_sync_status', (r) => {
+        const s = r['cloud_sync_status'] as { isAuthenticated?: boolean; email?: string } | undefined;
+        setIsSignedIn(s?.isAuthenticated ?? false);
+        setSyncEmail(s?.email ?? null);
+      });
+    };
+    load();
+    chrome.storage.onChanged.addListener(load);
+    return () => chrome.storage.onChanged.removeListener(load);
+  }, []);
   const controlBtnRef = useRef<HTMLButtonElement>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -410,11 +426,21 @@ export default function DashboardSidebar({
           </Tooltip>
         ))}
         <div className="mt-auto pt-2">
-          <div className="w-7 h-7 rounded-full flex items-center justify-center mx-auto"
-            style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.3)' }}
-          >
-            <User size={14} style={{ color: '#818cf8' }} />
-          </div>
+          <Tooltip content={isSignedIn ? (syncEmail ?? 'Account') : 'Sign In'} position="right">
+            <button
+              onClick={() => onViewChange('cloud-sync')}
+              className={`relative w-7 h-7 rounded-full flex items-center justify-center mx-auto transition-colors ${
+                activeView === 'cloud-sync' ? 'bg-white/20' : 'hover:bg-white/10'
+              }`}
+              style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.3)' }}
+              aria-label="Account"
+            >
+              <User size={14} style={{ color: '#818cf8' }} />
+              <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full ${
+                isSignedIn ? 'bg-emerald-400' : 'bg-amber-400'
+              }`} style={{ border: '1px solid rgba(0,0,0,0.3)' }} />
+            </button>
+          </Tooltip>
         </div>
       </div>
     );
@@ -553,22 +579,36 @@ export default function DashboardSidebar({
       {/* ── ACCOUNT + SIDEBAR CONTROL ── */}
       <div className="border-t border-white/10 mt-auto shrink-0">
         {/* Account row */}
-        <div className="flex items-center gap-2.5 px-4 py-3">
+        <button
+          onClick={() => onViewChange('cloud-sync')}
+          className={`flex items-center gap-2.5 px-4 py-3 w-full text-left transition-colors rounded-lg mx-1 ${
+            activeView === 'cloud-sync' ? 'bg-white/15' : 'hover:bg-white/10'
+          }`}
+          style={{ width: 'calc(100% - 0.5rem)' }}
+          aria-label="Account"
+        >
           <div
-            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+            className="relative w-8 h-8 rounded-full flex items-center justify-center shrink-0"
             style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.3)' }}
           >
-            <User size={15} style={{ color: '#818cf8' }} />
+            {isSignedIn ? (
+              <Cloud size={15} style={{ color: '#818cf8' }} />
+            ) : (
+              <User size={15} style={{ color: '#818cf8' }} />
+            )}
+            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ${
+              isSignedIn ? 'bg-emerald-400' : 'bg-amber-400'
+            }`} style={{ border: '1px solid rgba(0,0,0,0.3)' }} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-medium truncate" style={{ color: 'var(--newtab-text)' }}>
-              Chrome User
+              {isSignedIn && syncEmail ? syncEmail : 'Sign In'}
             </div>
             <div className="text-[10px] truncate" style={{ color: 'var(--newtab-text-secondary)' }}>
-              Browser Hub
+              {isSignedIn ? 'Syncing active' : 'Cloud sync off'}
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Sidebar control button */}
         <div className="px-2 pb-2">

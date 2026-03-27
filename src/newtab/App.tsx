@@ -66,7 +66,7 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const viewParam = params.get('view');
     if (!viewParam) return;
-    const mgmtViews = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions', 'settings'];
+    const mgmtViews = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions', 'settings', 'cloud-sync'];
     uiStore.setActiveView(viewParam as Parameters<typeof uiStore.setActiveView>[0]);
     if (mgmtViews.includes(viewParam) && uiStore.settings.layoutMode !== 'dashboard') {
       uiStore.setLayoutMode('dashboard');

@@ -60,6 +60,7 @@ cd admin && npm run build               # Production build
 - **Widget config**: `src/core/config/widget-config.ts` — `WIDGET_CONFIG` registry with per-type min/max/default sizes, `getDefaultSize()`, `clampSize()` utilities
 - **View unions**:
   - `SidePanelView`: `'home' | 'session-detail' | 'tab-groups' | 'settings' | 'import-export' | 'subscriptions' | 'prompts' | 'cloud-sync'`
+  - `NewTabView`: `'bookmarks' | 'folder-explorer' | 'sessions' | 'auto-saves' | 'tab-groups' | 'import-export' | 'subscriptions' | 'prompts' | 'cloud-sync' | 'settings'`
   - `CardType`: `'bookmark' | 'clock' | 'note' | 'todo' | 'subscription' | 'tab-groups' | 'prompt-manager'`
 - **Cloud sync**: `@supabase/supabase-js` with custom `chrome.storage.local` auth adapter; no `@supabase/ssr` (no cookies in extensions). Env vars `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` injected at build time; placeholder fallbacks prevent test-time throws.
 
@@ -118,7 +119,7 @@ cd admin && npm run build               # Production build
 `src/newtab/layouts/DashboardLayout.tsx` splits the scrollable content area into two branches based on `isSessionView` (defined as any view that is NOT the bookmarks board):
 
 - **Non-session views** (bookmarks): rendered inside `overflow-y-auto px-[6%] pb-6` — centred with generous side padding, scrollable
-- **Session/management views** (prompts, sessions, subscriptions, tab-groups, import-export, settings, folder-explorer): rendered inside `overflow-hidden h-full p-[5%]` — full remaining width with uniform 5% inset padding on all sides, no scroll wrapper
+- **Session/management views** (prompts, sessions, subscriptions, tab-groups, import-export, settings, folder-explorer, cloud-sync): rendered inside `overflow-hidden h-full p-[5%]` — full remaining width with uniform 5% inset padding on all sides, no scroll wrapper
 
 **Do not add `px-[6%]` or side-padding to the `isSessionView` branch** — these panels are full-page and provide their own internal layout. Putting them inside the padded scroll container causes the content to be severely squeezed (wastes ~12% of width on each side).
 

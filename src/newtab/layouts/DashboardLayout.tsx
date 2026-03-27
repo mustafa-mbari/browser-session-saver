@@ -9,6 +9,7 @@ import TabGroupsPanel from '@newtab/components/TabGroupsPanel';
 import ImportExportPanel from '@newtab/components/ImportExportPanel';
 import SubscriptionsPanel from '@newtab/components/SubscriptionsPanel';
 import PromptsPanel from '@newtab/components/PromptsPanel';
+import CloudSyncPanel from '@newtab/components/CloudSyncPanel';
 import SettingsView from '@newtab/components/SettingsView';
 import BookmarkFolderPanel from '@newtab/components/BookmarkFolderPanel';
 import AddQuickLinkModal from '@newtab/components/AddQuickLinkModal';
@@ -340,7 +341,7 @@ export default function DashboardLayout() {
     : null;
 
   // Determine if current view is a "management" view (hides clock/quick links)
-  const isSessionView = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions', 'settings', 'folder-explorer', 'prompts'].includes(activeView);
+  const isSessionView = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions', 'settings', 'folder-explorer', 'prompts', 'cloud-sync'].includes(activeView);
 
   return (
     <div className="relative z-10 h-screen flex flex-col overflow-hidden">
@@ -406,6 +407,7 @@ export default function DashboardLayout() {
               {activeView === 'import-export' && <ImportExportPanel />}
               {activeView === 'subscriptions' && <SubscriptionsPanel />}
               {activeView === 'prompts' && <PromptsPanel />}
+              {activeView === 'cloud-sync' && <CloudSyncPanel />}
               {activeView === 'settings' && (
                 <SettingsView
                   settings={settings}

@@ -15,6 +15,7 @@ export type NewTabView =
   | 'import-export'
   | 'subscriptions'
   | 'prompts'
+  | 'cloud-sync'
   | 'settings';
 
 interface NewTabUIState {
