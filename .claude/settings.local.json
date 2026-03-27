@@ -34,7 +34,8 @@
       "Bash(node_modules/.bin/tsc:*)",
       "Bash(tsc:*)",
       "Read(//e/Work-Timer/**)",
-      "Bash(npx next build)"
+      "Bash(npx next build)",
+      "Bash(head:*)"
     ],
     "additionalDirectories": [
       "E:\\Work-Timer\\web\\components\\ui",
