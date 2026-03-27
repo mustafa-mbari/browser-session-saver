@@ -8,3 +8,11 @@ coverage/
 Thumbs.db
 # Windows null device accidentally created as a file
 nul
+
+# Web app
+web/.next/
+web/node_modules/
+
+# Admin app
+admin/.next/
+admin/node_modules/

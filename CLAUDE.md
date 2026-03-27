@@ -6,8 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Browser Hub is a Chrome extension (Manifest V3) that saves, restores, and manages browser sessions. It includes a Chrome Side Panel (primary UI), Start-Tab with glassmorphism UI, and a Popup for quick actions — all built with React 18 + TypeScript + Tailwind CSS.
 
+The project also includes two companion Next.js apps:
+- **`web/`** — User-facing web app (port 3000) with dashboard, billing, settings, support, suggestions
+- **`admin/`** — Admin panel (port 3001) with overview, users, statistics, promo codes, subscriptions, webhooks, tickets, suggestions, quotas, emails
+
 ## Commands
 
+### Extension (root)
 ```bash
 npm run dev           # Vite dev server with HMR
 npm run build         # tsc type-check + Vite production build → dist/
@@ -16,6 +21,18 @@ npm run test:watch    # Vitest in watch mode
 npx vitest run tests/unit/path/to/file.test.ts  # Run a single test file
 npm run lint          # ESLint
 npm run format        # Prettier
+```
+
+### Web App (`web/`)
+```bash
+cd web && npm install && npm run dev   # Start on port 3000
+cd web && npm run build                # Production build
+```
+
+### Admin App (`admin/`)
+```bash
+cd admin && npm install && npm run dev  # Start on port 3001
+cd admin && npm run build               # Production build
 ```
 
 ## Architecture
@@ -156,3 +173,30 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - Do not modify the `browser-hub` IndexedDB — start-tab data uses the separate `newtab-db` (NewTabDB class)
 - Do not merge NewTabSettings into the existing Settings type — it lives under its own storage key
 - Do not put subscriptions or tab-group templates in IndexedDB — they use flat `chrome.storage.local` keys
+
+## Web App (`web/`)
+
+- **Stack**: Next.js 16 (canary), React 19, Tailwind CSS v4, shadcn/ui, Lucide, Supabase SSR
+- **Port**: 3000
+- **Route groups**: `(public)` for landing/login/register, `(authenticated)` for user pages
+- **Sidebar**: shadcn `SidebarProvider` + `SidebarLockProvider` with 3 modes (expanded/collapsed/hover)
+- **Theme**: Cookie-based light/dark/system with FOUC prevention via inline `<script>`
+- **Auth**: Supabase SSR client, middleware redirects unauthenticated users to `/login`
+- **Pages**: Dashboard, Billing, Settings (Profile/Appearance/Security tabs), Support, Suggestions
+- **Auth pages**: Login (email/password + Google OAuth), Register (with password strength), Forgot Password, Verify Email
+- **API routes**: `api/auth/sign-in`, `api/auth/sign-up`, `api/auth/forgot-password`, `api/auth/google`, `api/auth/session`
+- **Auth callbacks**: `auth/callback` (OAuth), `auth/confirm` (email verification)
+- **Design tokens**: CSS custom properties (`--dark`, `--dark-card`, `--dark-border`, `--dark-elevated`, `--dark-hover`)
+- **UI components**: 19 shadcn components in `web/components/ui/`
+
+## Admin App (`admin/`)
+
+- **Stack**: Next.js 16 (canary), React 19, Tailwind CSS v4, shadcn/ui, Lucide, Supabase SSR
+- **Port**: 3001
+- **Route groups**: `(admin)` for all authenticated admin pages, `/login` for admin login
+- **Sidebar**: Custom `AdminSidebar` with CSS transition-based collapse, 10 nav items
+- **Theme**: Same cookie-based system as web app
+- **Auth**: Admin role check via Supabase profiles table (TODO: connect to Supabase)
+- **Pages**: Overview, Users, Statistics, Promo Codes, Subscriptions, Webhooks, Tickets, Suggestions, Quotas, Emails
+- **UI components**: 18 shadcn components in `admin/components/ui/`
+- **Metadata**: `robots: noindex, nofollow` (not indexed by search engines)

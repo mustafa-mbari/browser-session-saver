@@ -32,7 +32,13 @@
       "Bash(node_modules/.bin/vite build)",
       "Bash(node_modules/.bin/vitest run:*)",
       "Bash(node_modules/.bin/tsc:*)",
-      "Bash(tsc:*)"
+      "Bash(tsc:*)",
+      "Read(//e/Work-Timer/**)",
+      "Bash(npx next build)"
+    ],
+    "additionalDirectories": [
+      "E:\\Work-Timer\\web\\components\\ui",
+      "E:\\Work-Timer\\admin\\components\\ui"
     ]
   }
 }

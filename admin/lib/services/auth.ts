@@ -1,0 +1,45 @@
+import { cache } from 'react'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import type { User } from '@supabase/supabase-js'
+
+// DEV: Mock user for testing when Supabase is not configured
+const MOCK_USER = {
+  id: 'dev-admin-000',
+  email: 'admin@browserhub.dev',
+  user_metadata: { display_name: 'Dev Admin' },
+  app_metadata: { role: 'admin' },
+  aud: 'authenticated',
+  created_at: new Date().toISOString(),
+} as unknown as User
+
+function isSupabaseConfigured() {
+  return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+}
+
+/**
+ * Get the current user or null (no redirect).
+ */
+export const getUser = cache(async (): Promise<User | null> => {
+  if (!isSupabaseConfigured()) return MOCK_USER
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  return user
+})
+
+/**
+ * Require an authenticated admin user. Redirects to login if not found or not admin.
+ * TODO: Connect to Supabase profiles table for role check.
+ */
+export async function requireAdmin(): Promise<User> {
+  if (!isSupabaseConfigured()) return MOCK_USER
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    redirect('/login')
+  }
+  // TODO: Check admin role from profiles table
+  // const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  // if (profile?.role !== 'admin') redirect('/login?error=forbidden')
+  return user
+}
