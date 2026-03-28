@@ -30,6 +30,7 @@ const QUOTA_ROWS = [
   { label: 'Sync across devices',      field: 'sync_enabled',             boolean: true },
   { label: 'Synced sessions',          field: 'sessions_synced_limit' },
   { label: 'Tabs per session',         field: 'tabs_per_session_limit' },
+  { label: 'Unique tabs (global)',     field: 'total_tabs_limit' },
   { label: 'Synced folders',           field: 'folders_synced_limit' },
   { label: 'Entries per folder',       field: 'entries_per_folder_limit' },
   { label: 'Prompt library access',    field: 'prompts_access_limit' },

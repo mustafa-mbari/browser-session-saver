@@ -16,9 +16,13 @@ import { getSyncUserId, getSyncEmail } from '@core/services/sync-auth.service';
 import { getAllSessions } from '@core/services/session.service';
 import { PromptStorage } from '@core/storage/prompt-storage';
 import { SubscriptionStorage } from '@core/storage/subscription-storage';
+import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
+import { NewTabDB } from '@core/storage/newtab-storage';
 import type { Session } from '@core/types/session.types';
 import type { Prompt, PromptFolder } from '@core/types/prompt.types';
 import type { Subscription } from '@core/types/subscription.types';
+import type { BookmarkCategory, BookmarkEntry } from '@core/types/newtab.types';
+import type { TabGroupTemplate } from '@core/types/tab-group.types';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -27,9 +31,12 @@ export interface UserQuota {
   plan_name: string;
   sessions_synced_limit: number | null;
   tabs_per_session_limit: number | null;
+  folders_synced_limit: number | null;
+  entries_per_folder_limit: number | null;
   prompts_access_limit: number | null;
   prompts_create_limit: number | null;
   subs_synced_limit: number | null;
+  total_tabs_limit: number | null;
   sync_enabled: boolean;
 }
 
@@ -37,6 +44,9 @@ export interface SyncUsage {
   sessions: number;
   prompts: number;
   subs: number;
+  tabs: number;      // unique non-excluded URLs synced this cycle
+  folders: number;   // bookmark folder categories synced
+  tabGroups: number; // tab group templates synced
 }
 
 export interface SyncStatus {
@@ -111,19 +121,21 @@ export async function getSyncStatus(): Promise<SyncStatus> {
  * Safe to call concurrently — concurrent calls are no-ops if already syncing.
  */
 export async function syncAll(): Promise<SyncResult> {
+  const _emptyUsage: SyncUsage = { sessions: 0, prompts: 0, subs: 0, tabs: 0, folders: 0, tabGroups: 0 };
+
   if (_isSyncing) {
-    return { success: false, synced: { sessions: 0, prompts: 0, subs: 0 }, error: 'Sync already in progress' };
+    return { success: false, synced: _emptyUsage, error: 'Sync already in progress' };
   }
 
   const userId = await getSyncUserId();
   if (!userId) {
-    return { success: false, synced: { sessions: 0, prompts: 0, subs: 0 }, error: 'Not authenticated' };
+    return { success: false, synced: _emptyUsage, error: 'Not authenticated' };
   }
 
   _isSyncing = true;
   await persistStatus({ isSyncing: true, error: null });
 
-  const synced: SyncUsage = { sessions: 0, prompts: 0, subs: 0 };
+  const synced: SyncUsage = { sessions: 0, prompts: 0, subs: 0, tabs: 0, folders: 0, tabGroups: 0 };
 
   try {
     const quota = await getUserQuota(userId);
@@ -131,16 +143,40 @@ export async function syncAll(): Promise<SyncResult> {
       throw new Error('Sync is not enabled on your current plan. Upgrade to Pro or Max to enable cloud sync.');
     }
 
-    // Push in parallel where safe — sessions, prompts, and subs are independent
-    const [sessionCount, promptCount, subCount] = await Promise.all([
-      syncSessions(userId, quota),
+    // Load all local data upfront for global URL dedup check
+    const [allSessions, allTemplates] = await Promise.all([
+      getAllSessions({ isAutoSave: false }),
+      TabGroupTemplateStorage.getAll(),
+    ]);
+    const db = new NewTabDB();
+    const allBmEntries = await db.getAll<BookmarkEntry>('bookmarkEntries');
+
+    // Enforce global unique-URL limit
+    if (quota.total_tabs_limit != null && quota.total_tabs_limit > 0) {
+      const uniqueUrls = collectAllSyncableUrls(allSessions, allTemplates, allBmEntries);
+      if (uniqueUrls.size > quota.total_tabs_limit) {
+        throw new Error(
+          `You have ${uniqueUrls.size} unique tab URLs but your plan limit is ${quota.total_tabs_limit}. ` +
+          `Remove some saved sessions or upgrade your plan to sync more tabs.`,
+        );
+      }
+      synced.tabs = uniqueUrls.size;
+    }
+
+    // Push in parallel — all six targets are independent
+    const [sessionCount, promptCount, subCount, folderCount, tabGroupCount] = await Promise.all([
+      syncSessions(userId, quota, allSessions),
       syncPrompts(userId, quota),
       syncSubscriptions(userId, quota),
+      syncBookmarkFolders(userId, quota, allBmEntries),
+      syncTabGroupTemplates(userId, allTemplates),
     ]);
 
-    synced.sessions = sessionCount;
-    synced.prompts = promptCount;
-    synced.subs = subCount;
+    synced.sessions  = sessionCount;
+    synced.prompts   = promptCount;
+    synced.subs      = subCount;
+    synced.folders   = folderCount;
+    synced.tabGroups = tabGroupCount;
 
     const now = new Date().toISOString();
     await persistStatus({ lastSyncAt: now, isSyncing: false, usage: synced, error: null });
@@ -202,9 +238,12 @@ export async function getUserQuota(userId: string): Promise<UserQuota> {
       plan_name: 'Free',
       sessions_synced_limit: 0,
       tabs_per_session_limit: null,
+      folders_synced_limit: 0,
+      entries_per_folder_limit: null,
       prompts_access_limit: null,
       prompts_create_limit: 0,
       subs_synced_limit: null,
+      total_tabs_limit: 0,
       sync_enabled: false,
     };
   }
@@ -216,8 +255,7 @@ export async function getUserQuota(userId: string): Promise<UserQuota> {
 
 // ─── Internal sync helpers ───────────────────────────────────────────────────
 
-async function syncSessions(userId: string, quota: UserQuota): Promise<number> {
-  const allSessions = await getAllSessions({ isAutoSave: false });
+async function syncSessions(userId: string, quota: UserQuota, allSessions: Session[]): Promise<number> {
   const limit = quota.sessions_synced_limit ?? Infinity;
 
   // Take the most recently updated sessions up to the quota limit
@@ -227,7 +265,10 @@ async function syncSessions(userId: string, quota: UserQuota): Promise<number> {
 
   if (toSync.length === 0) return 0;
 
-  const rows = toSync.map((s) => sessionToRow(s, userId));
+  // Strip excluded URLs from tabs before pushing to Supabase
+  const rows = toSync.map((s) =>
+    sessionToRow({ ...s, tabs: s.tabs.filter((t) => !isExcludedUrl(t.url)) }, userId),
+  );
   const { error } = await supabase.from('sessions').upsert(rows, { onConflict: 'id' });
   if (error) throw new Error(`Sessions sync failed: ${error.message}`);
 
@@ -283,6 +324,150 @@ async function syncSubscriptions(userId: string, quota: UserQuota): Promise<numb
   if (error) throw new Error(`Subscriptions sync failed: ${error.message}`);
 
   return toSync.length;
+}
+
+// ─── URL filtering & deduplication ──────────────────────────────────────────
+
+/** Returns true for URLs that should never be synced or counted toward quota. */
+function isExcludedUrl(url: string): boolean {
+  if (!url) return true;
+  return (
+    url.startsWith('file://') ||
+    /^https?:\/\/localhost[:/]/i.test(url) ||
+    /^https?:\/\/127\.0\.0\.1[:/]/i.test(url)
+  );
+}
+
+/**
+ * Collects all unique, non-excluded URLs across sessions, tab group templates,
+ * and bookmark entries to enforce the global total_tabs_limit.
+ */
+function collectAllSyncableUrls(
+  sessions: Session[],
+  tabGroups: TabGroupTemplate[],
+  bmEntries: BookmarkEntry[],
+): Set<string> {
+  const urls = new Set<string>();
+  for (const s of sessions)  for (const t of s.tabs)   if (!isExcludedUrl(t.url)) urls.add(t.url);
+  for (const g of tabGroups) for (const t of g.tabs)   if (!isExcludedUrl(t.url)) urls.add(t.url);
+  for (const e of bmEntries) if (!isExcludedUrl(e.url)) urls.add(e.url);
+  return urls;
+}
+
+async function syncBookmarkFolders(
+  userId: string,
+  quota: UserQuota,
+  allEntries: BookmarkEntry[],
+): Promise<number> {
+  const db = new NewTabDB();
+  const categories = await db.getAll<BookmarkCategory>('bookmarkCategories');
+  if (categories.length === 0) return 0;
+
+  const folderLimit = quota.folders_synced_limit ?? Infinity;
+  const entryLimit  = quota.entries_per_folder_limit ?? Infinity;
+
+  // Take most-recently-created folders up to quota
+  const toSyncFolders = categories
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, folderLimit);
+
+  const folderIds = new Set(toSyncFolders.map((c) => c.id));
+
+  // Upsert folders first (FK constraint for entries)
+  const folderRows = toSyncFolders.map((c) => ({
+    id: c.id,
+    user_id: userId,
+    board_id: c.boardId,
+    name: c.name,
+    icon: c.icon ?? null,
+    color: c.color ?? null,
+    card_type: c.cardType ?? 'bookmark',
+    note_content: c.noteContent ?? null,
+    col_span: c.colSpan ?? 3,
+    row_span: c.rowSpan ?? 3,
+    position: 0,
+    parent_folder_id: c.parentCategoryId ?? null,
+  }));
+  const { error: fErr } = await supabase.from('bookmark_folders').upsert(folderRows, { onConflict: 'id' });
+  if (fErr) throw new Error(`Bookmark folders sync failed: ${fErr.message}`);
+
+  // Filter entries: must belong to a synced folder, URL must not be excluded
+  const eligible = allEntries.filter((e) => folderIds.has(e.categoryId) && !isExcludedUrl(e.url));
+
+  // Group by folder and enforce per-folder entry limit
+  const byFolder = eligible.reduce<Record<string, BookmarkEntry[]>>((acc, e) => {
+    (acc[e.categoryId] ??= []).push(e);
+    return acc;
+  }, {});
+
+  const limitedEntries: BookmarkEntry[] = [];
+  for (const folderEntries of Object.values(byFolder)) {
+    limitedEntries.push(...folderEntries.slice(0, entryLimit));
+  }
+
+  if (limitedEntries.length > 0) {
+    const entryRows = limitedEntries.map((e, i) => ({
+      id: e.id,
+      user_id: userId,
+      folder_id: e.categoryId,
+      title: e.title,
+      url: e.url,
+      fav_icon_url: e.favIconUrl ?? null,
+      description: e.description ?? null,
+      category: e.category ?? null,
+      is_native: e.isNative ?? false,
+      native_id: e.nativeId ?? null,
+      position: i,
+    }));
+    const { error: eErr } = await supabase.from('bookmark_entries').upsert(entryRows, { onConflict: 'id' });
+    if (eErr) throw new Error(`Bookmark entries sync failed: ${eErr.message}`);
+  }
+
+  // Reconcile: remove remote folders that no longer exist locally
+  // (cascade deletes their entries via FK)
+  const localIds = toSyncFolders.map((c) => c.id);
+  if (localIds.length > 0) {
+    await supabase
+      .from('bookmark_folders')
+      .delete()
+      .eq('user_id', userId)
+      .not('id', 'in', `(${localIds.join(',')})`);
+  }
+
+  return toSyncFolders.length;
+}
+
+async function syncTabGroupTemplates(userId: string, allTemplates: TabGroupTemplate[]): Promise<number> {
+  if (allTemplates.length === 0) {
+    // Reconcile: if local is empty, remove all remote templates for this user
+    await supabase.from('tab_group_templates').delete().eq('user_id', userId);
+    return 0;
+  }
+
+  const rows = allTemplates.map((tg) => ({
+    key: tg.key,
+    user_id: userId,
+    title: tg.title,
+    color: tg.color,
+    tabs: tg.tabs.filter((t) => !isExcludedUrl(t.url)),
+    saved_at: tg.savedAt,
+    updated_at: tg.updatedAt,
+  }));
+
+  const { error } = await supabase
+    .from('tab_group_templates')
+    .upsert(rows, { onConflict: 'user_id,key' });
+  if (error) throw new Error(`Tab group templates sync failed: ${error.message}`);
+
+  // Reconcile: remove remote templates whose key no longer exists locally
+  const localKeys = allTemplates.map((t) => t.key);
+  await supabase
+    .from('tab_group_templates')
+    .delete()
+    .eq('user_id', userId)
+    .not('key', 'in', `(${localKeys.join(',')})`);
+
+  return allTemplates.length;
 }
 
 // ─── Row mappers (camelCase → snake_case) ────────────────────────────────────

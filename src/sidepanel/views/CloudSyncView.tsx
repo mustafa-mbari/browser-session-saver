@@ -244,6 +244,18 @@ export default function CloudSyncView() {
             used={usage?.subs ?? 0}
             limit={quota.subs_synced_limit}
           />
+          <QuotaBar
+            label="Folders synced"
+            used={usage?.folders ?? 0}
+            limit={quota.folders_synced_limit}
+          />
+          {quota.total_tabs_limit != null && quota.total_tabs_limit > 0 && (
+            <QuotaBar
+              label="Unique tabs synced"
+              used={usage?.tabs ?? 0}
+              limit={quota.total_tabs_limit}
+            />
+          )}
         </div>
       )}
 

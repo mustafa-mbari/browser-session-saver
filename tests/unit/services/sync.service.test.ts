@@ -20,6 +20,8 @@ const mockAuth = {
 const mockGetAllSessions = vi.fn();
 const mockPromptStorage = { getAll: vi.fn(), getFolders: vi.fn() };
 const mockSubscriptionStorage = { getAll: vi.fn() };
+const mockTabGroupTemplateStorage = { getAll: vi.fn() };
+const mockNewTabDB = { getAll: vi.fn() };
 
 function setupChromeStorage() {
   const store: Record<string, unknown> = {};
@@ -38,9 +40,12 @@ function makeQuota(overrides: Partial<UserQuota> = {}): UserQuota {
     plan_name: 'Pro',
     sessions_synced_limit: 100,
     tabs_per_session_limit: null,
+    folders_synced_limit: null,
+    entries_per_folder_limit: null,
     prompts_access_limit: null,
     prompts_create_limit: 100,
     subs_synced_limit: 100,
+    total_tabs_limit: null,
     sync_enabled: true,
     ...overrides,
   };
@@ -73,6 +78,12 @@ async function importSyncService() {
   vi.doMock('@core/services/session.service', () => ({ getAllSessions: mockGetAllSessions }));
   vi.doMock('@core/storage/prompt-storage', () => ({ PromptStorage: mockPromptStorage }));
   vi.doMock('@core/storage/subscription-storage', () => ({ SubscriptionStorage: mockSubscriptionStorage }));
+  vi.doMock('@core/storage/tab-group-template-storage', () => ({
+    TabGroupTemplateStorage: mockTabGroupTemplateStorage,
+  }));
+  vi.doMock('@core/storage/newtab-storage', () => ({
+    NewTabDB: vi.fn(() => mockNewTabDB),
+  }));
   return await import('@core/services/sync.service');
 }
 
@@ -90,6 +101,8 @@ describe('sync.service', () => {
     mockPromptStorage.getAll.mockResolvedValue([]);
     mockPromptStorage.getFolders.mockResolvedValue([]);
     mockSubscriptionStorage.getAll.mockResolvedValue([]);
+    mockTabGroupTemplateStorage.getAll.mockResolvedValue([]);
+    mockNewTabDB.getAll.mockResolvedValue([]);
   });
 
   // ── getSyncStatus — unauthenticated ──────────────────────────────────────
@@ -137,10 +150,12 @@ describe('sync.service', () => {
     mockSupabase.rpc.mockResolvedValue({ data: quota, error: null });
     mockGetAllSessions.mockResolvedValue([makeSession()]);
 
-    // Supabase upsert mock
+    // Supabase from() mock: supports upsert and delete chains
     const mockUpsert = vi.fn().mockResolvedValue({ error: null });
+    const mockDeleteChain = { eq: vi.fn().mockReturnThis(), not: vi.fn().mockResolvedValue({ error: null }) };
     mockSupabase.from.mockReturnValue({
       upsert: mockUpsert,
+      delete: vi.fn().mockReturnValue(mockDeleteChain),
     });
 
     const { syncAll } = await importSyncService();
