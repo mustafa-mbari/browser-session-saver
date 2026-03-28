@@ -193,7 +193,9 @@ export async function getUserQuota(userId: string): Promise<UserQuota> {
   }
 
   const { data, error } = await supabase.rpc('get_user_quota', { p_user_id: userId });
-  if (error || !data) {
+  // RPC uses RETURNS TABLE so data is an array — take the first row
+  const row = Array.isArray(data) ? (data as UserQuota[])[0] : (data as UserQuota | null);
+  if (error || !row) {
     // Fall back to a safe default (sync disabled) so we don't crash
     return {
       plan_id: 'free',
@@ -207,7 +209,7 @@ export async function getUserQuota(userId: string): Promise<UserQuota> {
     };
   }
 
-  const quota = data as UserQuota;
+  const quota = row;
   _quotaCache = { quota, fetchedAt: now };
   return quota;
 }

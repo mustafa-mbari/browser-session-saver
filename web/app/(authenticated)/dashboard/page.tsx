@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Layers, Sparkles, FolderOpen, CreditCard, Crown, Zap, Globe } from 'lucide-react'

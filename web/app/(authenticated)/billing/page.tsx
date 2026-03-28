@@ -1,9 +1,11 @@
+export const dynamic = 'force-dynamic'
+
 import { Crown, Zap, Check, X, Calendar, CreditCard, CheckCircle2, ArrowRight } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/services/auth'
 
 async function getBillingData(userId: string) {
-  const supabase = await createClient()
+  const supabase = await createServiceClient()
   const [userPlanRes, plansRes] = await Promise.all([
     supabase
       .from('user_plans')
