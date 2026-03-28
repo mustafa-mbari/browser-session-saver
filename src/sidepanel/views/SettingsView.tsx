@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { MoveHorizontal } from 'lucide-react';
 import type { Settings } from '@core/types/settings.types';
 import { DEFAULT_SETTINGS } from '@core/types/settings.types';
 import { getNewTabSettings, updateNewTabSettings } from '@core/services/newtab-settings.service';
@@ -116,6 +117,15 @@ export default function SettingsView() {
           ]}
           onChange={(v) => updateSetting('theme', v as Settings['theme'])}
         />
+        <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border)]">
+          <MoveHorizontal size={16} className="text-primary shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-medium text-[var(--color-text)]">Resize Side Panel</p>
+            <p className="text-[11px] text-[var(--color-text-secondary)] mt-0.5 leading-relaxed">
+              Drag the left edge of this panel to adjust its width. Chrome remembers your preferred size.
+            </p>
+          </div>
+        </div>
       </Section>
 
       {/* Behavior */}
