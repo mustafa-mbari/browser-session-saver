@@ -42,7 +42,7 @@ export default function WeatherCardBody({ colSpan: _colSpan, rowSpan: _rowSpan }
     try {
       const coords = await getCoordinates();
       const [forecast, savedUnit] = await Promise.all([
-        fetchForecast(coords.latitude, coords.longitude),
+        fetchForecast(coords.latitude, coords.longitude, coords.cityName),
         getWeatherUnit(),
       ]);
 

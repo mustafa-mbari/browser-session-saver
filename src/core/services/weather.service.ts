@@ -78,6 +78,8 @@ export function toDisplay(celsius: number, unit: TemperatureUnit): number {
 export interface GeoCoords {
   latitude: number;
   longitude: number;
+  /** City name from IP lookup — undefined when GPS was used. */
+  cityName?: string;
 }
 
 function gpsPosition(): Promise<GeolocationCoordinates> {
@@ -95,7 +97,8 @@ function gpsPosition(): Promise<GeolocationCoordinates> {
 }
 
 interface IpInfoResponse {
-  loc?: string; // "lat,lon"
+  loc?: string;  // "lat,lon"
+  city?: string;
 }
 
 async function ipCoords(): Promise<GeoCoords> {
@@ -107,13 +110,14 @@ async function ipCoords(): Promise<GeoCoords> {
   const latitude = parseFloat(parts[0] ?? '');
   const longitude = parseFloat(parts[1] ?? '');
   if (isNaN(latitude) || isNaN(longitude)) throw new Error('IP geolocation parse error');
-  return { latitude, longitude };
+  return { latitude, longitude, cityName: data.city };
 }
 
 /**
  * Returns coordinates using GPS first; falls back to IP geolocation
  * if GPS is unavailable (common in Chrome extension newtab pages).
  * Throws only when the user has explicitly denied location permission.
+ * The returned `cityName` is populated when IP geolocation is used.
  */
 export async function getCoordinates(): Promise<GeoCoords> {
   try {
@@ -155,6 +159,7 @@ function cityFromTimezone(tz: string): string {
 export async function fetchForecast(
   lat: number,
   lon: number,
+  cityHint?: string,
 ): Promise<{ today: DayForecast; tomorrow: DayForecast; cityName: string }> {
   const url = new URL('https://api.open-meteo.com/v1/forecast');
   url.searchParams.set('latitude', lat.toFixed(4));
@@ -184,7 +189,8 @@ export async function fetchForecast(
   return {
     today:    buildDay(0),
     tomorrow: buildDay(1),
-    cityName: cityFromTimezone(data.timezone ?? ''),
+    // Prefer the city from IP/GPS lookup; fall back to timezone-derived name.
+    cityName: cityHint || cityFromTimezone(data.timezone ?? ''),
   };
 }
 

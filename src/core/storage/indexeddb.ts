@@ -107,12 +107,22 @@ export class IndexedDBAdapter implements IStorage {
   }
 
   async getByIndex<T>(indexName: string, value: IDBValidKey | boolean, limit?: number): Promise<T[]> {
+    // Booleans are not valid IDB keys (only number/string/Date/ArrayBuffer/Array are).
+    // Fall back to loading all records and filtering in JS.
+    if (typeof value === 'boolean') {
+      const all = await this.getAll();
+      const filtered = Object.values(all).filter(
+        (item) => (item as Record<string, unknown>)[indexName] === value,
+      ) as T[];
+      return limit !== undefined ? filtered.slice(0, limit) : filtered;
+    }
+
     const db = await this.openDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
       const index = store.index(indexName);
-      const request = index.getAll(value as IDBValidKey, limit);
+      const request = index.getAll(value, limit);
       request.onsuccess = () => resolve(request.result as T[]);
       request.onerror = () => reject(request.error);
     });
