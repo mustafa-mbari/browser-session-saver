@@ -151,6 +151,13 @@ export default function CloudSyncPanel() {
   // ─── Signed in ────────────────────────────────────────────────────────────
   const { quota, usage, lastSyncAt, error } = status;
 
+  const isAtQuota =
+    quota != null &&
+    usage != null &&
+    ((quota.sessions_synced_limit != null && usage.sessions >= quota.sessions_synced_limit) ||
+      (quota.prompts_create_limit != null && usage.prompts >= quota.prompts_create_limit) ||
+      (quota.subs_synced_limit != null && usage.subs >= quota.subs_synced_limit));
+
   const lastSyncLabel = (() => {
     if (!lastSyncAt) return 'Never';
     const diff = Date.now() - new Date(lastSyncAt).getTime();
@@ -246,6 +253,27 @@ export default function CloudSyncPanel() {
         >
           <AlertCircle size={14} className="shrink-0 mt-0.5" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {/* Quota reached banner */}
+      {isAtQuota && (
+        <div
+          className="flex items-start gap-2 p-3 rounded-xl text-xs"
+          style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }}
+        >
+          <AlertCircle size={14} className="shrink-0 mt-0.5" />
+          <span>
+            You've reached your sync quota. New items won't be synced until you upgrade.{' '}
+            <a
+              href="https://browserhub.app/billing"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-semibold hover:no-underline"
+            >
+              Upgrade plan →
+            </a>
+          </span>
         </div>
       )}
 

@@ -135,7 +135,7 @@ export async function syncAll(): Promise<SyncResult> {
     const [sessionCount, promptCount, subCount] = await Promise.all([
       syncSessions(userId, quota),
       syncPrompts(userId, quota),
-      syncSubscriptions(userId),
+      syncSubscriptions(userId, quota),
     ]);
 
     synced.sessions = sessionCount;
@@ -157,10 +157,12 @@ export async function syncAll(): Promise<SyncResult> {
 
 /**
  * Push a single session to Supabase (called after save/update mutations).
- * Skips auto-saves and checks sync_enabled.
+ * Skips auto-saves and respects sync_enabled from the user's plan quota.
  */
 export async function pushSession(session: Session, userId: string): Promise<void> {
   if (session.isAutoSave) return;
+  const quota = await getUserQuota(userId).catch(() => null);
+  if (quota && !quota.sync_enabled) return;
   const { error } = await supabase
     .from('sessions')
     .upsert(sessionToRow(session, userId), { onConflict: 'id' });
@@ -261,17 +263,24 @@ async function syncPrompts(userId: string, quota: UserQuota): Promise<number> {
   return toSync.length;
 }
 
-async function syncSubscriptions(userId: string): Promise<number> {
+async function syncSubscriptions(userId: string, quota: UserQuota): Promise<number> {
   const allSubs = await SubscriptionStorage.getAll();
   if (allSubs.length === 0) return 0;
 
-  const rows = allSubs.map((s) => subscriptionToRow(s, userId));
+  const limit = quota.subs_synced_limit ?? Infinity;
+  const toSync = allSubs
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, limit);
+
+  if (toSync.length === 0) return 0;
+
+  const rows = toSync.map((s) => subscriptionToRow(s, userId));
   const { error } = await supabase
     .from('tracked_subscriptions')
     .upsert(rows, { onConflict: 'id' });
   if (error) throw new Error(`Subscriptions sync failed: ${error.message}`);
 
-  return allSubs.length;
+  return toSync.length;
 }
 
 // ─── Row mappers (camelCase → snake_case) ────────────────────────────────────
