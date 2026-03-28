@@ -35,7 +35,8 @@
       "Bash(tsc:*)",
       "Read(//e/Work-Timer/**)",
       "Bash(npx next build)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "Bash(find:*)"
     ],
     "additionalDirectories": [
       "E:\\Work-Timer\\web\\components\\ui",

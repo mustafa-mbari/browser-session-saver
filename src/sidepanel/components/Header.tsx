@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Settings, Sun, Moon, CreditCard, Sparkles, Cloud } from 'lucide-react';
+import { ArrowLeft, Settings, Sun, Moon, Cloud } from 'lucide-react';
 import { useSidePanelStore } from '../stores/sidepanel.store';
 import { useTheme } from '@shared/hooks/useTheme';
 import AutoSaveBadge from './AutoSaveBadge';
@@ -51,30 +51,6 @@ export default function Header() {
       </div>
       <div className="flex items-center gap-2">
         <AutoSaveBadge />
-        <button
-          onClick={() => navigateTo('prompts')}
-          className={`p-1.5 rounded transition-colors ${
-            currentView === 'prompts'
-              ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20'
-              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-          }`}
-          aria-label="Prompt Manager"
-          title="Prompt Manager (Ctrl+Shift+P)"
-        >
-          <Sparkles size={16} />
-        </button>
-        <button
-          onClick={() => navigateTo('subscriptions')}
-          className={`p-1.5 rounded transition-colors ${
-            currentView === 'subscriptions'
-              ? 'text-violet-500 bg-violet-50 dark:bg-violet-900/20'
-              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-          }`}
-          aria-label="Subscriptions"
-          title="Subscriptions (Ctrl+Shift+S)"
-        >
-          <CreditCard size={16} />
-        </button>
         <button
           onClick={() => navigateTo('cloud-sync')}
           className={`relative p-1.5 rounded transition-colors ${

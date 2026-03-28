@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback, useEffect } from 'react';
 import { Download, Trash2, X, History } from 'lucide-react';
 import { useSession } from '@shared/hooks/useSession';
 import { useSearch } from '@shared/hooks/useSearch';
-import { useSidePanelStore } from '../stores/sidepanel.store';
+import { useSidePanelStore, type HomeTab } from '../stores/sidepanel.store';
 import QuickActions from '../components/QuickActions';
 import SearchBar from '../components/SearchBar';
 import SessionList from '../components/SessionList';
@@ -20,15 +20,6 @@ import { formatRelative } from '@core/utils/date';
 const PROMPT_KEY = 'session_restore_prompt';
 const PROMPT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
-type HomeTab = 'session' | 'tab' | 'tab-group' | 'bookmarks';
-
-const HOME_TABS: { key: HomeTab; label: string }[] = [
-  { key: 'session',   label: 'Session' },
-  { key: 'tab',       label: 'Tab' },
-  { key: 'tab-group', label: 'Tab Group' },
-  { key: 'bookmarks', label: 'Folders' },
-];
-
 const SEARCH_PLACEHOLDERS: Record<HomeTab, string> = {
   session: 'Search sessions… (#tag to filter)',
   tab: 'Search open tabs…',
@@ -37,10 +28,9 @@ const SEARCH_PLACEHOLDERS: Record<HomeTab, string> = {
 };
 
 export default function HomeView() {
-  const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>('session');
   const [searchQuery, setSearchQuery] = useState('');
   const { sessions, loading, deleteSession, restoreSession } = useSession();
-  const { activeFilter, sortBy, sortDirection, selectedSessionIds, isSelectionMode, clearSelection } = useSidePanelStore();
+  const { activeFilter, sortBy, sortDirection, selectedSessionIds, isSelectionMode, clearSelection, activeHomeTab } = useSidePanelStore();
   const { sendMessage } = useMessaging();
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
@@ -82,11 +72,6 @@ export default function HomeView() {
     dismissRestorePrompt();
   }, [restorePromptSession, restoreSession, dismissRestorePrompt]);
 
-  const handleTabChange = useCallback((tab: HomeTab) => {
-    setActiveHomeTab(tab);
-    setSearchQuery('');
-  }, []);
-
   const filteredByType = useMemo(() => {
     const filter: SessionFilter = {};
     if (activeFilter === 'manual') filter.isAutoSave = false;
@@ -104,6 +89,13 @@ export default function HomeView() {
   }, [sessions, activeFilter, tagFilter]);
 
   const { filteredSessions, setQuery } = useSearch(filteredByType);
+
+  // Reset search when the active tab changes (driven by UnifiedNavBar via store)
+  useEffect(() => {
+    setSearchQuery('');
+    setQuery('');
+    setTagFilter([]);
+  }, [activeHomeTab, setQuery]);
 
   const handleSearch = useCallback((q: string) => {
     setSearchQuery(q);
@@ -186,28 +178,10 @@ export default function HomeView() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Modern segmented tab bar */}
-      <div className="mx-3 my-2.5 flex bg-[var(--color-bg-secondary)] rounded-lg p-0.5 gap-0.5">
-        {HOME_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => handleTabChange(tab.key)}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all duration-150 ${
-              activeHomeTab === tab.key
-                ? 'bg-[var(--color-bg)] text-[var(--color-text)] shadow-sm ring-1 ring-black/5 dark:ring-white/10'
-                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
-            }`}
-            aria-selected={activeHomeTab === tab.key}
-            role="tab"
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
       {/* Search bar — hide on bookmarks tab (tree has its own layout) */}
       {activeHomeTab !== 'bookmarks' && (
         <SearchBar
+          key={activeHomeTab}
           onSearch={handleSearch}
           placeholder={SEARCH_PLACEHOLDERS[activeHomeTab]}
           showFilters={activeHomeTab === 'session'}
@@ -275,7 +249,7 @@ export default function HomeView() {
 
       {/* Bulk Action Toolbar */}
       {isSelectionMode && selectedSessionIds.size > 0 && (
-        <div className="fixed bottom-[calc(var(--qa-height,148px)+8px)] left-2 right-2 z-50 flex items-center gap-2 px-3 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-card shadow-card">
+        <div className="fixed bottom-24 left-2 right-2 z-50 flex items-center gap-2 px-3 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-card shadow-card">
           <span className="text-xs font-medium flex-1">{selectedSessionIds.size} selected</span>
           <Button size="sm" variant="secondary" icon={Download} onClick={handleBulkExport}>Export</Button>
           <Button size="sm" variant="danger" icon={Trash2} onClick={handleBulkDelete}>Delete</Button>

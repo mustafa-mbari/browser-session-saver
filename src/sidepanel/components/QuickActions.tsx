@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Save, X, Monitor } from 'lucide-react';
 import Button from '@shared/components/Button';
-import Badge from '@shared/components/Badge';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import { useSession } from '@shared/hooks/useSession';
 import type { CurrentTabsResponse, SaveSessionResponse } from '@core/types/messages.types';
@@ -64,7 +63,7 @@ export default function QuickActions({ onToast }: QuickActionsProps) {
   };
 
   return (
-    <div className="px-3 py-3 space-y-2 border-t border-[var(--color-border)]">
+    <div className="px-3 py-2 space-y-1.5 border-t border-[var(--color-border)]">
       <Button
         icon={Save}
         fullWidth
@@ -73,7 +72,7 @@ export default function QuickActions({ onToast }: QuickActionsProps) {
       >
         Save Session
       </Button>
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         <Button
           variant="secondary"
           size="sm"
@@ -92,15 +91,15 @@ export default function QuickActions({ onToast }: QuickActionsProps) {
         >
           All Windows
         </Button>
+        {tabInfo && (
+          <span
+            className="text-xs text-[var(--color-text-secondary)] whitespace-nowrap shrink-0"
+            title={`${tabInfo.tabCount} tab${tabInfo.tabCount !== 1 ? 's' : ''}${tabInfo.groupCount > 0 ? ` · ${tabInfo.groupCount} group${tabInfo.groupCount !== 1 ? 's' : ''}` : ''}`}
+          >
+            {tabInfo.tabCount}t{tabInfo.groupCount > 0 && ` · ${tabInfo.groupCount}g`}
+          </span>
+        )}
       </div>
-      {tabInfo && (
-        <div className="flex justify-center">
-          <Badge>
-            {tabInfo.tabCount} tab{tabInfo.tabCount !== 1 ? 's' : ''}
-            {tabInfo.groupCount > 0 && ` · ${tabInfo.groupCount} group${tabInfo.groupCount !== 1 ? 's' : ''}`}
-          </Badge>
-        </div>
-      )}
     </div>
   );
 }

@@ -35,55 +35,46 @@ export default function SearchBar({ onSearch, placeholder = 'Search sessions... 
   }, [setFocusSearch]);
 
   return (
-    <div className={`px-3 py-2 border-b border-[var(--color-border)] ${showFilters ? 'space-y-2' : ''}`}>
-      <div className="relative">
+    <div className="px-3 py-1.5 border-b border-[var(--color-border)]">
+      <div className="relative flex items-center gap-1">
         <Search
           size={14}
-          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]"
+          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)] pointer-events-none"
         />
         <input
           ref={inputRef}
           type="text"
           placeholder={placeholder}
-          className="w-full pl-8 pr-3 py-1.5 text-sm rounded-btn bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[var(--color-text)] placeholder-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          className="flex-1 pl-8 pr-2 py-1.5 text-sm rounded-btn bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[var(--color-text)] placeholder-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
           onChange={(e) => debouncedSearch(e.target.value)}
           aria-label="Search"
         />
-      </div>
-
-      {showFilters && (
-        <div className="flex items-center gap-1 overflow-x-auto">
-          {filters.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`px-2 py-0.5 text-xs rounded-full whitespace-nowrap transition-colors ${
-                activeFilter === f.key
-                  ? 'bg-primary text-white'
-                  : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
+        {showFilters && (
+          <>
+            <select
+              value={activeFilter}
+              onChange={(e) => setFilter(e.target.value as FilterType)}
+              className="shrink-0 text-xs bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-btn px-1.5 py-1.5 text-[var(--color-text-secondary)] cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+              aria-label="Filter sessions"
             >
-              {f.label}
-            </button>
-          ))}
-
-          <div className="ml-auto flex items-center">
+              {filters.map((f) => (
+                <option key={f.key} value={f.key}>{f.label}</option>
+              ))}
+            </select>
             <select
               value={sortBy}
               onChange={(e) => setSort(e.target.value as SortField)}
-              className="text-xs bg-transparent text-[var(--color-text-secondary)] border-none cursor-pointer focus:outline-none"
+              className="shrink-0 text-xs bg-transparent text-[var(--color-text-secondary)] border-none cursor-pointer focus:outline-none"
               aria-label="Sort sessions"
             >
               {sorts.map((s) => (
-                <option key={s.key} value={s.key}>
-                  {s.label}
-                </option>
+                <option key={s.key} value={s.key}>{s.label}</option>
               ))}
             </select>
-            <ArrowDownUp size={12} className="text-[var(--color-text-secondary)]" />
-          </div>
-        </div>
-      )}
+            <ArrowDownUp size={12} className="shrink-0 text-[var(--color-text-secondary)]" />
+          </>
+        )}
+      </div>
     </div>
   );
 }

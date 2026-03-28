@@ -2,6 +2,7 @@ import { useTheme } from '@shared/hooks/useTheme';
 import { useKeyboard } from '@shared/hooks/useKeyboard';
 import { useSidePanelStore } from './stores/sidepanel.store';
 import Header from './components/Header';
+import UnifiedNavBar from './components/UnifiedNavBar';
 import NavigationStack from './components/NavigationStack';
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-[var(--color-bg)] text-[var(--color-text)]">
       <Header />
+      <UnifiedNavBar />
       <NavigationStack />
     </div>
   );

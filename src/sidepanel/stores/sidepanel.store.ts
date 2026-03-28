@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export type SidePanelView = 'home' | 'session-detail' | 'tab-groups' | 'settings' | 'import-export' | 'subscriptions' | 'prompts' | 'cloud-sync';
 export type FilterType = 'all' | 'manual' | 'auto' | 'starred' | 'pinned';
 export type SortField = 'date' | 'name' | 'tabs';
+export type HomeTab = 'session' | 'tab' | 'tab-group' | 'bookmarks';
 
 interface SidePanelState {
   currentView: SidePanelView;
@@ -14,6 +15,7 @@ interface SidePanelState {
   focusSearch: (() => void) | null;
   selectedSessionIds: Set<string>;
   isSelectionMode: boolean;
+  activeHomeTab: HomeTab;
 
   navigateTo: (view: SidePanelView, sessionId?: string) => void;
   goBack: () => void;
@@ -23,6 +25,7 @@ interface SidePanelState {
   setFocusSearch: (fn: (() => void) | null) => void;
   toggleSelection: (id: string) => void;
   clearSelection: () => void;
+  setActiveHomeTab: (tab: HomeTab) => void;
 }
 
 export const useSidePanelStore = create<SidePanelState>((set) => ({
@@ -35,6 +38,7 @@ export const useSidePanelStore = create<SidePanelState>((set) => ({
   focusSearch: null,
   selectedSessionIds: new Set<string>(),
   isSelectionMode: false,
+  activeHomeTab: 'session',
 
   navigateTo: (view, sessionId) =>
     set((state) => {
@@ -85,4 +89,6 @@ export const useSidePanelStore = create<SidePanelState>((set) => ({
     }),
 
   clearSelection: () => set({ selectedSessionIds: new Set<string>(), isSelectionMode: false }),
+
+  setActiveHomeTab: (tab) => set({ activeHomeTab: tab }),
 }));
