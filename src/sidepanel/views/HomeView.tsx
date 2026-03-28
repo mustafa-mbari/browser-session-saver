@@ -3,12 +3,12 @@ import { Download, Trash2, X, History } from 'lucide-react';
 import { useSession } from '@shared/hooks/useSession';
 import { useSearch } from '@shared/hooks/useSearch';
 import { useSidePanelStore, type HomeTab } from '../stores/sidepanel.store';
-import QuickActions from '../components/QuickActions';
+import MenuGrid from '../components/MenuGrid';
 import SearchBar from '../components/SearchBar';
 import SessionList from '../components/SessionList';
 import CurrentTabsPanel from '../components/CurrentTabsPanel';
 import HomeTabGroupsPanel from '../components/HomeTabGroupsPanel';
-import BookmarksPanel from '../components/BookmarksPanel';
+import FoldersView from './FoldersView';
 import PromptsView from './PromptsView';
 import SubscriptionsView from './SubscriptionsView';
 import Toast, { type ToastData } from '@shared/components/Toast';
@@ -26,7 +26,7 @@ const SEARCH_PLACEHOLDERS: Record<HomeTab, string> = {
   session: 'Search sessions… (#tag to filter)',
   tab: 'Search open tabs…',
   'tab-group': 'Search tab groups…',
-  bookmarks: 'Search bookmarks…',
+  folders: 'Search folders…',
   prompts: '',
   subscriptions: '',
 };
@@ -34,7 +34,7 @@ const SEARCH_PLACEHOLDERS: Record<HomeTab, string> = {
 export default function HomeView() {
   const [searchQuery, setSearchQuery] = useState('');
   const { sessions, loading, deleteSession, restoreSession } = useSession();
-  const { activeFilter, sortBy, sortDirection, selectedSessionIds, isSelectionMode, clearSelection, activeHomeTab } = useSidePanelStore();
+  const { activeFilter, sortBy, sortDirection, selectedSessionIds, isSelectionMode, clearSelection, activeHomeTab, activeNavBarTab, openPageFromMenu } = useSidePanelStore();
   const { sendMessage } = useMessaging();
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
@@ -180,10 +180,19 @@ export default function HomeView() {
     });
   }, [selectedSessionIds, sessions, deleteSession, clearSelection, addToast, sendMessage]);
 
+  // Menu tab: show card grid
+  if (activeNavBarTab === 'menu') {
+    return (
+      <div className="flex flex-col h-full">
+        <MenuGrid onCardClick={openPageFromMenu} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
-      {/* Search bar — hide on bookmarks, prompts, and subscriptions tabs */}
-      {activeHomeTab !== 'bookmarks' && activeHomeTab !== 'prompts' && activeHomeTab !== 'subscriptions' && (
+      {/* Search bar — hide on folders, prompts, and subscriptions tabs */}
+      {activeHomeTab !== 'folders' && activeHomeTab !== 'prompts' && activeHomeTab !== 'subscriptions' && (
         <SearchBar
           key={activeHomeTab}
           onSearch={handleSearch}
@@ -235,9 +244,9 @@ export default function HomeView() {
       {activeHomeTab === 'tab-group' && (
         <HomeTabGroupsPanel sessions={sessions} loading={loading} query={searchQuery} onToast={addToast} />
       )}
-      {activeHomeTab === 'bookmarks' && (
+      {activeHomeTab === 'folders' && (
         <div className="flex-1 overflow-hidden flex flex-col">
-          <BookmarksPanel />
+          <FoldersView />
         </div>
       )}
       {activeHomeTab === 'prompts' && (
@@ -256,11 +265,6 @@ export default function HomeView() {
         <div className="px-3 py-2 border-t border-[var(--color-border)] flex items-center justify-end text-xs text-[var(--color-text-secondary)]">
           <span>{sessions.length} session{sessions.length !== 1 ? 's' : ''}</span>
         </div>
-      )}
-
-      {/* Quick Actions — only for session-related tabs */}
-      {activeHomeTab !== 'prompts' && activeHomeTab !== 'subscriptions' && (
-        <QuickActions onToast={addToast} />
       )}
 
       {/* Bulk Action Toolbar */}

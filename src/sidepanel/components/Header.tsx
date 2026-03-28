@@ -5,9 +5,9 @@ import { useTheme } from '@shared/hooks/useTheme';
 import AutoSaveBadge from './AutoSaveBadge';
 
 export default function Header() {
-  const { currentView, navigationStack, goBack, navigateTo } = useSidePanelStore();
+  const { currentView, navigationStack, activeNavBarTab, goBack, navigateTo } = useSidePanelStore();
   const { isDark, setTheme } = useTheme();
-  const canGoBack = navigationStack.length > 1;
+  const canGoBack = navigationStack.length > 1 || (currentView === 'home' && activeNavBarTab === 'dynamic');
   const [syncSignedIn, setSyncSignedIn] = useState(false);
 
   useEffect(() => {

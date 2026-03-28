@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Save, X, Monitor } from 'lucide-react';
-import Button from '@shared/components/Button';
-import { useMessaging } from '@shared/hooks/useMessaging';
+import { useState, useEffect, useRef } from 'react';
+import { Save, FolderPlus, PenLine } from 'lucide-react';
 import { useSession } from '@shared/hooks/useSession';
-import type { CurrentTabsResponse, SaveSessionResponse } from '@core/types/messages.types';
+import { useBookmarkFolderData } from '@shared/hooks/useBookmarkFolderData';
+import { useSidePanelStore } from '../stores/sidepanel.store';
+import type { SaveSessionResponse } from '@core/types/messages.types';
 import type { ToastData } from '@shared/components/Toast';
 
 interface QuickActionsProps {
@@ -12,29 +12,30 @@ interface QuickActionsProps {
 
 export default function QuickActions({ onToast }: QuickActionsProps) {
   const { saveSession } = useSession();
-  const { sendMessage } = useMessaging();
-  const [saving, setSaving] = useState(false);
-  const [tabInfo, setTabInfo] = useState<CurrentTabsResponse | null>(null);
+  const { categories, saveCurrentTab } = useBookmarkFolderData();
+  const { openPageFromMenu } = useSidePanelStore();
 
+  // Only show bookmark-type folders in the picker (not widget categories)
+  const folders = categories.filter((c) => (c.cardType === 'bookmark' || !c.cardType));
+  const [saving, setSaving] = useState(false);
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  // Close folder picker on outside click
   useEffect(() => {
-    const fetchTabInfo = async () => {
-      const response = await sendMessage<CurrentTabsResponse>({
-        action: 'GET_CURRENT_TABS',
-        payload: {},
-      });
-      if (response.success && response.data) {
-        setTabInfo(response.data);
+    if (!showFolderPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowFolderPicker(false);
       }
     };
-    fetchTabInfo();
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showFolderPicker]);
 
-    const interval = setInterval(fetchTabInfo, 5000);
-    return () => clearInterval(interval);
-  }, [sendMessage]);
-
-  const handleSave = async (closeAfter = false) => {
+  const handleSave = async () => {
     setSaving(true);
-    const result = await saveSession({ closeAfter });
+    const result = await saveSession({ closeAfter: false });
     setSaving(false);
     if (result.success) {
       const responseData = result.data as SaveSessionResponse | undefined;
@@ -48,57 +49,83 @@ export default function QuickActions({ onToast }: QuickActionsProps) {
     }
   };
 
-  const handleSaveAllWindows = async () => {
-    setSaving(true);
-    const result = await sendMessage({
-      action: 'SAVE_SESSION',
-      payload: { allWindows: true },
-    });
-    setSaving(false);
-    if (result.success) {
-      onToast?.({ message: 'All windows saved', type: 'success' });
+  const handleFolderClick = () => {
+    if (folders.length === 0) {
+      onToast?.({ message: 'Create a folder first', type: 'warning' });
+      openPageFromMenu('folders');
+      return;
+    }
+    setShowFolderPicker(!showFolderPicker);
+  };
+
+  const handleSaveToFolder = async (folderId: string) => {
+    setShowFolderPicker(false);
+    const entry = await saveCurrentTab(folderId);
+    if (entry) {
+      onToast?.({ message: 'Tab saved to folder', type: 'success' });
     } else {
-      onToast?.({ message: result.error ?? 'Failed to save', type: 'error' });
+      onToast?.({ message: 'Failed to save tab', type: 'error' });
     }
   };
 
+  const handleCreatePrompt = () => {
+    openPageFromMenu('prompts');
+  };
+
   return (
-    <div className="px-3 py-2 space-y-1.5 border-t border-[var(--color-border)]">
-      <Button
-        icon={Save}
-        fullWidth
-        loading={saving}
-        onClick={() => handleSave(false)}
-      >
-        Save Session
-      </Button>
+    <div className="relative px-3 py-2 border-t border-[var(--color-border)]">
+      {/* Folder picker dropdown */}
+      {showFolderPicker && (
+        <div
+          ref={pickerRef}
+          className="absolute bottom-full left-3 right-3 mb-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] shadow-lg max-h-48 overflow-y-auto z-50"
+        >
+          <div className="p-1">
+            {folders.map((folder) => (
+              <button
+                key={folder.id}
+                onClick={() => void handleSaveToFolder(folder.id)}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs hover:bg-[var(--color-bg-hover)] transition-colors text-left"
+              >
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: folder.color || '#6366f1' }} />
+                <span className="truncate" style={{ color: 'var(--color-text)' }}>{folder.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          icon={X}
-          className="flex-1"
-          onClick={() => handleSave(true)}
+        <button
+          onClick={() => void handleSave()}
+          disabled={saving}
+          className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium bg-primary text-white hover:bg-primary/90 disabled:opacity-50 transition-colors"
         >
-          Save & Close
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          icon={Monitor}
-          className="flex-1"
-          onClick={handleSaveAllWindows}
+          {saving ? (
+            <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Save size={14} />
+          )}
+          <span>Save</span>
+        </button>
+
+        <button
+          onClick={handleFolderClick}
+          className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] transition-colors"
+          style={{ color: 'var(--color-text)' }}
         >
-          All Windows
-        </Button>
-        {tabInfo && (
-          <span
-            className="text-xs text-[var(--color-text-secondary)] whitespace-nowrap shrink-0"
-            title={`${tabInfo.tabCount} tab${tabInfo.tabCount !== 1 ? 's' : ''}${tabInfo.groupCount > 0 ? ` · ${tabInfo.groupCount} group${tabInfo.groupCount !== 1 ? 's' : ''}` : ''}`}
-          >
-            {tabInfo.tabCount}t{tabInfo.groupCount > 0 && ` · ${tabInfo.groupCount}g`}
-          </span>
-        )}
+          <FolderPlus size={14} />
+          <span>Folder</span>
+        </button>
+
+        <button
+          onClick={handleCreatePrompt}
+          className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] transition-colors"
+          style={{ color: 'var(--color-text)' }}
+        >
+          <PenLine size={14} />
+          <span>Prompt</span>
+        </button>
       </div>
     </div>
   );

@@ -3,7 +3,8 @@ import { create } from 'zustand';
 export type SidePanelView = 'home' | 'session-detail' | 'tab-groups' | 'settings' | 'import-export' | 'subscriptions' | 'prompts' | 'cloud-sync';
 export type FilterType = 'all' | 'manual' | 'auto' | 'starred' | 'pinned';
 export type SortField = 'date' | 'name' | 'tabs';
-export type HomeTab = 'session' | 'tab' | 'tab-group' | 'bookmarks' | 'prompts' | 'subscriptions';
+export type HomeTab = 'session' | 'tab' | 'tab-group' | 'folders' | 'prompts' | 'subscriptions';
+export type NavBarTab = 'menu' | 'new-tab' | 'dynamic';
 
 interface SidePanelState {
   currentView: SidePanelView;
@@ -16,6 +17,8 @@ interface SidePanelState {
   selectedSessionIds: Set<string>;
   isSelectionMode: boolean;
   activeHomeTab: HomeTab;
+  activeNavBarTab: NavBarTab;
+  lastOpenedPage: HomeTab | null;
 
   navigateTo: (view: SidePanelView, sessionId?: string) => void;
   goBack: () => void;
@@ -26,6 +29,8 @@ interface SidePanelState {
   toggleSelection: (id: string) => void;
   clearSelection: () => void;
   setActiveHomeTab: (tab: HomeTab) => void;
+  setActiveNavBarTab: (tab: NavBarTab) => void;
+  openPageFromMenu: (page: HomeTab) => void;
 }
 
 export const useSidePanelStore = create<SidePanelState>((set) => ({
@@ -39,6 +44,8 @@ export const useSidePanelStore = create<SidePanelState>((set) => ({
   selectedSessionIds: new Set<string>(),
   isSelectionMode: false,
   activeHomeTab: 'session',
+  activeNavBarTab: 'menu',
+  lastOpenedPage: null,
 
   navigateTo: (view, sessionId) =>
     set((state) => {
@@ -52,6 +59,10 @@ export const useSidePanelStore = create<SidePanelState>((set) => ({
 
   goBack: () =>
     set((state) => {
+      // If on dynamic tab in home view, go back to menu
+      if (state.currentView === 'home' && state.activeNavBarTab === 'dynamic') {
+        return { activeNavBarTab: 'menu' };
+      }
       const stack = [...state.navigationStack];
       stack.pop();
       const prev = stack[stack.length - 1] ?? 'home';
@@ -91,4 +102,28 @@ export const useSidePanelStore = create<SidePanelState>((set) => ({
   clearSelection: () => set({ selectedSessionIds: new Set<string>(), isSelectionMode: false }),
 
   setActiveHomeTab: (tab) => set({ activeHomeTab: tab }),
+
+  setActiveNavBarTab: (tab) =>
+    set((state) => {
+      if (tab === 'new-tab') return state;
+      if (tab === 'dynamic' && state.lastOpenedPage) {
+        return {
+          activeNavBarTab: 'dynamic',
+          activeHomeTab: state.lastOpenedPage,
+          currentView: 'home',
+        };
+      }
+      if (tab === 'menu') {
+        return { activeNavBarTab: 'menu', currentView: 'home' };
+      }
+      return state;
+    }),
+
+  openPageFromMenu: (page) =>
+    set({
+      activeNavBarTab: 'dynamic',
+      activeHomeTab: page,
+      lastOpenedPage: page,
+      currentView: 'home',
+    }),
 }));
