@@ -8,6 +8,12 @@ import type { Theme } from '@/lib/theme'
 export const metadata: Metadata = {
   title: 'Browser Hub',
   description: 'Browser session management and productivity tools',
+  icons: {
+    icon: [
+      { url: '/favicon.png', type: 'image/png', sizes: '32x32' },
+      { url: '/icon.png', type: 'image/png', sizes: '128x128' },
+    ],
+  },
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

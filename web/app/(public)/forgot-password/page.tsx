@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { Globe, ArrowLeft, Mail } from 'lucide-react'
+import Image from 'next/image'
+import { ArrowLeft, Mail } from 'lucide-react'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -55,9 +56,7 @@ export default function ForgotPasswordPage() {
     <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-indigo-600 mb-4">
-            <Globe className="h-6 w-6 text-white" />
-          </div>
+          <Image src="/icons/icon-128.png" alt="Browser Hub" width={48} height={48} className="rounded-xl mb-4 mx-auto" />
           <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">
             {sent ? 'Check your email' : 'Reset password'}
           </h1>

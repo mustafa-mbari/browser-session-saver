@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
-import { Eye, EyeOff, Globe } from 'lucide-react'
+import Image from 'next/image'
+import { Eye, EyeOff } from 'lucide-react'
 
 function isRateLimitError(message: string) {
   return (
@@ -77,9 +78,7 @@ export default function LoginForm() {
         <div className="max-w-md w-full space-y-8">
           <div>
             <div className="flex items-center gap-3 mb-8">
-              <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-indigo-600">
-                <Globe className="h-5 w-5 text-white" />
-              </div>
+              <Image src="/icons/icon-128.png" alt="Browser Hub" width={40} height={40} className="rounded-xl" />
               <span className="text-xl font-bold text-stone-900 dark:text-stone-100">Browser Hub</span>
             </div>
             <h2 className="text-3xl font-bold text-stone-900 dark:text-stone-100 leading-tight">
@@ -118,9 +117,7 @@ export default function LoginForm() {
         <div className="w-full max-w-md">
           {/* Mobile-only logo */}
           <div className="lg:hidden text-center mb-6">
-            <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-indigo-600 mb-3">
-              <Globe className="h-6 w-6 text-white" />
-            </div>
+            <Image src="/icons/icon-128.png" alt="Browser Hub" width={48} height={48} className="rounded-xl mb-3 mx-auto" />
           </div>
 
           <div className="text-center mb-6">

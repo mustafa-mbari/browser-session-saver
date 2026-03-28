@@ -7,7 +7,8 @@ import { Suspense } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { Globe, Mail } from 'lucide-react'
+import Image from 'next/image'
+import { Mail } from 'lucide-react'
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams()
@@ -36,9 +37,7 @@ function VerifyEmailContent() {
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-md text-center">
-        <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-indigo-600 mb-4">
-          <Globe className="h-6 w-6 text-white" />
-        </div>
+        <Image src="/icons/icon-128.png" alt="Browser Hub" width={48} height={48} className="rounded-xl mb-4 mx-auto" />
         <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-2">Check your email</h1>
         <p className="text-sm text-stone-500 dark:text-stone-400 mb-6">
           {email

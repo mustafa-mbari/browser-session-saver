@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/lib/theme'
 import { useSidebar } from '@/hooks/use-sidebar'
@@ -19,7 +20,6 @@ import {
   LifeBuoy,
   Lightbulb,
   Gauge,
-  Shield,
   LogOut,
   Sun,
   Moon,
@@ -184,9 +184,7 @@ function SidebarInner({
     <div className="flex flex-col h-full">
       {/* Branding */}
       <div className="flex items-center gap-2.5 px-4 h-14 shrink-0 overflow-hidden">
-        <div className="flex items-center justify-center h-8 w-8 shrink-0 rounded-lg bg-indigo-600">
-          <Shield className="h-4 w-4 text-white" />
-        </div>
+        <Image src="/icons/icon-128.png" alt="Browser Hub" width={32} height={32} className="rounded-lg shrink-0" />
         <div
           className="flex flex-col overflow-hidden"
           style={{
@@ -343,9 +341,7 @@ export function AdminMobileHeader({ email, displayName }: AdminSidebarProps) {
           <Menu className="h-5 w-5" />
         </button>
         <div className="flex items-center gap-2">
-          <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-indigo-600">
-            <Shield className="h-3.5 w-3.5 text-white" />
-          </div>
+          <Image src="/icons/icon-128.png" alt="Browser Hub" width={28} height={28} className="rounded-lg" />
           <span className="font-semibold text-sm text-stone-900 dark:text-stone-100">
             Browser Hub Admin
           </span>
