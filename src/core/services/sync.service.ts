@@ -37,6 +37,7 @@ export interface UserQuota {
   prompts_create_limit: number | null;
   subs_synced_limit: number | null;
   total_tabs_limit: number | null;
+  tab_groups_synced_limit: number | null;
   sync_enabled: boolean;
 }
 
@@ -169,7 +170,7 @@ export async function syncAll(): Promise<SyncResult> {
       syncPrompts(userId, quota),
       syncSubscriptions(userId, quota),
       syncBookmarkFolders(userId, quota, allBmEntries),
-      syncTabGroupTemplates(userId, allTemplates),
+      syncTabGroupTemplates(userId, allTemplates, quota),
     ]);
 
     synced.sessions  = sessionCount;
@@ -244,6 +245,7 @@ export async function getUserQuota(userId: string): Promise<UserQuota> {
       prompts_create_limit: 0,
       subs_synced_limit: null,
       total_tabs_limit: 0,
+      tab_groups_synced_limit: 0,
       sync_enabled: false,
     };
   }
@@ -437,14 +439,21 @@ async function syncBookmarkFolders(
   return toSyncFolders.length;
 }
 
-async function syncTabGroupTemplates(userId: string, allTemplates: TabGroupTemplate[]): Promise<number> {
-  if (allTemplates.length === 0) {
-    // Reconcile: if local is empty, remove all remote templates for this user
+async function syncTabGroupTemplates(userId: string, allTemplates: TabGroupTemplate[], quota: UserQuota): Promise<number> {
+  const limit = quota.tab_groups_synced_limit ?? Infinity;
+
+  // Take most-recently-updated templates up to quota limit
+  const toSync = allTemplates
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, limit);
+
+  if (toSync.length === 0) {
+    // Reconcile: if nothing to sync, remove all remote templates for this user
     await supabase.from('tab_group_templates').delete().eq('user_id', userId);
     return 0;
   }
 
-  const rows = allTemplates.map((tg) => ({
+  const rows = toSync.map((tg) => ({
     key: tg.key,
     user_id: userId,
     title: tg.title,
@@ -459,8 +468,8 @@ async function syncTabGroupTemplates(userId: string, allTemplates: TabGroupTempl
     .upsert(rows, { onConflict: 'user_id,key' });
   if (error) throw new Error(`Tab group templates sync failed: ${error.message}`);
 
-  // Reconcile: remove remote templates whose key no longer exists locally
-  const localKeys = allTemplates.map((t) => t.key);
+  // Reconcile: remove remote templates whose key is no longer in the synced set
+  const localKeys = toSync.map((t) => t.key);
   await supabase
     .from('tab_group_templates')
     .delete()

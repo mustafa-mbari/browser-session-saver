@@ -32,6 +32,7 @@ const QUOTA_ROWS = [
   { label: 'Tabs per session',         field: 'tabs_per_session_limit' },
   { label: 'Unique tabs (global)',     field: 'total_tabs_limit' },
   { label: 'Synced folders',           field: 'folders_synced_limit' },
+  { label: 'Tab group templates',      field: 'tab_groups_synced_limit' },
   { label: 'Entries per folder',       field: 'entries_per_folder_limit' },
   { label: 'Prompt library access',    field: 'prompts_access_limit' },
   { label: 'Create prompts',           field: 'prompts_create_limit' },

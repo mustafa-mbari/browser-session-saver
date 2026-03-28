@@ -46,6 +46,7 @@ function makeQuota(overrides: Partial<UserQuota> = {}): UserQuota {
     prompts_create_limit: 100,
     subs_synced_limit: 100,
     total_tabs_limit: null,
+    tab_groups_synced_limit: null,
     sync_enabled: true,
     ...overrides,
   };
