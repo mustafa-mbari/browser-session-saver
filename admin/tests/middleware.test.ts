@@ -2,18 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
 const mockGetUser = vi.fn()
-const mockProfileSingle = vi.fn()
 
 vi.mock('@supabase/ssr', () => ({
   createServerClient: vi.fn(() => ({
     auth: { getUser: mockGetUser },
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: mockProfileSingle,
-        })),
-      })),
-    })),
   })),
 }))
 
@@ -54,15 +46,9 @@ describe('admin middleware', () => {
     delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     vi.resetModules()
-    // Re-mock after reset
     vi.mock('@supabase/ssr', () => ({
       createServerClient: vi.fn(() => ({
         auth: { getUser: mockGetUser },
-        from: vi.fn(() => ({
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({ single: mockProfileSingle })),
-          })),
-        })),
       })),
     }))
     const { middleware } = await import('../middleware')
@@ -77,11 +63,6 @@ describe('admin middleware', () => {
     vi.mock('@supabase/ssr', () => ({
       createServerClient: vi.fn(() => ({
         auth: { getUser: mockGetUser },
-        from: vi.fn(() => ({
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({ single: mockProfileSingle })),
-          })),
-        })),
       })),
     }))
 
@@ -89,44 +70,15 @@ describe('admin middleware', () => {
     const res = await middleware(makeRequest('/'))
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/login')
-    expect(res.headers.get('location')).not.toContain('forbidden')
   })
 
-  it('redirects to /login?error=forbidden when role is not admin', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-    mockProfileSingle.mockResolvedValue({ data: { role: 'user' }, error: null })
-
-    vi.resetModules()
-    vi.mock('@supabase/ssr', () => ({
-      createServerClient: vi.fn(() => ({
-        auth: { getUser: mockGetUser },
-        from: vi.fn(() => ({
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({ single: mockProfileSingle })),
-          })),
-        })),
-      })),
-    }))
-
-    const { middleware } = await import('../middleware')
-    const res = await middleware(makeRequest('/'))
-    expect(res.status).toBe(307)
-    expect(res.headers.get('location')).toContain('forbidden')
-  })
-
-  it('passes through when authenticated and role is admin', async () => {
+  it('passes through when authenticated (role check is in layout, not middleware)', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'admin-1' } } })
-    mockProfileSingle.mockResolvedValue({ data: { role: 'admin' }, error: null })
 
     vi.resetModules()
     vi.mock('@supabase/ssr', () => ({
       createServerClient: vi.fn(() => ({
         auth: { getUser: mockGetUser },
-        from: vi.fn(() => ({
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({ single: mockProfileSingle })),
-          })),
-        })),
       })),
     }))
 

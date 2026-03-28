@@ -1,10 +1,11 @@
 'use client'
 
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { useTheme } from '@/lib/theme'
 import { useSidebar } from '@/components/ui/sidebar'
-import { Sun, Moon, LogOut, Menu, Globe } from 'lucide-react'
+import { Sun, Moon, LogOut, Menu } from 'lucide-react'
 
 interface Props {
   userInfo: {
@@ -40,12 +41,14 @@ export default function AppHeader({ userInfo }: Props) {
             <Menu className="h-5 w-5" />
           </button>
         )}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-indigo-600">
-            <Globe className="h-3.5 w-3.5 text-white" />
-          </div>
-          <span className="font-semibold text-sm text-stone-900 dark:text-stone-100">Browser Hub</span>
-        </div>
+        <Image
+          src="/icons/browser-hub_logo.png"
+          alt="Browser Hub"
+          width={28}
+          height={28}
+          className="rounded-lg"
+          priority
+        />
       </div>
 
       <div className="flex items-center gap-2">

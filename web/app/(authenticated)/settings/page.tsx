@@ -82,12 +82,12 @@ function ProfileTab() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({ display_name: displayName.trim() })
-      .eq('id', user.id)
+    const [{ error }, { error: metaError }] = await Promise.all([
+      supabase.from('profiles').update({ display_name: displayName.trim() }).eq('id', user.id),
+      supabase.auth.updateUser({ data: { display_name: displayName.trim() } }),
+    ])
 
-    if (error) {
+    if (error || metaError) {
       toast.error('Failed to save profile.')
     } else {
       toast.success('Profile updated.')

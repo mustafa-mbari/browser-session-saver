@@ -1,6 +1,6 @@
-import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { requireAuth } from '@/lib/services/auth'
+import { createClient } from '@/lib/supabase/server'
 import AppSidebar from './Sidebar'
 import AppHeader from './AppHeader'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
@@ -12,10 +12,16 @@ export default async function AuthenticatedLayout({
   children: React.ReactNode
 }) {
   const user = await requireAuth()
+  const supabase = await createClient()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', user.id)
+    .single()
 
   const userInfo = {
     email: user.email ?? '',
-    displayName: (user.user_metadata?.display_name ?? user.user_metadata?.name ?? null) as string | null,
+    displayName: (profile?.display_name ?? user.user_metadata?.display_name ?? user.user_metadata?.name ?? null) as string | null,
   }
 
   const cookieStore = await cookies()
