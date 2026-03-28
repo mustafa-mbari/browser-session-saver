@@ -33,6 +33,24 @@ export default function ForgotPasswordPage() {
     }
   }
 
+  async function handleResend() {
+    setSent(false)
+    setLoading(true)
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      if (!res.ok) throw new Error('Failed to send reset email')
+      setSent(true)
+    } catch {
+      toast.error('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-md">
@@ -59,7 +77,7 @@ export default function ForgotPasswordPage() {
               <p className="text-sm text-stone-600 dark:text-stone-400 mb-4">
                 Check your inbox and spam folder for the reset link.
               </p>
-              <Button variant="outline" onClick={() => { setSent(false); handleSubmit(new Event('submit') as any) }} disabled={loading}>
+              <Button variant="outline" onClick={handleResend} disabled={loading}>
                 {loading ? 'Sending…' : 'Resend email'}
               </Button>
             </CardContent>

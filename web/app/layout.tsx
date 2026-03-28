@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
-import Script from 'next/script'
 import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { Toaster } from '@/components/ui/sonner'
@@ -18,17 +17,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ? themeCookie
     : 'system'
 
+  // Apply the known theme class server-side to prevent FOUC.
+  // ThemeProvider's useEffect handles the 'system' case client-side.
+  const htmlClass = initialTheme === 'dark' ? 'dark' : undefined
+
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <Script
-          id="theme-init"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var m=document.cookie.match(/(?:^|; )theme=([^;]*)/);var t=m?m[1]:'system';var r=t;if(t==='system'){r=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'}document.documentElement.classList.add(r)}catch(e){}})()`,
-          }}
-        />
-      </head>
+    <html lang="en" suppressHydrationWarning className={htmlClass}>
       <body className="min-h-screen dark:bg-[var(--dark)] dark:text-stone-200">
         <ThemeProvider initialTheme={initialTheme}>
           {children}
