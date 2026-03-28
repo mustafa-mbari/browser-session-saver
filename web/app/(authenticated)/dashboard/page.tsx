@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Layers, Sparkles, FolderOpen, CreditCard, Crown, Zap, Globe } from 'lucide-react'
+import { Layers, Sparkles, FolderOpen, CreditCard, Crown, Zap, Globe, Link2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/services/auth'
 
@@ -65,6 +65,14 @@ export default async function DashboardPage() {
       iconBg: 'bg-purple-100 dark:bg-purple-900/30',
       iconColor: 'text-purple-600 dark:text-purple-400',
     },
+    {
+      label: 'Unique Tabs',
+      value: usage?.synced_tabs?.toString() ?? '0',
+      limit: quota?.total_tabs_limit,
+      icon: Link2,
+      iconBg: 'bg-sky-100 dark:bg-sky-900/30',
+      iconColor: 'text-sky-600 dark:text-sky-400',
+    },
   ]
 
   return (
@@ -79,7 +87,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Usage Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         {stats.map(stat => {
           const pct = stat.limit != null && Number(stat.value) > 0
             ? Math.min(100, Math.round((Number(stat.value) / stat.limit) * 100))

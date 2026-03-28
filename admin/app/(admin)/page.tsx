@@ -1,7 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Users, Crown, Zap, Layers, Sparkles, UserPlus } from 'lucide-react'
+import { Users, Crown, Zap, Layers, Sparkles, UserPlus, LayoutGrid } from 'lucide-react'
 import { createServiceClient } from '@/lib/supabase/server'
 
 type Overview = {
@@ -11,6 +11,7 @@ type Overview = {
   max_users: number
   total_sessions: number
   total_prompts: number
+  total_tab_groups: number
 }
 
 type RecentUser = {
@@ -52,15 +53,16 @@ export default async function AdminOverviewPage() {
     { label: 'Max Users',     value: overview?.max_users?.toString() ?? '—',     icon: Crown,    iconBg: 'bg-purple-100 dark:bg-purple-900/30',  iconColor: 'text-purple-600 dark:text-purple-400' },
     { label: 'Pro Users',     value: overview?.pro_users?.toString() ?? '—',     icon: Zap,      iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400' },
     { label: 'Free Users',    value: overview?.free_users?.toString() ?? '—',    icon: UserPlus, iconBg: 'bg-stone-100 dark:bg-stone-800',         iconColor: 'text-stone-600 dark:text-stone-400' },
-    { label: 'Sessions',      value: overview?.total_sessions?.toString() ?? '—', icon: Layers,  iconBg: 'bg-amber-100 dark:bg-amber-900/30',    iconColor: 'text-amber-600 dark:text-amber-400' },
-    { label: 'Prompts',       value: overview?.total_prompts?.toString() ?? '—', icon: Sparkles, iconBg: 'bg-rose-100 dark:bg-rose-900/30',      iconColor: 'text-rose-600 dark:text-rose-400' },
+    { label: 'Sessions',      value: overview?.total_sessions?.toString()   ?? '—', icon: Layers,      iconBg: 'bg-amber-100 dark:bg-amber-900/30',    iconColor: 'text-amber-600 dark:text-amber-400' },
+    { label: 'Prompts',       value: overview?.total_prompts?.toString()    ?? '—', icon: Sparkles,    iconBg: 'bg-rose-100 dark:bg-rose-900/30',      iconColor: 'text-rose-600 dark:text-rose-400' },
+    { label: 'Tab Groups',    value: overview?.total_tab_groups?.toString() ?? '—', icon: LayoutGrid,  iconBg: 'bg-sky-100 dark:bg-sky-900/30',        iconColor: 'text-sky-600 dark:text-sky-400' },
   ]
 
   return (
     <div className="animate-fade-in">
       <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-6">Overview</h1>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
         {stats.map(stat => (
           <Card key={stat.label}>
             <CardContent className="pt-5 pb-4">
