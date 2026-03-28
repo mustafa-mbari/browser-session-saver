@@ -24,6 +24,7 @@ export default function LoginForm() {
   const router = useRouter()
 
   const message = searchParams.get('message')
+  const redirectTo = searchParams.get('redirectTo')
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -51,13 +52,10 @@ export default function LoginForm() {
         throw new Error(msg)
       }
 
-      let destination = '/dashboard'
-      try {
-        const lastPage = localStorage.getItem('lastPage')
-        if (lastPage && lastPage.startsWith('/') && !lastPage.startsWith('/login') && !lastPage.startsWith('/register')) {
-          destination = lastPage
-        }
-      } catch { /* localStorage unavailable */ }
+      const destination =
+        redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('/login') && !redirectTo.startsWith('/register')
+          ? redirectTo
+          : '/dashboard'
       router.push(destination)
       router.refresh()
     } catch (err) {

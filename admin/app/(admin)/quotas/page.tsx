@@ -66,8 +66,13 @@ async function savePlan(formData: FormData) {
     updates[field.key as string] = parseField(field.key as string, field.type)
   }
 
-  await supabase.from('plans').update(updates).eq('id', planId)
-  revalidatePath('/quotas')
+  try {
+    const { error } = await supabase.from('plans').update(updates).eq('id', planId)
+    if (error) throw error
+    revalidatePath('/quotas')
+  } catch (err) {
+    console.error('[savePlan]:', err)
+  }
 }
 
 export default async function QuotasPage() {

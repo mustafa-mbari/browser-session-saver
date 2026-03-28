@@ -66,20 +66,26 @@ async function grantSubscription(formData: FormData) {
   const planId = formData.get('plan_id') as string
   const supabase = await createServiceClient()
 
-  // Look up user by email
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('email', email)
-    .single()
+  try {
+    // Look up user by email
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .single()
 
-  if (!profile) return // User not found
+    if (profileError) throw profileError
+    if (!profile) return // User not found
 
-  await supabase.from('user_plans')
-    .update({ plan_id: planId, status: 'active', source: 'admin_manual' })
-    .eq('user_id', profile.id)
+    const { error } = await supabase.from('user_plans')
+      .update({ plan_id: planId, status: 'active', source: 'admin_manual' })
+      .eq('user_id', profile.id)
+    if (error) throw error
 
-  revalidatePath('/subscriptions')
+    revalidatePath('/subscriptions')
+  } catch (err) {
+    console.error('[grantSubscription]:', err)
+  }
 }
 
 export default async function SubscriptionsPage({

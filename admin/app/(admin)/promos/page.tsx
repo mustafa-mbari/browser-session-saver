@@ -36,15 +36,20 @@ async function createPromo(formData: FormData) {
   const maxUsesRaw = formData.get('max_uses') as string
   const validUntil = formData.get('valid_until') as string
 
-  await supabase.from('promo_codes').insert({
-    code,
-    plan_id:     planId,
-    max_uses:    maxUsesRaw ? parseInt(maxUsesRaw) : null,
-    valid_until: validUntil || null,
-    is_active:   true,
-    used_count:  0,
-  })
-  revalidatePath('/promos')
+  try {
+    const { error } = await supabase.from('promo_codes').insert({
+      code,
+      plan_id:     planId,
+      max_uses:    maxUsesRaw ? parseInt(maxUsesRaw) : null,
+      valid_until: validUntil || null,
+      is_active:   true,
+      used_count:  0,
+    })
+    if (error) throw error
+    revalidatePath('/promos')
+  } catch (err) {
+    console.error('[createPromo]:', err)
+  }
 }
 
 async function deactivatePromo(formData: FormData) {
@@ -52,8 +57,13 @@ async function deactivatePromo(formData: FormData) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return
   const supabase = await createServiceClient()
   const id = formData.get('id') as string
-  await supabase.from('promo_codes').update({ is_active: false }).eq('id', id)
-  revalidatePath('/promos')
+  try {
+    const { error } = await supabase.from('promo_codes').update({ is_active: false }).eq('id', id)
+    if (error) throw error
+    revalidatePath('/promos')
+  } catch (err) {
+    console.error('[deactivatePromo]:', err)
+  }
 }
 
 const PLAN_COLOR: Record<string, string> = {

@@ -41,8 +41,9 @@ function VerifyEmailContent() {
         </div>
         <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-2">Check your email</h1>
         <p className="text-sm text-stone-500 dark:text-stone-400 mb-6">
-          We sent a verification link to{' '}
-          {email && <span className="font-medium text-stone-700 dark:text-stone-300">{email}</span>}
+          {email
+            ? <>We sent a verification link to{' '}<span className="font-medium text-stone-700 dark:text-stone-300">{email}</span></>
+            : 'We sent a verification link to your email address'}
         </p>
 
         <Card>

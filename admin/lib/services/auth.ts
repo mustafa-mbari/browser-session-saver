@@ -1,6 +1,6 @@
 import { cache } from 'react'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import type { User } from '@supabase/supabase-js'
 
 // DEV: Mock user for testing when Supabase is not configured
@@ -29,7 +29,6 @@ export const getUser = cache(async (): Promise<User | null> => {
 
 /**
  * Require an authenticated admin user. Redirects to login if not found or not admin.
- * TODO: Connect to Supabase profiles table for role check.
  */
 export async function requireAdmin(): Promise<User> {
   if (!isSupabaseConfigured()) return MOCK_USER
@@ -38,8 +37,8 @@ export async function requireAdmin(): Promise<User> {
   if (!user) {
     redirect('/login')
   }
-  // TODO: Check admin role from profiles table
-  // const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  // if (profile?.role !== 'admin') redirect('/login?error=forbidden')
+  const serviceSupabase = await createServiceClient()
+  const { data: profile } = await serviceSupabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') redirect('/login?error=forbidden')
   return user
 }

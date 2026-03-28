@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/lib/theme'
 import { useSidebar } from '@/hooks/use-sidebar'
@@ -176,11 +175,7 @@ function SidebarInner({
     item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + '/')
 
   async function handleSignOut() {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-    await supabase.auth.signOut()
+    await fetch('/api/auth/sign-out', { method: 'POST' })
     router.push('/login')
     router.refresh()
   }

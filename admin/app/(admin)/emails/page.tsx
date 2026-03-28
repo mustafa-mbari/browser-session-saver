@@ -67,13 +67,18 @@ async function logEmail(formData: FormData) {
   // For now, we just log the intent to email_log with status 'sent'
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return
   const supabase = await createServiceClient()
-  await supabase.from('email_log').insert({
-    to_email: formData.get('to') as string,
-    subject:  formData.get('subject') as string,
-    template: null,
-    status:   'sent',
-  })
-  revalidatePath('/emails')
+  try {
+    const { error } = await supabase.from('email_log').insert({
+      to_email: formData.get('to') as string,
+      subject:  formData.get('subject') as string,
+      template: null,
+      status:   'sent',
+    })
+    if (error) throw error
+    revalidatePath('/emails')
+  } catch (err) {
+    console.error('[logEmail]:', err)
+  }
 }
 
 const TABS = ['Dashboard', 'Send', 'Logs'] as const

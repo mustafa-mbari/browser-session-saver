@@ -61,8 +61,13 @@ async function updateStatus(formData: FormData) {
   const status = formData.get('status') as string
   const notes = formData.get('notes') as string | null
   const supabase = await createServiceClient()
-  await supabase.from('suggestions').update({ status, admin_notes: notes || null }).eq('id', id)
-  revalidatePath('/suggestions')
+  try {
+    const { error } = await supabase.from('suggestions').update({ status, admin_notes: notes || null }).eq('id', id)
+    if (error) throw error
+    revalidatePath('/suggestions')
+  } catch (err) {
+    console.error('[updateStatus]:', err)
+  }
 }
 
 export default async function SuggestionsPage({
