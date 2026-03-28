@@ -23,25 +23,30 @@ export async function POST(request: Request) {
     }
   )
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 })
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 401 })
+    }
+
+    // Verify the authenticated user is an admin
+    const serviceSupabase = await createServiceClient()
+    const { data: profile } = await serviceSupabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .single()
+
+    if (!profile || profile.role !== 'admin') {
+      // Sign out immediately — non-admins must not hold a session
+      await supabase.auth.signOut()
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('[sign-in]:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-
-  // Verify the authenticated user is an admin
-  const serviceSupabase = await createServiceClient()
-  const { data: profile } = await serviceSupabase
-    .from('profiles')
-    .select('role')
-    .eq('id', data.user.id)
-    .single()
-
-  if (!profile || profile.role !== 'admin') {
-    // Sign out immediately — non-admins must not hold a session
-    await supabase.auth.signOut()
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-  }
-
-  return NextResponse.json({ success: true })
 }

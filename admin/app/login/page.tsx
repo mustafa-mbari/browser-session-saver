@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function AdminLoginPage() {
@@ -9,32 +9,37 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isForbidden, setIsForbidden] = useState(false)
 
-  const params = typeof window !== 'undefined'
-    ? new URLSearchParams(window.location.search)
-    : new URLSearchParams()
-  const isForbidden = params.get('error') === 'forbidden'
+  useEffect(() => {
+    setIsForbidden(new URLSearchParams(window.location.search).get('error') === 'forbidden')
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setLoading(true)
 
-    const res = await fetch('/api/auth/sign-in', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
-    const data = await res.json()
+    try {
+      const res = await fetch('/api/auth/sign-in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await res.json()
 
-    if (!res.ok) {
-      setError(data.error ?? 'Sign in failed')
+      if (!res.ok) {
+        setError(data.error ?? 'Sign in failed')
+        setLoading(false)
+        return
+      }
+
+      router.push('/')
+      router.refresh()
+    } catch {
+      setError('Network error. Please try again.')
       setLoading(false)
-      return
     }
-
-    router.push('/')
-    router.refresh()
   }
 
   return (
