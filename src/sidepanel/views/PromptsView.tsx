@@ -59,12 +59,7 @@ export default function PromptsView() {
     return () => clearTimeout(timer);
   }, [userToggled]);
 
-  // Stop the hint animation after 3s
-  useEffect(() => {
-    if (!hintAnimate) return;
-    const timer = setTimeout(() => setHintAnimate(false), 3000);
-    return () => clearTimeout(timer);
-  }, [hintAnimate]);
+  // hintAnimate stays true permanently once auto-collapse fires
 
   // ── Prompt CRUD ───────────────────────────────────────────────────────────
 
@@ -307,11 +302,13 @@ export default function PromptsView() {
           <div className="flex items-center px-1.5 pt-1 shrink-0">
             <button
               onClick={() => { setUserToggled(true); setHintAnimate(false); setSidebarOpen((v) => !v); }}
-              className={`p-1 rounded hover:bg-[var(--color-bg-hover)] transition-colors ${hintAnimate && !sidebarOpen ? 'sidebar-hint-wave' : ''}`}
+              className="p-1 rounded hover:bg-[var(--color-bg-hover)] transition-colors"
               aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
               title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
             >
-              {sidebarOpen ? <PanelLeftClose size={14} className="text-[var(--color-text-secondary)]" /> : <PanelLeftOpen size={14} className="text-[var(--color-text-secondary)]" />}
+              {sidebarOpen
+                ? <PanelLeftClose size={14} className="text-[var(--color-text-secondary)]" />
+                : <PanelLeftOpen size={14} className={hintAnimate ? 'sidebar-hint-wave' : 'text-[var(--color-text-secondary)]'} />}
             </button>
             {!sidebarOpen && (
               <span className={`text-[10px] font-medium ml-1 truncate ${hintAnimate ? 'sidebar-hint-wave' : 'text-[var(--color-text-secondary)]'}`}>
@@ -328,7 +325,7 @@ export default function PromptsView() {
               100% { color: var(--color-text-secondary); }
             }
             .sidebar-hint-wave {
-              animation: sidebarHintWave 1.5s ease-in-out 2;
+              animation: sidebarHintWave 3s ease-in-out infinite;
             }
           `}</style>
           {nav.kind === 'section' && nav.key === 'start' ? (

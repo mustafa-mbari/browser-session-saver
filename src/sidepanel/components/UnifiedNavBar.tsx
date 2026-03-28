@@ -1,4 +1,4 @@
-import { LayoutGrid, Plus, MoreHorizontal } from 'lucide-react';
+import { LayoutGrid, Plus, PanelRight } from 'lucide-react';
 import { useSidePanelStore } from '../stores/sidepanel.store';
 import type { SidePanelView } from '../stores/sidepanel.store';
 import { MENU_CARDS } from './MenuGrid';
@@ -11,8 +11,8 @@ export default function UnifiedNavBar() {
   if (!VISIBLE_VIEWS.has(currentView)) return null;
 
   const dynamicCard = lastOpenedPage ? MENU_CARDS.find((c) => c.key === lastOpenedPage) : null;
-  const DynamicIcon = dynamicCard?.icon ?? MoreHorizontal;
-  const dynamicLabel = dynamicCard?.label ?? '...';
+  const DynamicIcon = dynamicCard?.icon ?? PanelRight;
+  const dynamicLabel = dynamicCard?.label ?? 'Page';
   const hasDynamic = lastOpenedPage !== null;
 
   const handleNewTab = () => {
@@ -20,16 +20,16 @@ export default function UnifiedNavBar() {
   };
 
   return (
-    <nav aria-label="Main navigation" className="border-b border-[var(--color-border)] bg-[var(--color-bg)]">
-      <div role="tablist" className="grid grid-cols-3 px-2 py-1.5 gap-1">
+    <nav aria-label="Main navigation" className="px-3 pt-2 pb-1 bg-[var(--color-bg)]">
+      <div role="tablist" className="flex items-center gap-1.5 p-1 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)]">
         {/* Menu tab */}
         <button
           role="tab"
           aria-selected={activeNavBarTab === 'menu'}
           onClick={() => setActiveNavBarTab('menu')}
-          className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset ${
+          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
             activeNavBarTab === 'menu'
-              ? 'bg-[var(--color-bg-selected)] text-primary'
+              ? 'bg-primary text-white shadow-sm'
               : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)]'
           }`}
         >
@@ -37,16 +37,22 @@ export default function UnifiedNavBar() {
           <span>Menu</span>
         </button>
 
+        {/* Separator */}
+        <div className="w-px h-4 bg-[var(--color-border)] shrink-0" />
+
         {/* New Tab action button */}
         <button
           role="tab"
           aria-selected={false}
           onClick={handleNewTab}
-          className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors duration-150 text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-200 text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <Plus size={14} />
           <span>New Tab</span>
         </button>
+
+        {/* Separator */}
+        <div className="w-px h-4 bg-[var(--color-border)] shrink-0" />
 
         {/* Dynamic tab */}
         <button
@@ -54,11 +60,11 @@ export default function UnifiedNavBar() {
           aria-selected={activeNavBarTab === 'dynamic'}
           onClick={() => hasDynamic && setActiveNavBarTab('dynamic')}
           disabled={!hasDynamic}
-          className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset ${
+          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
             !hasDynamic
-              ? 'text-[var(--color-text-secondary)] opacity-40 cursor-default'
+              ? 'text-[var(--color-text-secondary)] opacity-30 cursor-default'
               : activeNavBarTab === 'dynamic'
-                ? 'bg-[var(--color-bg-selected)] text-primary'
+                ? 'bg-primary text-white shadow-sm'
                 : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)]'
           }`}
         >
