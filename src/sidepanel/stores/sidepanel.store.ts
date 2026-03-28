@@ -3,7 +3,7 @@ import { create } from 'zustand';
 export type SidePanelView = 'home' | 'session-detail' | 'tab-groups' | 'settings' | 'import-export' | 'subscriptions' | 'prompts' | 'cloud-sync';
 export type FilterType = 'all' | 'manual' | 'auto' | 'starred' | 'pinned';
 export type SortField = 'date' | 'name' | 'tabs';
-export type HomeTab = 'session' | 'tab' | 'tab-group' | 'bookmarks';
+export type HomeTab = 'session' | 'tab' | 'tab-group' | 'bookmarks' | 'prompts' | 'subscriptions';
 
 interface SidePanelState {
   currentView: SidePanelView;

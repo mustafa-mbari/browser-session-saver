@@ -20,7 +20,13 @@ const chromeMock = {
       remove: vi.fn().mockResolvedValue(undefined),
       clear: vi.fn().mockResolvedValue(undefined),
       getBytesInUse: vi.fn().mockResolvedValue(0),
+      onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
     },
+    session: {
+      get: vi.fn().mockResolvedValue({}),
+      set: vi.fn().mockResolvedValue(undefined),
+    },
+    onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
   },
   tabs: {
     query: vi.fn().mockResolvedValue([]),
@@ -57,6 +63,47 @@ const chromeMock = {
   i18n: {
     getMessage: vi.fn((key: string) => key),
   },
+  bookmarks: {
+    getTree: vi.fn().mockResolvedValue([]),
+  },
+  topSites: {
+    get: vi.fn().mockResolvedValue([]),
+  },
 };
 
 Object.defineProperty(globalThis, 'chrome', { value: chromeMock, writable: true });
+
+// fetch stub — override per test with vi.mocked(fetch).mockResolvedValueOnce(...)
+globalThis.fetch = vi.fn();
+
+// URL blob helpers
+globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+globalThis.URL.revokeObjectURL = vi.fn();
+
+// navigator.geolocation stub — override per test
+Object.defineProperty(navigator, 'geolocation', {
+  value: { getCurrentPosition: vi.fn() },
+  configurable: true,
+  writable: true,
+});
+
+// navigator.storage.estimate stub (used by IndexedDBAdapter.getUsedBytes)
+Object.defineProperty(navigator, 'storage', {
+  value: { estimate: vi.fn().mockResolvedValue({ usage: 1024, quota: 1_000_000 }) },
+  configurable: true,
+  writable: true,
+});
+
+// window.matchMedia stub (used by useTheme)
+Object.defineProperty(window, 'matchMedia', {
+  value: vi.fn((query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+  })),
+  configurable: true,
+  writable: true,
+});

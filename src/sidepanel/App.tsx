@@ -7,14 +7,14 @@ import NavigationStack from './components/NavigationStack';
 
 export default function App() {
   useTheme();
-  const { navigateTo, focusSearch } = useSidePanelStore();
+  const { navigateTo, focusSearch, setActiveHomeTab } = useSidePanelStore();
 
   useKeyboard({
     'Ctrl+Shift+R': () => navigateTo('home'),
     'Ctrl+Shift+F': () => focusSearch?.(),
     'Ctrl+Shift+E': () => navigateTo('import-export'),
-    'Ctrl+Shift+B': () => navigateTo('subscriptions'),
-    'Ctrl+Shift+P': () => navigateTo('prompts'),
+    'Ctrl+Shift+B': () => { navigateTo('home'); setActiveHomeTab('subscriptions'); },
+    'Ctrl+Shift+P': () => { navigateTo('home'); setActiveHomeTab('prompts'); },
   });
 
   return (

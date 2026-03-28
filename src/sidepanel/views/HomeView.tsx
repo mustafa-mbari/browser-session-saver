@@ -9,6 +9,8 @@ import SessionList from '../components/SessionList';
 import CurrentTabsPanel from '../components/CurrentTabsPanel';
 import HomeTabGroupsPanel from '../components/HomeTabGroupsPanel';
 import BookmarksPanel from '../components/BookmarksPanel';
+import PromptsView from './PromptsView';
+import SubscriptionsView from './SubscriptionsView';
 import Toast, { type ToastData } from '@shared/components/Toast';
 import Button from '@shared/components/Button';
 import { generateId } from '@core/utils/uuid';
@@ -25,6 +27,8 @@ const SEARCH_PLACEHOLDERS: Record<HomeTab, string> = {
   tab: 'Search open tabs…',
   'tab-group': 'Search tab groups…',
   bookmarks: 'Search bookmarks…',
+  prompts: '',
+  subscriptions: '',
 };
 
 export default function HomeView() {
@@ -178,8 +182,8 @@ export default function HomeView() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Search bar — hide on bookmarks tab (tree has its own layout) */}
-      {activeHomeTab !== 'bookmarks' && (
+      {/* Search bar — hide on bookmarks, prompts, and subscriptions tabs */}
+      {activeHomeTab !== 'bookmarks' && activeHomeTab !== 'prompts' && activeHomeTab !== 'subscriptions' && (
         <SearchBar
           key={activeHomeTab}
           onSearch={handleSearch}
@@ -236,16 +240,28 @@ export default function HomeView() {
           <BookmarksPanel />
         </div>
       )}
+      {activeHomeTab === 'prompts' && (
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <PromptsView />
+        </div>
+      )}
+      {activeHomeTab === 'subscriptions' && (
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <SubscriptionsView />
+        </div>
+      )}
 
-      {/* Footer — hide on bookmarks tab */}
-      {activeHomeTab !== 'bookmarks' && (
+      {/* Footer — only on sessions tab */}
+      {activeHomeTab === 'session' && (
         <div className="px-3 py-2 border-t border-[var(--color-border)] flex items-center justify-end text-xs text-[var(--color-text-secondary)]">
           <span>{sessions.length} session{sessions.length !== 1 ? 's' : ''}</span>
         </div>
       )}
 
-      {/* Quick Actions — at the bottom */}
-      <QuickActions onToast={addToast} />
+      {/* Quick Actions — only for session-related tabs */}
+      {activeHomeTab !== 'prompts' && activeHomeTab !== 'subscriptions' && (
+        <QuickActions onToast={addToast} />
+      )}
 
       {/* Bulk Action Toolbar */}
       {isSelectionMode && selectedSessionIds.size > 0 && (
