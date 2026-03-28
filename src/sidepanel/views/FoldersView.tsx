@@ -1,10 +1,13 @@
-import { useState, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ChevronRight,
   ChevronDown,
   Folder as FolderIcon,
   FolderOpen,
   Bookmark,
+  BookMarked,
+  Globe,
+  Star,
   Plus,
   ExternalLink,
   Copy,
@@ -12,6 +15,7 @@ import {
   Trash2,
   FolderPlus,
   Palette,
+  X,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -224,13 +228,18 @@ function FolderRow({
   getEntriesForCategory,
   onDialog,
   depth,
+  quickAccessIds,
+  onToggleQuickAccess,
 }: {
   folder: BookmarkCategory;
   allCategories: BookmarkCategory[];
   getEntriesForCategory: (id: string) => BookmarkEntry[];
   onDialog: (d: DialogState) => void;
   depth: number;
+  quickAccessIds: string[];
+  onToggleQuickAccess: (id: string) => void;
 }) {
+  const isPinned = quickAccessIds.includes(folder.id);
   const [expanded, setExpanded] = useState(false);
   const folderEntries = getEntriesForCategory(folder.id);
   const childFolders = allCategories.filter(
@@ -267,6 +276,10 @@ function FolderRow({
           <ContextMenuItem onClick={() => onDialog({ type: 'color-folder', folder })}>
             <Palette size={12} className="mr-2" /> Change Color
           </ContextMenuItem>
+          <ContextMenuItem onClick={() => onToggleQuickAccess(folder.id)}>
+            <Star size={12} className={`mr-2 ${isPinned ? 'text-yellow-400 fill-yellow-400' : ''}`} />
+            {isPinned ? 'Remove from Quick Access' : 'Add to Quick Access'}
+          </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={() => onDialog({ type: 'delete-folder', folder })} className="text-red-400">
             <Trash2 size={12} className="mr-2" /> Delete
@@ -284,6 +297,8 @@ function FolderRow({
               getEntriesForCategory={getEntriesForCategory}
               onDialog={onDialog}
               depth={depth + 1}
+              quickAccessIds={quickAccessIds}
+              onToggleQuickAccess={onToggleQuickAccess}
             />
           ))}
           {folderEntries.map((entry) => (
@@ -296,6 +311,149 @@ function FolderRow({
               Empty folder
             </p>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Quick Access Section ────────────────────────────────────────────────────
+
+function QuickAccessSection({
+  quickIds,
+  categories,
+  getEntriesForCategory,
+  onRemove,
+}: {
+  quickIds: string[];
+  categories: BookmarkCategory[];
+  getEntriesForCategory: (id: string) => BookmarkEntry[];
+  onRemove: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const items = quickIds.map((id) => categories.find((c) => c.id === id)).filter((c): c is BookmarkCategory => !!c);
+
+  return (
+    <div className="mb-1">
+      <button
+        className="w-full flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold uppercase tracking-wider opacity-50 hover:opacity-80 transition-opacity"
+        style={{ color: 'var(--color-text)' }}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+        <Star size={10} className="text-yellow-400 fill-yellow-400" />
+        <span className="flex-1 text-left">Quick Access</span>
+      </button>
+      {expanded && (
+        <div className="mt-0.5">
+          {items.map((folder) => {
+            const count = getEntriesForCategory(folder.id).length;
+            return (
+              <div
+                key={folder.id}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[var(--color-bg-hover)] transition-colors group"
+              >
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: folder.color || '#6366f1' }} />
+                <span className="flex-1 truncate text-xs" style={{ color: 'var(--color-text)' }}>{folder.name}</span>
+                <span className="text-[10px] opacity-40 shrink-0">{count}</span>
+                <button
+                  onClick={() => onRemove(folder.id)}
+                  className="p-0.5 rounded opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity"
+                  aria-label="Remove from Quick Access"
+                >
+                  <X size={10} style={{ color: 'var(--color-text)' }} />
+                </button>
+              </div>
+            );
+          })}
+          {items.length === 0 && (
+            <p className="px-4 py-1 text-[11px] opacity-30 italic" style={{ color: 'var(--color-text)' }}>
+              Right-click a folder to pin it here
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Browser Bookmarks Section ───────────────────────────────────────────────
+
+function getDomain(url: string): string {
+  try { return new URL(url).hostname; } catch { return url; }
+}
+
+function BrowserFolderNode({ node, depth }: { node: chrome.bookmarks.BookmarkTreeNode; depth: number }) {
+  const [expanded, setExpanded] = useState(depth < 1);
+  const isFolder = !node.url;
+  const hasChildren = isFolder && !!node.children?.length;
+
+  if (isFolder) {
+    return (
+      <div>
+        <button
+          className="w-full flex items-center gap-1 py-1 text-xs hover:bg-[var(--color-bg-hover)] rounded-md transition-colors"
+          style={{ paddingLeft: `${6 + depth * 14}px`, paddingRight: '6px', color: 'var(--color-text)' }}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          <span className="shrink-0 w-4 flex items-center justify-center">
+            {hasChildren ? (expanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />) : <span className="w-3" />}
+          </span>
+          <FolderIcon size={12} className="shrink-0 text-yellow-400/70" />
+          <span className="truncate flex-1 text-left pl-0.5">{node.title || '—'}</span>
+          {hasChildren && <span className="text-[10px] opacity-30 shrink-0">{node.children!.length}</span>}
+        </button>
+        {expanded && hasChildren && node.children!.map((child) => (
+          <BrowserFolderNode key={child.id} node={child} depth={depth + 1} />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      className="w-full flex items-center gap-1 py-1 text-[11px] opacity-60 hover:bg-[var(--color-bg-hover)] hover:opacity-100 rounded-md transition-colors truncate text-left"
+      style={{ paddingLeft: `${6 + depth * 14}px`, paddingRight: '6px', color: 'var(--color-text)' }}
+      onClick={() => window.open(node.url, '_blank', 'noopener')}
+      title={node.url}
+    >
+      <Globe size={10} className="shrink-0 opacity-40" />
+      <span className="truncate pl-0.5">{node.title || getDomain(node.url!)}</span>
+    </button>
+  );
+}
+
+function BrowserBookmarksSection() {
+  const [expanded, setExpanded] = useState(false);
+  const [tree, setTree] = useState<chrome.bookmarks.BookmarkTreeNode[] | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleToggle = () => {
+    setExpanded((v) => !v);
+    if (!tree && !loading) {
+      setLoading(true);
+      chrome.bookmarks.getTree((result) => { setTree(result); setLoading(false); });
+    }
+  };
+
+  const roots = tree ? (tree[0]?.children ?? []) : [];
+
+  return (
+    <div>
+      <button
+        className="w-full flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold uppercase tracking-wider opacity-50 hover:opacity-80 transition-opacity"
+        style={{ color: 'var(--color-text)' }}
+        onClick={handleToggle}
+      >
+        {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+        <BookMarked size={10} className="text-sky-400" />
+        <span className="flex-1 text-left">Browser Bookmarks</span>
+      </button>
+      {expanded && (
+        <div className="mt-0.5">
+          {loading && <p className="px-4 py-1 text-[11px] opacity-30 italic" style={{ color: 'var(--color-text)' }}>Loading…</p>}
+          {!loading && roots.map((root) => <BrowserFolderNode key={root.id} node={root} depth={0} />)}
+          {!loading && roots.length === 0 && tree && <p className="px-4 py-1 text-[11px] opacity-30 italic" style={{ color: 'var(--color-text)' }}>No browser bookmarks</p>}
         </div>
       )}
     </div>
@@ -319,6 +477,22 @@ export default function FoldersView() {
     getEntriesForCategory,
   } = useBookmarkFolderData();
   const [dialog, setDialog] = useState<DialogState>(null);
+
+  // Quick Access state
+  const [quickAccessIds, setQuickAccessIds] = useState<string[]>([]);
+  useEffect(() => {
+    chrome.storage.local.get(['bookmark_quick_access'], (result) => {
+      if (result['bookmark_quick_access']) setQuickAccessIds(result['bookmark_quick_access'] as string[]);
+    });
+  }, []);
+
+  const toggleQuickAccess = useCallback((id: string) => {
+    setQuickAccessIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      chrome.storage.local.set({ bookmark_quick_access: next });
+      return next;
+    });
+  }, []);
 
   // Only show bookmark-type categories (not clock/note/todo/subscription widgets)
   const bookmarkCategories = categories.filter(isBookmarkFolder);
@@ -351,34 +525,54 @@ export default function FoldersView() {
         </button>
       </div>
 
-      {/* Folder tree */}
+      {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-1 py-1">
-        {rootFolders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            <FolderOpen size={36} className="opacity-30" style={{ color: 'var(--color-text)' }} />
-            <div>
-              <p className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>No folders yet</p>
-              <p className="text-xs mt-1 opacity-50" style={{ color: 'var(--color-text)' }}>Create a folder to save tabs and URLs</p>
-            </div>
-            <button
-              onClick={() => setDialog({ type: 'new-folder', boardId: defaultBoardId })}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-white hover:bg-primary/90 transition-colors"
-            >
-              Create Folder
-            </button>
+        {/* Quick Access */}
+        <QuickAccessSection
+          quickIds={quickAccessIds}
+          categories={bookmarkCategories}
+          getEntriesForCategory={getEntriesForCategory}
+          onRemove={toggleQuickAccess}
+        />
+
+        {/* My Folders */}
+        <div className="mb-1">
+          <div
+            className="w-full flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold uppercase tracking-wider opacity-50"
+            style={{ color: 'var(--color-text)' }}
+          >
+            <FolderOpen size={10} className="text-primary" />
+            <span>My Folders</span>
           </div>
-        ) : (
-          rootFolders.map((folder) => (
-            <FolderRow
-              key={folder.id}
-              folder={folder}
-              allCategories={bookmarkCategories}
-              getEntriesForCategory={getEntriesForCategory}
-              onDialog={setDialog}
-              depth={0}
-            />
-          ))
-        )}
+          {rootFolders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+              <FolderOpen size={28} className="opacity-20" style={{ color: 'var(--color-text)' }} />
+              <p className="text-xs opacity-40" style={{ color: 'var(--color-text)' }}>No folders yet</p>
+              <button
+                onClick={() => setDialog({ type: 'new-folder', boardId: defaultBoardId })}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-white hover:bg-primary/90 transition-colors"
+              >
+                Create Folder
+              </button>
+            </div>
+          ) : (
+            rootFolders.map((folder) => (
+              <FolderRow
+                key={folder.id}
+                folder={folder}
+                allCategories={bookmarkCategories}
+                getEntriesForCategory={getEntriesForCategory}
+                onDialog={setDialog}
+                depth={0}
+                quickAccessIds={quickAccessIds}
+                onToggleQuickAccess={toggleQuickAccess}
+              />
+            ))
+          )}
+        </div>
+
+        {/* Browser Bookmarks */}
+        <BrowserBookmarksSection />
       </div>
 
       {/* Dialogs */}

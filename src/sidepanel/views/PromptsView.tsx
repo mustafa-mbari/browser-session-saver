@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Sparkles } from 'lucide-react';
+import { Plus, Sparkles, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import type {
   Prompt,
   PromptCategory,
@@ -26,6 +26,8 @@ export default function PromptsView() {
   const [isLoading, setIsLoading] = useState(true);
 
   const [nav, setNav] = useState<PromptsNavState>({ kind: 'section', key: 'all' });
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [userToggled, setUserToggled] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editPrompt, setEditPrompt] = useState<Prompt | null>(null);
   const [variablesPrompt, setVariablesPrompt] = useState<Prompt | null>(null);
@@ -44,6 +46,25 @@ export default function PromptsView() {
       setIsLoading(false);
     });
   }, []);
+
+  const [hintAnimate, setHintAnimate] = useState(false);
+
+  // Auto-collapse sidebar after 1s on first open so user sees it can be toggled
+  useEffect(() => {
+    if (userToggled) return;
+    const timer = setTimeout(() => {
+      setSidebarOpen(false);
+      setHintAnimate(true);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [userToggled]);
+
+  // Stop the hint animation after 3s
+  useEffect(() => {
+    if (!hintAnimate) return;
+    const timer = setTimeout(() => setHintAnimate(false), 3000);
+    return () => clearTimeout(timer);
+  }, [hintAnimate]);
 
   // ── Prompt CRUD ───────────────────────────────────────────────────────────
 
@@ -264,22 +285,52 @@ export default function PromptsView() {
 
       {/* Two-pane body */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Section nav */}
-        <div className="w-56 shrink-0 border-r border-[var(--color-border)] overflow-hidden">
-          <PromptSectionNav
-            prompts={prompts}
-            folders={folders}
-            nav={nav}
-            onNavigate={setNav}
-            onCreateFolder={handleCreateFolder}
-            onUpdateFolder={handleUpdateFolder}
-            onDeleteFolder={handleDeleteFolder}
-            onMoveFolder={handleMoveFolder}
-          />
-        </div>
+        {/* Left: Section nav (collapsible) */}
+        {sidebarOpen && (
+          <div className="w-56 shrink-0 border-r border-[var(--color-border)] overflow-hidden flex flex-col">
+            <PromptSectionNav
+              prompts={prompts}
+              folders={folders}
+              nav={nav}
+              onNavigate={setNav}
+              onCreateFolder={handleCreateFolder}
+              onUpdateFolder={handleUpdateFolder}
+              onDeleteFolder={handleDeleteFolder}
+              onMoveFolder={handleMoveFolder}
+            />
+          </div>
+        )}
 
         {/* Right: Content */}
         <div className="flex-1 overflow-hidden flex flex-col">
+          {/* Toggle sidebar button */}
+          <div className="flex items-center px-1.5 pt-1 shrink-0">
+            <button
+              onClick={() => { setUserToggled(true); setHintAnimate(false); setSidebarOpen((v) => !v); }}
+              className={`p-1 rounded hover:bg-[var(--color-bg-hover)] transition-colors ${hintAnimate && !sidebarOpen ? 'sidebar-hint-wave' : ''}`}
+              aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+              title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            >
+              {sidebarOpen ? <PanelLeftClose size={14} className="text-[var(--color-text-secondary)]" /> : <PanelLeftOpen size={14} className="text-[var(--color-text-secondary)]" />}
+            </button>
+            {!sidebarOpen && (
+              <span className={`text-[10px] font-medium ml-1 truncate ${hintAnimate ? 'sidebar-hint-wave' : 'text-[var(--color-text-secondary)]'}`}>
+                {sectionTitle}
+              </span>
+            )}
+          </div>
+          <style>{`
+            @keyframes sidebarHintWave {
+              0%   { color: var(--color-text-secondary); }
+              25%  { color: #f59e0b; }
+              50%  { color: #8b5cf6; }
+              75%  { color: #3b82f6; }
+              100% { color: var(--color-text-secondary); }
+            }
+            .sidebar-hint-wave {
+              animation: sidebarHintWave 1.5s ease-in-out 2;
+            }
+          `}</style>
           {nav.kind === 'section' && nav.key === 'start' ? (
             <StartPageContent
               prompts={visiblePrompts}
