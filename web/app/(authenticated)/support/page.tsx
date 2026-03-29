@@ -67,23 +67,26 @@ export default function SupportPage() {
     e.preventDefault()
     if (!userId) return
     setSubmitting(true)
-    const supabase = createClient()
-    const { error } = await supabase.from('tickets').insert({
-      user_id:    userId,
-      subject:    subject.trim(),
-      body:       description.trim(),
-      issue_type: issueType,
-      priority,
-      status:     'open',
+
+    const res = await fetch('/api/support', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subject:   subject.trim(),
+        body:      description.trim(),
+        issueType,
+        priority,
+      }),
     })
 
-    if (error) {
+    if (!res.ok) {
       toast.error('Failed to submit ticket. Please try again.')
     } else {
       toast.success('Support ticket submitted! We\'ll get back to you soon.')
       setSubject('')
       setDescription('')
       // Refresh tickets
+      const supabase = createClient()
       const { data } = await supabase
         .from('tickets')
         .select('id, subject, issue_type, priority, status, created_at')

@@ -218,6 +218,43 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - Do not merge NewTabSettings into the existing Settings type — it lives under its own storage key
 - Do not put subscriptions or tab-group templates in IndexedDB — they use flat `chrome.storage.local` keys
 
+## Email System (web/ and admin/)
+
+- **Transport**: Nodemailer + Resend SMTP (`smtp.resend.com:465`); configured via env vars, no hard-coded credentials
+- **Infrastructure** (identical in both apps):
+  - `lib/email/transporter.ts` — `getTransporter()` + `getFromAddress()` using `SMTP_*` env vars
+  - `lib/email/send.ts` — `sendEmail({ to, subject, html, type, metadata?, sentBy? })` → sends via Nodemailer + logs to `email_log` table; `EmailType` union
+  - `lib/email/index.ts` — barrel export of all builders + `sendEmail`
+  - `lib/email/templates/base.ts` — `wrapInBaseLayout()`, `button()`, `heading()`, `paragraph()`, `smallText()`, `divider()`; logo from `SMTP_LOGO_URL` env var, falls back to "Browser Hub" text
+- **Templates (web — 9)**: `emailVerification`, `welcome`, `passwordReset`, `passwordResetConfirmation`, `supportTicket`, `featureSuggestion`, `billingNotification`, `invoiceReceipt`, `trialEnding`
+- **Templates (admin — 11)**: all 9 web templates + `ticketReply`, `suggestionReply`
+- **Email log**: `email_log` table in Supabase (migration 009 + enhanced by migration 018 with `type`, `message_id`, `metadata`, `sent_by` columns); all sends (success and failure) are logged
+- **Auth emails** (web) — bypass Supabase's built-in email; use `serviceSupabase.auth.admin.generateLink()` to get token, build URL, then call `sendEmail()`:
+  - `api/auth/sign-up` — verification email (fire-and-forget after signUp)
+  - `api/auth/forgot-password` — password reset email (always returns success)
+  - `api/auth/resend-verification` — re-sends verification link
+  - `api/auth/password-changed` — POST (authenticated) sends confirmation email
+- **Notification emails** (web):
+  - `api/support` — POST: inserts ticket to `tickets` table + fires `supportTicket` email to `SMTP_SUPPORT_EMAIL`
+  - `api/suggestions` — POST: inserts suggestion to `suggestions` table + fires `featureSuggestion` email to `SMTP_FROM_EMAIL`
+  - Support and Suggestions pages call these routes (not direct Supabase client inserts)
+- **Admin email API routes**:
+  - `api/emails/send` — POST: sends real email via SMTP (used by admin Emails page Send tab)
+  - `api/tickets/[id]/reply` — POST: inserts reply + sends `ticketReply` email to ticket owner
+  - `api/suggestions/[id]/reply` — POST: updates suggestion + sends `suggestionReply` email to submitter
+- **Admin Emails page**: Send tab uses `EmailSendForm` client component (`app/(admin)/emails/EmailSendForm.tsx`) that calls `api/emails/send`; Logs tab reads from `email_log`
+- **Required env vars** (both `web/.env.local` and `admin/.env.local`):
+  ```
+  SMTP_HOST=smtp.resend.com
+  SMTP_PORT=465
+  SMTP_USER=resend
+  SMTP_PASS=<resend-api-key>
+  SMTP_FROM_NAME=Browser Hub
+  SMTP_FROM_EMAIL=info@yourdomain.com
+  SMTP_SUPPORT_EMAIL=support@yourdomain.com
+  SMTP_LOGO_URL=https://yourdomain.com/logo.png   # optional
+  ```
+
 ## Web App (`web/`)
 
 - **Stack**: Next.js 16 (canary), React 19, Tailwind CSS v4, shadcn/ui, Lucide, Supabase SSR
@@ -228,9 +265,9 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - **Auth**: Supabase SSR client, middleware redirects unauthenticated users to `/login`
 - **Pages**: Dashboard (quota + usage stats via `get_user_quota` + `get_user_usage` RPCs), Billing (plan comparison + Checkout), Settings (Profile/Appearance/Security tabs), Support, Suggestions
 - **Auth pages**: Login (email/password + Google OAuth), Register (with password strength), Forgot Password, Reset Password, Verify Email
-- **API routes**: `api/auth/sign-in`, `api/auth/sign-up`, `api/auth/forgot-password`, `api/auth/google`, `api/auth/session`
+- **API routes**: `api/auth/sign-in`, `api/auth/sign-up`, `api/auth/forgot-password`, `api/auth/resend-verification`, `api/auth/password-changed`, `api/auth/google`, `api/auth/session`, `api/support`, `api/suggestions`, `api/billing/upgrade`
 - **Auth callbacks**: `auth/callback` (OAuth), `auth/confirm` (email verification)
-- **Env vars**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SITE_URL` (required — used in auth redirect URLs)
+- **Env vars**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SITE_URL` (required — used in auth redirect URLs and email links), `SMTP_*` (see Email System above)
 - **Design tokens**: CSS custom properties (`--dark`, `--dark-card`, `--dark-border`, `--dark-elevated`, `--dark-hover`)
 - **UI components**: 19 shadcn components in `web/components/ui/`
 
@@ -243,6 +280,7 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - **Theme**: Same cookie-based system as web app
 - **Auth**: Admin role check via Supabase `profiles.role` column; uses service-role client (`createServiceClient`) for privileged queries
 - **Pages**: Overview (stats via `get_admin_overview` RPC — includes `total_tab_groups` since migration 014), Users, Statistics, Promo Codes, Subscriptions, Webhooks, Tickets, Suggestions, Quotas, Emails
+- **Admin API routes**: `api/auth/sign-in`, `api/auth/sign-out`, `api/emails/send`, `api/tickets/[id]/reply`, `api/suggestions/[id]/reply`
 - **UI components**: 18 shadcn components in `admin/components/ui/`
 - **Metadata**: `robots: noindex, nofollow` (not indexed by search engines)
-- **Env vars**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (see `admin/.env.local.example`)
+- **Env vars**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SMTP_*` (see `admin/.env.local.example`)

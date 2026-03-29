@@ -1,12 +1,10 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Mail, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
 import { createServiceClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
 import { cn } from '@/lib/utils'
+import { EmailSendForm } from './EmailSendForm'
 
 type EmailLog = {
   id: string
@@ -33,7 +31,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 async function getEmailData() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return { logs: [], stats: { sentToday: 0, sentWeek: 0, failed: 0, bounced: 0 }, activeTab: 'logs' }
+    return { logs: [], stats: { sentToday: 0, sentWeek: 0, failed: 0, bounced: 0 } }
   }
   const supabase = await createServiceClient()
 
@@ -59,26 +57,6 @@ async function getEmailData() {
   }
 
   return { logs: (logsRes.data ?? []) as EmailLog[], stats }
-}
-
-async function logEmail(formData: FormData) {
-  'use server'
-  // In production, this would call an email service (Resend, SendGrid, etc.)
-  // For now, we just log the intent to email_log with status 'sent'
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return
-  const supabase = await createServiceClient()
-  try {
-    const { error } = await supabase.from('email_log').insert({
-      to_email: formData.get('to') as string,
-      subject:  formData.get('subject') as string,
-      template: null,
-      status:   'sent',
-    })
-    if (error) throw error
-    revalidatePath('/emails')
-  } catch (err) {
-    console.error('[logEmail]:', err)
-  }
 }
 
 const TABS = ['Dashboard', 'Send', 'Logs'] as const
@@ -143,64 +121,7 @@ export default async function EmailsPage({
       )}
 
       {/* Send Tab */}
-      {activeTab === 'Send' && (
-        <Card className="max-w-2xl border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/10 mb-4">
-          <CardContent className="pt-4 pb-4">
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-              Email sending is not yet implemented
-            </p>
-            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-              This form logs intent to the <code>email_log</code> table but does <strong>not</strong> send a real email.
-              To enable actual sending, connect a transactional provider (Resend, SendGrid, etc.) in the server action.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-      {activeTab === 'Send' && (
-        <Card className="max-w-2xl">
-          <CardContent className="pt-6">
-            <h2 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">Send Email</h2>
-            <p className="text-xs text-stone-400 mb-4">
-              This logs the email intent. Connect a transactional email provider (Resend, SendGrid) to send real emails.
-            </p>
-            <form action={logEmail} className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="to">To</Label>
-                <input
-                  id="to"
-                  name="to"
-                  type="email"
-                  required
-                  placeholder="user@example.com"
-                  className="w-full rounded-lg border border-stone-200 dark:border-[var(--dark-border)] bg-white dark:bg-[var(--dark-elevated)] px-3 py-2 text-sm text-stone-800 dark:text-stone-200"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="subject">Subject</Label>
-                <input
-                  id="subject"
-                  name="subject"
-                  required
-                  placeholder="Email subject"
-                  className="w-full rounded-lg border border-stone-200 dark:border-[var(--dark-border)] bg-white dark:bg-[var(--dark-elevated)] px-3 py-2 text-sm text-stone-800 dark:text-stone-200"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="body">Body</Label>
-                <textarea
-                  id="body"
-                  name="body"
-                  rows={8}
-                  required
-                  placeholder="Email body…"
-                  className="w-full rounded-lg border border-stone-200 dark:border-[var(--dark-border)] bg-white dark:bg-[var(--dark-elevated)] px-3 py-2 text-sm text-stone-800 dark:text-stone-200 resize-none"
-                />
-              </div>
-              <Button type="submit">Log &amp; Send</Button>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+      {activeTab === 'Send' && <EmailSendForm />}
 
       {/* Logs Tab */}
       {activeTab === 'Logs' && (

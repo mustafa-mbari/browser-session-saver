@@ -1,39 +1,62 @@
-import { createServerClient } from '@supabase/ssr'
-import type { CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { sendEmail, buildPasswordResetEmail } from '@/lib/email'
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const { email } = await request.json()
-  const cookieStore = await cookies()
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? request.nextUrl.origin
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll() },
-        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
   if (!process.env.NEXT_PUBLIC_SITE_URL && process.env.NODE_ENV === 'production') {
     console.error('[forgot-password] NEXT_PUBLIC_SITE_URL is not set — auth redirect will break in production')
   }
 
-  // Always return success (don't reveal if email exists)
+  // Always return success — don't reveal whether the email exists.
   try {
-    await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${siteUrl}/auth/confirm?type=recovery`,
+    const serviceSupabase = await createServiceClient()
+
+    const { data: linkData, error: linkError } =
+      await serviceSupabase.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+        options: {
+          redirectTo: `${siteUrl}/auth/confirm?type=recovery`,
+        },
+      })
+
+    if (linkError || !linkData) {
+      console.error('[forgot-password] generateLink failed:', linkError?.message)
+      return NextResponse.json({ success: true })
+    }
+
+    const hashedToken = linkData.properties?.hashed_token
+    if (!hashedToken) {
+      console.error('[forgot-password] generateLink did not return hashed_token')
+      return NextResponse.json({ success: true })
+    }
+
+    const resetUrl =
+      `${siteUrl}/auth/confirm?token_hash=${encodeURIComponent(hashedToken)}&type=recovery&next=${encodeURIComponent('/reset-password')}`
+
+    const { data: profile } = await serviceSupabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', linkData.user.id)
+      .single()
+
+    const { subject, html } = buildPasswordResetEmail({
+      resetUrl,
+      displayName: profile?.full_name ?? null,
     })
+
+    sendEmail({
+      to: email,
+      subject,
+      html,
+      type: 'password_reset',
+      metadata: { trigger: 'forgot_password' },
+    }).catch((err) => console.error('[forgot-password] sendEmail failed:', err))
   } catch (err) {
-    console.error('Password reset error:', err)
+    console.error('[forgot-password] error:', err)
   }
 
   return NextResponse.json({ success: true })

@@ -75,17 +75,19 @@ export default function SuggestionsPage() {
     e.preventDefault()
     if (!userId) return
     setSubmitting(true)
-    const supabase = createClient()
-    const { error } = await supabase.from('suggestions').insert({
-      user_id:     userId,
-      title:       title.trim(),
-      description: description.trim() || null,
-      type,
-      importance,
-      status:      'pending',
+
+    const res = await fetch('/api/suggestions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title:       title.trim(),
+        description: description.trim() || null,
+        type,
+        importance,
+      }),
     })
 
-    if (error) {
+    if (!res.ok) {
       toast.error('Failed to submit suggestion. Please try again.')
     } else {
       toast.success('Suggestion submitted! Thank you for your feedback.')
