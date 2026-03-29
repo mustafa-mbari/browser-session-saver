@@ -16,6 +16,7 @@ import {
   FolderPlus,
   Palette,
   X,
+  Save,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -51,6 +52,7 @@ type DialogState =
   | { type: 'color-folder'; folder: BookmarkCategory }
   | { type: 'delete-folder'; folder: BookmarkCategory }
   | { type: 'add-entry'; categoryId: string }
+  | { type: 'edit-entry'; entry: BookmarkEntry }
   | { type: 'delete-entry'; entry: BookmarkEntry }
   | null;
 
@@ -65,7 +67,9 @@ function FolderDialog({
   onColorFolder,
   onDelete,
   onAddEntry,
+  onEditEntry,
   onDeleteEntry,
+  categories,
 }: {
   state: DialogState;
   onClose: () => void;
@@ -75,13 +79,21 @@ function FolderDialog({
   onColorFolder: (id: string, color: string) => void;
   onDelete: (id: string) => void;
   onAddEntry: (categoryId: string, title: string, url: string) => void;
+  onEditEntry: (id: string, title: string, url: string, newCategoryId: string) => void;
   onDeleteEntry: (id: string) => void;
+  categories: BookmarkCategory[];
 }) {
   const [value, setValue] = useState(() => {
     if (state?.type === 'rename-folder') return state.folder.name;
+    if (state?.type === 'edit-entry') return state.entry.title;
     return '';
   });
-  const [urlValue, setUrlValue] = useState('');
+  const [urlValue, setUrlValue] = useState(() =>
+    state?.type === 'edit-entry' ? state.entry.url : ''
+  );
+  const [editCategoryId, setEditCategoryId] = useState(() =>
+    state?.type === 'edit-entry' ? state.entry.categoryId : ''
+  );
   const inputRef = useRef<HTMLInputElement>(null);
 
   if (!state) return null;
@@ -120,7 +132,8 @@ function FolderDialog({
     state.type === 'new-folder' ? (state.parentId ? 'New Sub-Folder' : 'New Folder') :
     state.type === 'rename-folder' ? 'Rename Folder' :
     state.type === 'delete-folder' ? 'Delete Folder' :
-    state.type === 'add-entry' ? 'Add URL' : 'Delete Entry';
+    state.type === 'add-entry' ? 'Add URL' :
+    state.type === 'edit-entry' ? 'Edit Bookmark' : 'Delete Entry';
 
   const confirm = () => {
     if (!state) return;
@@ -133,6 +146,7 @@ function FolderDialog({
     } else if (state.type === 'rename-folder' && value.trim()) onRename(state.folder.id, value.trim());
     else if (state.type === 'delete-folder') onDelete(state.folder.id);
     else if (state.type === 'add-entry' && urlValue.trim()) onAddEntry(state.categoryId, value.trim() || urlValue.trim(), urlValue.trim());
+    else if (state.type === 'edit-entry') onEditEntry(state.entry.id, value.trim() || state.entry.title, urlValue.trim() || state.entry.url, editCategoryId);
     else if (state.type === 'delete-entry') onDeleteEntry(state.entry.id);
     onClose();
   };
@@ -155,6 +169,28 @@ function FolderDialog({
               <>
                 <Input ref={inputRef} placeholder="Title (optional)" value={value} onChange={(e) => setValue(e.target.value)} className="text-xs h-8" />
                 <Input placeholder="https://example.com" value={urlValue} onChange={(e) => setUrlValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') confirm(); }} className="text-xs h-8" />
+              </>
+            )}
+            {state.type === 'edit-entry' && (
+              <>
+                <Input ref={inputRef} placeholder="Title" value={value} onChange={(e) => setValue(e.target.value)} className="text-xs h-8" />
+                <Input placeholder="https://example.com" value={urlValue} onChange={(e) => setUrlValue(e.target.value)} className="text-xs h-8" />
+                <div>
+                  <label className="block text-[10px] opacity-50 mb-1" style={{ color: 'var(--color-text)' }}>Folder</label>
+                  <select
+                    className="w-full rounded bg-white/10 text-xs px-2 py-1.5 border border-white/15 focus:outline-none focus:border-white/40"
+                    style={{ color: 'var(--color-text)' }}
+                    value={editCategoryId}
+                    onChange={(e) => setEditCategoryId(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') confirm(); }}
+                  >
+                    {categories
+                      .filter((c) => c.cardType === 'bookmark' || !c.cardType)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                  </select>
+                </div>
               </>
             )}
             {(state.type === 'new-folder' || state.type === 'rename-folder') && (
@@ -211,6 +247,9 @@ function EntryRow({ entry, onDialog }: { entry: BookmarkEntry; onDialog: (d: Dia
         <ContextMenuItem onClick={() => navigator.clipboard.writeText(entry.url).catch(() => {})}>
           <Copy size={12} className="mr-2" /> Copy URL
         </ContextMenuItem>
+        <ContextMenuItem onClick={() => onDialog({ type: 'edit-entry', entry })}>
+          <Pencil size={12} className="mr-2" /> Edit
+        </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => onDialog({ type: 'delete-entry', entry })} className="text-red-400">
           <Trash2 size={12} className="mr-2" /> Delete
@@ -230,6 +269,7 @@ function FolderRow({
   depth,
   quickAccessIds,
   onToggleQuickAccess,
+  onSaveCurrentTab,
 }: {
   folder: BookmarkCategory;
   allCategories: BookmarkCategory[];
@@ -238,6 +278,7 @@ function FolderRow({
   depth: number;
   quickAccessIds: string[];
   onToggleQuickAccess: (id: string) => void;
+  onSaveCurrentTab: (categoryId: string) => void;
 }) {
   const isPinned = quickAccessIds.includes(folder.id);
   const [expanded, setExpanded] = useState(false);
@@ -265,6 +306,9 @@ function FolderRow({
         <ContextMenuContent>
           <ContextMenuItem onClick={() => onDialog({ type: 'add-entry', categoryId: folder.id })}>
             <Plus size={12} className="mr-2" /> Add URL
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onSaveCurrentTab(folder.id)}>
+            <Save size={12} className="mr-2" /> Save Current Tab
           </ContextMenuItem>
           <ContextMenuItem onClick={() => onDialog({ type: 'new-folder', boardId: folder.boardId, parentId: folder.id })}>
             <FolderPlus size={12} className="mr-2" /> New Sub-Folder
@@ -299,6 +343,7 @@ function FolderRow({
               depth={depth + 1}
               quickAccessIds={quickAccessIds}
               onToggleQuickAccess={onToggleQuickAccess}
+              onSaveCurrentTab={onSaveCurrentTab}
             />
           ))}
           {folderEntries.map((entry) => (
@@ -473,7 +518,10 @@ export default function FoldersView() {
     updateFolderColor,
     deleteFolder,
     addEntry,
+    renameEntry,
+    moveEntry,
     deleteEntry,
+    saveCurrentTab,
     getEntriesForCategory,
   } = useBookmarkFolderData();
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -566,6 +614,7 @@ export default function FoldersView() {
                 depth={0}
                 quickAccessIds={quickAccessIds}
                 onToggleQuickAccess={toggleQuickAccess}
+                onSaveCurrentTab={(categoryId) => { void saveCurrentTab(categoryId); }}
               />
             ))
           )}
@@ -585,7 +634,14 @@ export default function FoldersView() {
         onColorFolder={(id, color) => { void updateFolderColor(id, color); }}
         onDelete={(id) => { void deleteFolder(id); }}
         onAddEntry={(categoryId, title, url) => { void addEntry(categoryId, title, url); }}
+        onEditEntry={(id, title, url, newCategoryId) => {
+          if (dialog?.type === 'edit-entry' && dialog.entry.categoryId !== newCategoryId) {
+            void moveEntry(id, newCategoryId);
+          }
+          void renameEntry(id, title, url);
+        }}
         onDeleteEntry={(id) => { void deleteEntry(id); }}
+        categories={bookmarkCategories}
       />
     </div>
   );

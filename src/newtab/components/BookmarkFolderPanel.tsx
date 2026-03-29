@@ -644,7 +644,7 @@ function BrowserBookmarksSection() {
 // ─── Folder Dialog ────────────────────────────────────────────────────────────
 
 function FolderDialog({
-  state, onClose, onCreate, onRename, onColorFolder, onDelete, onAddEntry, onEditEntry, onDeleteEntry,
+  state, onClose, onCreate, onRename, onColorFolder, onDelete, onAddEntry, onEditEntry, onMoveEntry, onDeleteEntry, categories,
 }: {
   state: DialogState; onClose: () => void;
   onCreate: (boardId: string, name: string, parentId?: string) => void;
@@ -653,7 +653,9 @@ function FolderDialog({
   onDelete: (id: string) => void;
   onAddEntry: (categoryId: string, title: string, url: string, category?: string, description?: string) => void;
   onEditEntry: (id: string, title: string, url: string, category?: string, description?: string) => void;
+  onMoveEntry: (id: string, newCategoryId: string) => void;
   onDeleteEntry: (id: string) => void;
+  categories: BookmarkCategory[];
 }) {
   const [name, setName] = useState(() => {
     if (state?.type === 'rename-folder') return state.folder.name;
@@ -663,6 +665,9 @@ function FolderDialog({
   const [url, setUrl] = useState(() => state?.type === 'edit-entry' ? state.entry.url : '');
   const [category, setCategory] = useState(() => state?.type === 'edit-entry' ? (state.entry.category ?? '') : '');
   const [description, setDescription] = useState(() => state?.type === 'edit-entry' ? (state.entry.description ?? '') : '');
+  const [selectedCategoryId, setSelectedCategoryId] = useState(() =>
+    state?.type === 'edit-entry' ? state.entry.categoryId : ''
+  );
   const inputRef = useRef<HTMLInputElement>(null);
 
   const confirm = () => {
@@ -671,7 +676,10 @@ function FolderDialog({
     else if (state.type === 'rename-folder' && name.trim()) onRename(state.folder.id, name.trim());
     else if (state.type === 'delete-folder') onDelete(state.folder.id);
     else if (state.type === 'add-entry' && url.trim()) onAddEntry(state.categoryId, name.trim(), url.trim(), category.trim() || undefined, description.trim() || undefined);
-    else if (state.type === 'edit-entry') onEditEntry(state.entry.id, name.trim(), url.trim(), category.trim() || undefined, description.trim() || undefined);
+    else if (state.type === 'edit-entry') {
+      if (selectedCategoryId && selectedCategoryId !== state.entry.categoryId) onMoveEntry(state.entry.id, selectedCategoryId);
+      onEditEntry(state.entry.id, name.trim(), url.trim(), category.trim() || undefined, description.trim() || undefined);
+    }
     else if (state.type === 'delete-entry') onDeleteEntry(state.entry.id);
     onClose();
   };
@@ -724,6 +732,22 @@ function FolderDialog({
           <div className="flex flex-col gap-3">
             <div><label className="block text-xs text-white/50 mb-1">Title</label><Input placeholder="Site title (optional)" value={name} onChange={(e) => setName(e.target.value)} /></div>
             <div><label className="block text-xs text-white/50 mb-1">URL <span className="text-red-400">*</span></label><Input ref={inputRef} placeholder="https://example.com" value={url} onChange={(e) => setUrl(e.target.value)} /></div>
+            {state.type === 'edit-entry' && (
+              <div>
+                <label className="block text-xs text-white/50 mb-1">Folder</label>
+                <select
+                  className="w-full rounded-md bg-white/10 text-white text-sm px-2 py-1.5 border border-white/15 focus:outline-none focus:border-white/40"
+                  value={selectedCategoryId}
+                  onChange={(e) => setSelectedCategoryId(e.target.value)}
+                >
+                  {categories
+                    .filter((c) => c.cardType === 'bookmark' || !c.cardType)
+                    .map((c) => (
+                      <option key={c.id} value={c.id} style={{ background: '#1e1e2e' }}>{c.name}</option>
+                    ))}
+                </select>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div><label className="block text-xs text-white/50 mb-1">Category</label><Input placeholder="e.g. Work, Dev" value={category} onChange={(e) => setCategory(e.target.value)} /></div>
               <div><label className="block text-xs text-white/50 mb-1">Description</label><Input placeholder="Optional note…" value={description} onChange={(e) => setDescription(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') confirm(); }} /></div>
@@ -1135,6 +1159,11 @@ export default function BookmarkFolderPanel() {
       </div>
 
       <FolderDialog
+        key={
+          dialogState?.type === 'edit-entry'
+            ? `edit-${dialogState.entry.id}`
+            : (dialogState?.type ?? 'closed')
+        }
         state={dialogState}
         onClose={() => setDialogState(null)}
         onCreate={handleCreate}
@@ -1143,7 +1172,9 @@ export default function BookmarkFolderPanel() {
         onDelete={handleDelete}
         onAddEntry={async (categoryId, title, url, category, description) => { await data.addEntry(categoryId, title, url, category, description); }}
         onEditEntry={async (id, title, url, category, description) => { await data.renameEntry(id, title, url, category, description); }}
+        onMoveEntry={async (id, newCategoryId) => { await data.moveEntry(id, newCategoryId); }}
         onDeleteEntry={async (id) => { await data.deleteEntry(id); }}
+        categories={data.categories}
       />
 
       {/* Live resize width indicator */}

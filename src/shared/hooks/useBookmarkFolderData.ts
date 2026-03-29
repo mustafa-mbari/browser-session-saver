@@ -27,6 +27,7 @@ export interface BookmarkFolderActions {
   deleteEntry: (id: string) => Promise<void>;
   saveCurrentTab: (categoryId: string) => Promise<BookmarkEntry | null>;
   moveFolder: (id: string, newParentId: string) => Promise<void>;
+  moveEntry: (id: string, newCategoryId: string) => Promise<void>;
   /** Build FolderNode tree for a single board from cached categories */
   getFolderTreeForBoard: (boardId: string) => FolderNode[];
   /** Get entries for a given category from cache */
@@ -141,6 +142,33 @@ export function useBookmarkFolderData(): BookmarkFolderState & BookmarkFolderAct
     setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, parentCategoryId: newParentId } : c)));
   }, []);
 
+  const moveEntry = useCallback(async (id: string, newCategoryId: string): Promise<void> => {
+    const entry = entries.find((e) => e.id === id);
+    if (!entry) return;
+    const oldCategoryId = entry.categoryId;
+    if (oldCategoryId === newCategoryId) return;
+    const sourceCategory = categories.find((c) => c.id === oldCategoryId);
+    const targetCategory = categories.find((c) => c.id === newCategoryId);
+    if (!targetCategory) return;
+
+    await BookmarkService.updateEntry(newtabDB, id, { categoryId: newCategoryId });
+    if (sourceCategory) {
+      await BookmarkService.updateCategory(newtabDB, oldCategoryId, {
+        bookmarkIds: sourceCategory.bookmarkIds.filter((bid) => bid !== id),
+      });
+    }
+    await BookmarkService.updateCategory(newtabDB, newCategoryId, {
+      bookmarkIds: [...targetCategory.bookmarkIds, id],
+    });
+
+    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, categoryId: newCategoryId } : e)));
+    setCategories((prev) => prev.map((c) => {
+      if (c.id === oldCategoryId && sourceCategory) return { ...c, bookmarkIds: c.bookmarkIds.filter((bid) => bid !== id) };
+      if (c.id === newCategoryId) return { ...c, bookmarkIds: [...c.bookmarkIds, id] };
+      return c;
+    }));
+  }, [entries, categories]);
+
   const renameFolder = useCallback(async (id: string, name: string): Promise<void> => {
     await BookmarkService.updateCategory(newtabDB, id, { name });
     setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, name } : c)));
@@ -250,6 +278,7 @@ export function useBookmarkFolderData(): BookmarkFolderState & BookmarkFolderAct
     createTopLevelFolder,
     createSubFolder,
     moveFolder,
+    moveEntry,
     renameFolder,
     updateFolderColor,
     deleteFolder,
