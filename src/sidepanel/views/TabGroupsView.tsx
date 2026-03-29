@@ -84,7 +84,15 @@ function ColorPicker({
 
 // ── Live Group Row ─────────────────────────────────────────────────────────────
 
-function LiveGroupRow({ group, onRefresh }: { group: LiveGroup; onRefresh: () => void }) {
+function LiveGroupRow({
+  group,
+  onRefresh,
+  onPinChange,
+}: {
+  group: LiveGroup;
+  onRefresh: () => void;
+  onPinChange: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(group.title);
@@ -99,7 +107,7 @@ function LiveGroupRow({ group, onRefresh }: { group: LiveGroup; onRefresh: () =>
 
   useEffect(() => {
     TabGroupTemplateStorage.getAll().then((all) => {
-      setBookmarked(all.some((t) => t.key === templateKey));
+      setBookmarked(all.some((t) => t.key === templateKey && t.pinned === true));
     });
   }, [templateKey]);
 
@@ -136,6 +144,8 @@ function LiveGroupRow({ group, onRefresh }: { group: LiveGroup; onRefresh: () =>
     setClosing(true);
     try {
       const now = new Date().toISOString();
+      const all = await TabGroupTemplateStorage.getAll();
+      const existing = all.find((t) => t.key === `${group.title}-${group.color}`);
       await TabGroupTemplateStorage.upsert({
         key: `${group.title}-${group.color}`,
         title: group.title,
@@ -147,6 +157,7 @@ function LiveGroupRow({ group, onRefresh }: { group: LiveGroup; onRefresh: () =>
         })),
         savedAt: now,
         updatedAt: now,
+        pinned: existing?.pinned ?? false,
       });
       const tabIds = group.tabs.map((t) => t.id!).filter(Boolean);
       if (tabIds.length > 0) await chrome.tabs.remove(tabIds);
@@ -169,28 +180,36 @@ function LiveGroupRow({ group, onRefresh }: { group: LiveGroup; onRefresh: () =>
     onRefresh();
   }, [group.id, group.collapsed, onRefresh]);
 
-  const handleSaveAsTemplate = useCallback(async () => {
+  const handleToggleSave = useCallback(async () => {
     setBookmarking(true);
     try {
       const now = new Date().toISOString();
-      await TabGroupTemplateStorage.upsert({
-        key: templateKey,
-        title: group.title,
-        color: group.color,
-        tabs: group.tabs.map((t) => ({
-          url: t.url ?? '',
-          title: t.title ?? '',
-          favIconUrl: t.favIconUrl ?? '',
-        })),
-        savedAt: now,
-        updatedAt: now,
-      });
-      setBookmarked(true);
+      const all = await TabGroupTemplateStorage.getAll();
+      const existing = all.find((t) => t.key === templateKey);
+      if (existing?.pinned) {
+        await TabGroupTemplateStorage.upsert({ ...existing, pinned: false, updatedAt: now });
+        setBookmarked(false);
+      } else {
+        await TabGroupTemplateStorage.upsert({
+          key: templateKey,
+          title: group.title,
+          color: group.color,
+          tabs: group.tabs.map((t) => ({
+            url: t.url ?? '',
+            title: t.title ?? '',
+            favIconUrl: t.favIconUrl ?? '',
+          })),
+          savedAt: now,
+          updatedAt: now,
+          pinned: true,
+        });
+        setBookmarked(true);
+      }
       onRefresh();
     } finally {
       setBookmarking(false);
     }
-  }, [group, templateKey, onRefresh]);
+  }, [bookmarked, group, templateKey, onRefresh]);
 
   const menuItems = useMemo(() => [
     { label: 'Rename',             icon: Edit2,     onClick: startEdit },
@@ -274,8 +293,8 @@ function LiveGroupRow({ group, onRefresh }: { group: LiveGroup; onRefresh: () =>
               ) : (
                 <>
                   <button
-                    onClick={(e) => { e.stopPropagation(); void handleSaveAsTemplate(); }}
-                    title={bookmarked ? 'Saved — syncs across devices' : 'Save as template'}
+                    onClick={(e) => { e.stopPropagation(); void handleToggleSave(); }}
+                    title={bookmarked ? 'Saved — click to unsave' : 'Save — syncs across devices'}
                     className="p-1 rounded transition-colors"
                     style={{ color: bookmarked ? '#34c759' : 'var(--color-text-secondary)' }}
                   >
@@ -328,11 +347,15 @@ function SavedGroupRow({
   onRestore,
   onDelete,
   onRename,
+  onTogglePin,
+  isLive,
 }: {
   template: TabGroupTemplate;
   onRestore: (t: TabGroupTemplate) => Promise<void>;
   onDelete: (key: string) => Promise<void>;
   onRename: (key: string, newTitle: string) => Promise<void>;
+  onTogglePin: (key: string) => Promise<void>;
+  isLive?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -340,6 +363,7 @@ function SavedGroupRow({
   const [restoring, setRestoring] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pinning, setPinning] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const accentColor = GROUP_COLOR_MAP[template.color] ?? '#9aa0a6';
 
@@ -364,15 +388,24 @@ function SavedGroupRow({
     }
   }, [draftTitle, template.title, template.key, onRename]);
 
+  const handleTogglePin = useCallback(async () => {
+    setPinning(true);
+    try {
+      await onTogglePin(template.key);
+    } finally {
+      setPinning(false);
+    }
+  }, [template.key, onTogglePin]);
+
   const menuItems = useMemo(() => [
-    {
+    ...(!isLive ? [{
       label: 'Restore',
       icon: RotateCcw,
       onClick: () => {
         setRestoring(true);
         void onRestore(template).finally(() => setRestoring(false));
       },
-    },
+    }] : []),
     {
       label: 'Rename',
       icon: Edit2,
@@ -436,6 +469,12 @@ function SavedGroupRow({
               <span className="font-medium text-sm truncate" style={{ color: 'var(--color-text)' }}>
                 {template.title || 'Unnamed group'}
               </span>
+              {isLive && (
+                <span className="shrink-0 flex items-center gap-0.5 text-[9px] px-1 py-0.5 rounded-full bg-green-500/20 text-green-400 font-medium">
+                  <span className="w-1 h-1 rounded-full bg-green-400 animate-pulse" />
+                  live
+                </span>
+              )}
               {expanded
                 ? <ChevronDown size={11} className="shrink-0" style={{ color: 'var(--color-text-secondary)' }} />
                 : <ChevronRight size={11} className="shrink-0" style={{ color: 'var(--color-text-secondary)' }} />}
@@ -445,7 +484,7 @@ function SavedGroupRow({
               <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                 {template.tabs.length}t
               </span>
-              {(restoring || saving || deleting) ? (
+              {(restoring || saving || deleting || pinning) ? (
                 <span className="w-6 h-6 flex items-center justify-center">
                   <span
                     className="w-3 h-3 border border-t-transparent rounded-full animate-spin"
@@ -453,15 +492,25 @@ function SavedGroupRow({
                   />
                 </span>
               ) : (
-                <ContextMenu items={menuItems}>
+                <>
                   <button
-                    className="p-1 rounded hover:bg-[var(--color-bg-secondary)] transition-colors"
-                    style={{ color: 'var(--color-text-secondary)' }}
-                    aria-label="More actions"
+                    onClick={(e) => { e.stopPropagation(); void handleTogglePin(); }}
+                    title={template.pinned ? 'Saved — click to unsave' : 'Save — syncs across devices'}
+                    className="p-1 rounded transition-colors"
+                    style={{ color: template.pinned ? '#34c759' : 'var(--color-text-secondary)' }}
                   >
-                    <MoreVertical size={13} />
+                    {template.pinned ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
                   </button>
-                </ContextMenu>
+                  <ContextMenu items={menuItems}>
+                    <button
+                      className="p-1 rounded hover:bg-[var(--color-bg-secondary)] transition-colors"
+                      style={{ color: 'var(--color-text-secondary)' }}
+                      aria-label="More actions"
+                    >
+                      <MoreVertical size={13} />
+                    </button>
+                  </ContextMenu>
+                </>
               )}
             </div>
           </div>
@@ -538,17 +587,19 @@ export default function TabGroupsView() {
       }));
       setLiveGroups(live);
 
-      // Auto-save live groups to template storage (skip groups with no Chrome title —
-      // they are reset-on-restart groups whose real names will be restored by the
-      // startup handler; saving them now would create junk "Unnamed-blue" entries).
+      // Auto-save live groups; preserve existing pinned flag so user choices aren't overwritten
       const now = new Date().toISOString();
       const groupTitleById = new Map(groups.map((g) => [g.id, g.title ?? '']));
+      const existingAll = await TabGroupTemplateStorage.getAll();
+      const existingByKey = new Map(existingAll.map((t) => [t.key, t]));
       await Promise.all(
         live
           .filter((g) => g.tabs.length > 0 && groupTitleById.get(g.id) !== '')
-          .map((g) =>
-            TabGroupTemplateStorage.upsert({
-              key: `${g.title}-${g.color}`,
+          .map((g) => {
+            const key = `${g.title}-${g.color}`;
+            const existing = existingByKey.get(key);
+            return TabGroupTemplateStorage.upsert({
+              key,
               title: g.title,
               color: g.color,
               tabs: g.tabs.map((t) => ({
@@ -558,8 +609,9 @@ export default function TabGroupsView() {
               })),
               savedAt: now,
               updatedAt: now,
-            }),
-          ),
+              pinned: existing?.pinned ?? false,
+            });
+          }),
       );
       await reloadSaved();
     } catch {
@@ -573,9 +625,11 @@ export default function TabGroupsView() {
     void loadLiveGroups();
   }, [loadLiveGroups]);
 
-  // Saved tab: only groups NOT currently live
   const liveKeys = new Set(liveGroups.map((g) => `${g.title}-${g.color}`));
   const offlineTemplates = savedTemplates.filter((t) => !liveKeys.has(t.key));
+  // Saved = all pinned templates (live or not); Not Open = unpinned and not live
+  const pinnedAll = savedTemplates.filter((t) => t.pinned === true);
+  const unpinnedOffline = offlineTemplates.filter((t) => t.pinned !== true);
 
   const handleRestoreTemplate = useCallback(
     async (template: TabGroupTemplate) => {
@@ -606,6 +660,18 @@ export default function TabGroupsView() {
     [reloadSaved],
   );
 
+  const handleTogglePinTemplate = useCallback(
+    async (key: string) => {
+      const all = await TabGroupTemplateStorage.getAll();
+      const existing = all.find((t) => t.key === key);
+      if (!existing) return;
+      const now = new Date().toISOString();
+      await TabGroupTemplateStorage.upsert({ ...existing, pinned: !existing.pinned, updatedAt: now });
+      await reloadSaved();
+    },
+    [reloadSaved],
+  );
+
   const handleCreateGroup = async () => {
     setCreatingGroup(true);
     try {
@@ -624,7 +690,10 @@ export default function TabGroupsView() {
   const filteredLive = liveGroups.filter(
     (g) => !search || g.title.toLowerCase().includes(search.toLowerCase()),
   );
-  const filteredSaved = offlineTemplates.filter(
+  const filteredPinned = pinnedAll.filter(
+    (t) => !search || t.title.toLowerCase().includes(search.toLowerCase()),
+  );
+  const filteredUnpinned = unpinnedOffline.filter(
     (t) => !search || t.title.toLowerCase().includes(search.toLowerCase()),
   );
 
@@ -659,7 +728,6 @@ export default function TabGroupsView() {
         </button>
       </div>
 
-      {/* Split content: Live section / Saved section */}
       <div className="flex-1 overflow-auto flex flex-col">
         {loading ? (
           <div className="flex items-center justify-center pt-8">
@@ -674,9 +742,7 @@ export default function TabGroupsView() {
                 <span className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
                   Live
                 </span>
-                <span
-                  className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400 font-medium ml-0.5"
-                >
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400 font-medium ml-0.5">
                   {filteredLive.length}
                 </span>
               </div>
@@ -699,10 +765,52 @@ export default function TabGroupsView() {
               </div>
             </div>
 
-            {/* Section divider */}
             <div className="border-t-2 border-[var(--color-border)]" />
 
-            {/* ── Not Open section ── */}
+            {/* ── Saved section (pinned, not open) ── */}
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]/60">
+                <BookmarkCheck size={11} className="text-green-400 shrink-0" />
+                <span className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
+                  Saved
+                </span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400 font-medium ml-0.5">
+                  {filteredPinned.length}
+                </span>
+                <span className="text-[10px] ml-auto" style={{ color: 'var(--color-text-secondary)' }}>
+                  synced across devices
+                </span>
+              </div>
+              <div className="flex flex-col gap-2 p-3">
+                {filteredPinned.length === 0 ? (
+                  <EmptyState
+                    icon={Bookmark}
+                    title={search ? 'No saved groups match search' : 'No saved groups'}
+                    description={
+                      search
+                        ? 'Try a different search term.'
+                        : 'Click the bookmark icon on a group to save it here.'
+                    }
+                  />
+                ) : (
+                  filteredPinned.map((t) => (
+                    <SavedGroupRow
+                      key={t.key}
+                      template={t}
+                      onRestore={handleRestoreTemplate}
+                      onDelete={handleDeleteTemplate}
+                      onRename={handleRenameTemplate}
+                      onTogglePin={handleTogglePinTemplate}
+                      isLive={liveKeys.has(t.key)}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="border-t-2 border-[var(--color-border)]" />
+
+            {/* ── Not Open section (auto-saved, not pinned) ── */}
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]/60">
                 <Layers size={11} style={{ color: 'var(--color-text-secondary)' }} className="shrink-0" />
@@ -713,28 +821,29 @@ export default function TabGroupsView() {
                   className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/10 font-medium ml-0.5"
                   style={{ color: 'var(--color-text-secondary)' }}
                 >
-                  {filteredSaved.length}
+                  {filteredUnpinned.length}
                 </span>
               </div>
               <div className="flex flex-col gap-2 p-3">
-                {filteredSaved.length === 0 ? (
+                {filteredUnpinned.length === 0 ? (
                   <EmptyState
                     icon={Layers}
-                    title={search ? 'No matching saved groups' : 'All saved groups are currently open'}
+                    title={search ? 'No matching groups' : 'No auto-saved groups'}
                     description={
                       search
                         ? 'Try a different search term.'
-                        : 'Groups that are closed will appear here automatically.'
+                        : 'Groups closed from this panel appear here automatically.'
                     }
                   />
                 ) : (
-                  filteredSaved.map((t) => (
+                  filteredUnpinned.map((t) => (
                     <SavedGroupRow
                       key={t.key}
                       template={t}
                       onRestore={handleRestoreTemplate}
                       onDelete={handleDeleteTemplate}
                       onRename={handleRenameTemplate}
+                      onTogglePin={handleTogglePinTemplate}
                     />
                   ))
                 )}

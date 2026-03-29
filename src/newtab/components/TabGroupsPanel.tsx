@@ -49,7 +49,6 @@ async function restoreInCurrentWindow(template: TabGroupTemplate): Promise<void>
       title: template.title,
       color: template.color,
     });
-    // Focus the first restored tab
     await chrome.tabs.update(tabIds[0], { active: true });
   }
 }
@@ -97,7 +96,7 @@ function LiveGroupCard({ group, onRefresh }: { group: LiveGroup; onRefresh: () =
 
   useEffect(() => {
     TabGroupTemplateStorage.getAll().then((all) => {
-      setBookmarked(all.some((t) => t.key === templateKey));
+      setBookmarked(all.some((t) => t.key === templateKey && t.pinned === true));
     });
   }, [templateKey]);
 
@@ -134,6 +133,8 @@ function LiveGroupCard({ group, onRefresh }: { group: LiveGroup; onRefresh: () =
     setClosing(true);
     try {
       const now = new Date().toISOString();
+      const all = await TabGroupTemplateStorage.getAll();
+      const existing = all.find((t) => t.key === `${group.title}-${group.color}`);
       await TabGroupTemplateStorage.upsert({
         key: `${group.title}-${group.color}`,
         title: group.title,
@@ -145,6 +146,7 @@ function LiveGroupCard({ group, onRefresh }: { group: LiveGroup; onRefresh: () =
         })),
         savedAt: now,
         updatedAt: now,
+        pinned: existing?.pinned ?? false,
       });
       const tabIds = group.tabs.map((t) => t.id!).filter(Boolean);
       if (tabIds.length > 0) await chrome.tabs.remove(tabIds);
@@ -162,23 +164,31 @@ function LiveGroupCard({ group, onRefresh }: { group: LiveGroup; onRefresh: () =
     }
   };
 
-  const handleSaveAsTemplate = async () => {
+  const handleToggleSave = async () => {
     setBookmarking(true);
     try {
       const now = new Date().toISOString();
-      await TabGroupTemplateStorage.upsert({
-        key: templateKey,
-        title: group.title,
-        color: group.color,
-        tabs: group.tabs.map((t) => ({
-          url: t.url ?? '',
-          title: t.title ?? '',
-          favIconUrl: t.favIconUrl ?? '',
-        })),
-        savedAt: now,
-        updatedAt: now,
-      });
-      setBookmarked(true);
+      const all = await TabGroupTemplateStorage.getAll();
+      const existing = all.find((t) => t.key === templateKey);
+      if (existing?.pinned) {
+        await TabGroupTemplateStorage.upsert({ ...existing, pinned: false, updatedAt: now });
+        setBookmarked(false);
+      } else {
+        await TabGroupTemplateStorage.upsert({
+          key: templateKey,
+          title: group.title,
+          color: group.color,
+          tabs: group.tabs.map((t) => ({
+            url: t.url ?? '',
+            title: t.title ?? '',
+            favIconUrl: t.favIconUrl ?? '',
+          })),
+          savedAt: now,
+          updatedAt: now,
+          pinned: true,
+        });
+        setBookmarked(true);
+      }
       onRefresh();
     } finally {
       setBookmarking(false);
@@ -251,9 +261,9 @@ function LiveGroupCard({ group, onRefresh }: { group: LiveGroup; onRefresh: () =
         {!editing && (
           <div className="flex items-center gap-1.5 flex-wrap">
             <button
-              onClick={() => void handleSaveAsTemplate()}
+              onClick={() => void handleToggleSave()}
               disabled={bookmarking}
-              title={bookmarked ? 'Saved — syncs across devices' : 'Save as template (keeps tabs open)'}
+              title={bookmarked ? 'Saved — click to unsave' : 'Save — syncs across devices'}
               className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors disabled:opacity-50 ${
                 bookmarked
                   ? 'bg-green-500/20 text-green-300'
@@ -344,25 +354,39 @@ function LiveGroupCard({ group, onRefresh }: { group: LiveGroup; onRefresh: () =
   );
 }
 
-// ── Saved Group Card ───────────────────────────────────────────────────────────
+// ── Saved / Not-Open Group Card ────────────────────────────────────────────────
 
 function SavedGroupCard({
   template,
   onDelete,
   onRestore,
+  onTogglePin,
+  isLive,
 }: {
   template: TabGroupTemplate;
   onDelete: (key: string) => Promise<void>;
   onRestore: (template: TabGroupTemplate) => Promise<void>;
+  onTogglePin: (key: string) => Promise<void>;
+  isLive?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [pinning, setPinning] = useState(false);
   const accentColor = GROUP_COLORS[template.color] ?? '#9aa0a6';
   const savedDate = new Date(template.updatedAt).toLocaleDateString('default', {
     month: 'short',
     day: 'numeric',
   });
+
+  const handleTogglePin = async () => {
+    setPinning(true);
+    try {
+      await onTogglePin(template.key);
+    } finally {
+      setPinning(false);
+    }
+  };
 
   return (
     <div
@@ -386,9 +410,16 @@ function SavedGroupCard({
           <span className="font-semibold text-sm flex-1 truncate" style={{ color: 'var(--newtab-text)' }}>
             {template.title || 'Unnamed group'}
           </span>
+          {isLive && (
+            <span className="shrink-0 flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-300 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+              live
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap">
+          {!isLive && (
           <button
             onClick={async () => {
               setRestoring(true);
@@ -402,6 +433,7 @@ function SavedGroupCard({
             <ExternalLink size={11} />
             {restoring ? 'Restoring…' : 'Restore Here'}
           </button>
+          )}
           <button
             onClick={() => setExpanded(!expanded)}
             className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors"
@@ -409,6 +441,22 @@ function SavedGroupCard({
           >
             {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
             Tabs
+          </button>
+          <button
+            onClick={() => void handleTogglePin()}
+            disabled={pinning}
+            title={template.pinned ? 'Saved — click to unsave' : 'Save — syncs across devices'}
+            className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors disabled:opacity-50 ${
+              template.pinned
+                ? 'bg-green-500/20 text-green-300'
+                : 'bg-white/10 hover:bg-white/20'
+            }`}
+            style={template.pinned ? {} : { color: 'var(--newtab-text)' }}
+          >
+            {pinning
+              ? <span className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin inline-block" />
+              : template.pinned ? <BookmarkCheck size={11} /> : <Bookmark size={11} />}
+            {!pinning && (template.pinned ? 'Saved' : 'Save')}
           </button>
           <button
             onClick={async () => {
@@ -498,17 +546,19 @@ export default function TabGroupsPanel() {
       }));
       setLiveGroups(live);
 
-      // Auto-save live groups to persistent template storage (skip groups with no
-      // Chrome title — they are reset-on-restart groups whose real names will be
-      // restored by the startup handler; saving them now would create junk entries).
+      // Auto-save live groups; preserve existing pinned flag
       const now = new Date().toISOString();
       const groupTitleById = new Map(groups.map((g) => [g.id, g.title ?? '']));
+      const existingAll = await TabGroupTemplateStorage.getAll();
+      const existingByKey = new Map(existingAll.map((t) => [t.key, t]));
       await Promise.all(
         live
           .filter((g) => g.tabs.length > 0 && groupTitleById.get(g.id) !== '')
-          .map((g) =>
-            TabGroupTemplateStorage.upsert({
-              key: `${g.title}-${g.color}`,
+          .map((g) => {
+            const key = `${g.title}-${g.color}`;
+            const existing = existingByKey.get(key);
+            return TabGroupTemplateStorage.upsert({
+              key,
               title: g.title,
               color: g.color,
               tabs: g.tabs.map((t) => ({
@@ -518,10 +568,10 @@ export default function TabGroupsPanel() {
               })),
               savedAt: now,
               updatedAt: now,
-            }),
-          ),
+              pinned: existing?.pinned ?? false,
+            });
+          }),
       );
-      // Refresh saved list to reflect any new auto-saves
       await reloadSaved();
     } catch {
       setLiveGroups([]);
@@ -534,9 +584,11 @@ export default function TabGroupsPanel() {
     void loadLiveGroups();
   }, [loadLiveGroups]);
 
-  // liveKeys for filtering: saved tab only shows groups NOT currently live
   const liveKeys = new Set(liveGroups.map((g) => `${g.title}-${g.color}`));
   const offlineTemplates = savedTemplates.filter((t) => !liveKeys.has(t.key));
+  // Saved = all pinned (live or not); Not Open = unpinned and not live
+  const pinnedAll = savedTemplates.filter((t) => t.pinned === true);
+  const unpinnedOffline = offlineTemplates.filter((t) => t.pinned !== true);
 
   const handleRestoreTemplate = useCallback(
     async (template: TabGroupTemplate) => {
@@ -549,6 +601,18 @@ export default function TabGroupsPanel() {
   const handleDeleteTemplate = useCallback(
     async (key: string) => {
       await TabGroupTemplateStorage.delete(key);
+      await reloadSaved();
+    },
+    [reloadSaved],
+  );
+
+  const handleTogglePinTemplate = useCallback(
+    async (key: string) => {
+      const all = await TabGroupTemplateStorage.getAll();
+      const existing = all.find((t) => t.key === key);
+      if (!existing) return;
+      const now = new Date().toISOString();
+      await TabGroupTemplateStorage.upsert({ ...existing, pinned: !existing.pinned, updatedAt: now });
       await reloadSaved();
     },
     [reloadSaved],
@@ -572,7 +636,10 @@ export default function TabGroupsPanel() {
   const filteredLive = liveGroups.filter(
     (g) => !search || g.title.toLowerCase().includes(search.toLowerCase()),
   );
-  const filteredSaved = offlineTemplates.filter(
+  const filteredPinned = pinnedAll.filter(
+    (t) => !search || t.title.toLowerCase().includes(search.toLowerCase()),
+  );
+  const filteredUnpinned = unpinnedOffline.filter(
     (t) => !search || t.title.toLowerCase().includes(search.toLowerCase()),
   );
 
@@ -588,7 +655,7 @@ export default function TabGroupsPanel() {
             Tab Groups
           </h2>
           <p className="text-sm mt-0.5" style={{ color: 'var(--newtab-text-secondary)' }}>
-            {liveGroups.length} live · {offlineTemplates.length} saved (not open)
+            {liveGroups.length} live · {pinnedAll.length} saved · {unpinnedOffline.length} not open
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -618,7 +685,7 @@ export default function TabGroupsPanel() {
         </div>
       </div>
 
-      {/* Split layout: Live | Not Open */}
+      {/* Three-column layout: Live | Saved | Not Open */}
       {loading ? (
         <div className="flex items-center justify-center pt-16">
           <LoadingSpinner size="lg" />
@@ -628,15 +695,12 @@ export default function TabGroupsPanel() {
 
           {/* ── Live column ── */}
           <div className="flex-1 min-w-0 flex flex-col p-4 gap-3">
-            {/* Column header */}
             <div className="flex items-center gap-2 pb-2 border-b border-white/10">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse shrink-0" />
               <h3 className="text-sm font-semibold" style={{ color: 'var(--newtab-text)' }}>
                 Live
               </h3>
-              <span
-                className="text-xs px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-300 font-medium"
-              >
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-300 font-medium">
                 {filteredLive.length}
               </span>
             </div>
@@ -668,9 +732,52 @@ export default function TabGroupsPanel() {
           {/* Vertical divider */}
           <div className="w-px bg-white/10 self-stretch shrink-0" />
 
-          {/* ── Not Open column ── */}
+          {/* ── Saved column (all pinned, live or not) ── */}
           <div className="flex-1 min-w-0 flex flex-col p-4 gap-3">
-            {/* Column header */}
+            <div className="flex items-center gap-2 pb-2 border-b border-white/10">
+              <BookmarkCheck size={13} className="text-green-400 shrink-0" />
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--newtab-text)' }}>
+                Saved
+              </h3>
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-300 font-medium">
+                {filteredPinned.length}
+              </span>
+              <span className="text-[10px] ml-auto opacity-50" style={{ color: 'var(--newtab-text-secondary)' }}>
+                synced
+              </span>
+            </div>
+
+            {filteredPinned.length === 0 ? (
+              <div
+                className="flex flex-col items-center justify-center py-12 gap-2"
+                style={{ color: 'var(--newtab-text-secondary)' }}
+              >
+                <Bookmark size={28} className="opacity-25" />
+                <p className="text-sm opacity-70">
+                  {search ? 'No saved groups match search' : 'No saved groups'}
+                </p>
+                <p className="text-xs opacity-40 text-center max-w-[16rem]">
+                  {search ? 'Try a different term' : 'Click Save on any group to keep it here'}
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {filteredPinned.map((t) => (
+                  <SavedGroupCard
+                    key={t.key}
+                    template={t}
+                    onDelete={handleDeleteTemplate}
+                    onRestore={handleRestoreTemplate}
+                    onTogglePin={handleTogglePinTemplate}
+                    isLive={liveKeys.has(t.key)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Not Open column (auto-saved, not pinned, not live) ── */}
+          <div className="flex-1 min-w-0 flex flex-col p-4 gap-3">
             <div className="flex items-center gap-2 pb-2 border-b border-white/10">
               <Layers size={13} style={{ color: 'var(--newtab-text-secondary)' }} className="shrink-0" />
               <h3 className="text-sm font-semibold" style={{ color: 'var(--newtab-text)' }}>
@@ -680,33 +787,32 @@ export default function TabGroupsPanel() {
                 className="text-xs px-1.5 py-0.5 rounded-full bg-white/10 font-medium"
                 style={{ color: 'var(--newtab-text-secondary)' }}
               >
-                {filteredSaved.length}
+                {filteredUnpinned.length}
               </span>
             </div>
 
-            {filteredSaved.length === 0 ? (
+            {filteredUnpinned.length === 0 ? (
               <div
                 className="flex flex-col items-center justify-center py-12 gap-2"
                 style={{ color: 'var(--newtab-text-secondary)' }}
               >
                 <Layers size={28} className="opacity-25" />
                 <p className="text-sm opacity-70">
-                  {search ? 'No saved groups match search' : 'All saved groups are currently open'}
+                  {search ? 'No matching groups' : 'No closed groups'}
                 </p>
                 <p className="text-xs opacity-40 text-center max-w-[16rem]">
-                  {search
-                    ? 'Try a different term'
-                    : 'Closed groups appear here automatically'}
+                  {search ? 'Try a different term' : 'Closed groups appear here automatically'}
                 </p>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
-                {filteredSaved.map((t) => (
+                {filteredUnpinned.map((t) => (
                   <SavedGroupCard
                     key={t.key}
                     template={t}
                     onDelete={handleDeleteTemplate}
                     onRestore={handleRestoreTemplate}
+                    onTogglePin={handleTogglePinTemplate}
                   />
                 ))}
               </div>

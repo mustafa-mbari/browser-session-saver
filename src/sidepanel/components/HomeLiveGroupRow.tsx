@@ -34,7 +34,7 @@ export default function HomeLiveGroupRow({ group, onRefresh, onToast }: HomeLive
 
   useEffect(() => {
     TabGroupTemplateStorage.getAll().then((all) => {
-      setBookmarked(all.some((t) => t.key === templateKey));
+      setBookmarked(all.some((t) => t.key === templateKey && t.pinned === true));
     });
   }, [templateKey]);
 
@@ -92,20 +92,29 @@ export default function HomeLiveGroupRow({ group, onRefresh, onToast }: HomeLive
     }
   }, [group.tabs, onRefresh]);
 
-  const handleSaveAsTemplate = useCallback(async () => {
+  const handleToggleSave = useCallback(async () => {
     setBookmarking(true);
     try {
       const now = new Date().toISOString();
-      await TabGroupTemplateStorage.upsert({
-        key: templateKey,
-        title: group.title,
-        color: group.color,
-        tabs: group.tabs.map((t) => ({ url: t.url ?? '', title: t.title ?? '', favIconUrl: t.favIconUrl ?? '' })),
-        savedAt: now,
-        updatedAt: now,
-      });
-      setBookmarked(true);
-      onToast({ message: 'Tab group saved', type: 'success' });
+      const all = await TabGroupTemplateStorage.getAll();
+      const existing = all.find((t) => t.key === templateKey);
+      if (existing?.pinned) {
+        await TabGroupTemplateStorage.upsert({ ...existing, pinned: false, updatedAt: now });
+        setBookmarked(false);
+        onToast({ message: 'Group removed from saved', type: 'success' });
+      } else {
+        await TabGroupTemplateStorage.upsert({
+          key: templateKey,
+          title: group.title,
+          color: group.color,
+          tabs: group.tabs.map((t) => ({ url: t.url ?? '', title: t.title ?? '', favIconUrl: t.favIconUrl ?? '' })),
+          savedAt: now,
+          updatedAt: now,
+          pinned: true,
+        });
+        setBookmarked(true);
+        onToast({ message: 'Tab group saved', type: 'success' });
+      }
       await onRefresh();
     } finally {
       setBookmarking(false);
@@ -118,6 +127,7 @@ export default function HomeLiveGroupRow({ group, onRefresh, onToast }: HomeLive
     { label: 'Close from browser', icon: XCircle,  onClick: () => void handleClose() },
     { label: 'Ungroup',            icon: Trash2,   onClick: () => void handleUngroup(), danger: true },
   ], [startEdit, handleFocus, handleClose, handleUngroup]);
+
 
   return (
     <div className="border-b border-[var(--color-border)]">
@@ -163,8 +173,8 @@ export default function HomeLiveGroupRow({ group, onRefresh, onToast }: HomeLive
             ) : (
               <>
                 <button
-                  onClick={(e) => { e.stopPropagation(); void handleSaveAsTemplate(); }}
-                  title={bookmarked ? 'Saved — syncs across devices' : 'Save as template'}
+                  onClick={(e) => { e.stopPropagation(); void handleToggleSave(); }}
+                  title={bookmarked ? 'Saved — click to unsave' : 'Save — syncs across devices'}
                   className="p-0.5 rounded transition-colors shrink-0"
                   style={{ color: bookmarked ? '#34c759' : 'var(--color-text-secondary)' }}
                 >

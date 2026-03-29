@@ -293,6 +293,7 @@ export default function CloudSyncView() {
             label="Folders synced"
             used={usage?.folders ?? 0}
             limit={quota.folders_synced_limit}
+            hint="Includes bookmark folders and dashboard To-Do widget items"
           />
           <QuotaBar
             label="Tab groups synced"
@@ -310,6 +311,7 @@ export default function CloudSyncView() {
             label="Todos synced"
             used={usage?.todos ?? 0}
             limit={quota.todos_synced_limit}
+            hint="Tracks Focus-layout to-do lists only"
           />
         </div>
       )}
@@ -363,10 +365,12 @@ function QuotaBar({
   label,
   used,
   limit,
+  hint,
 }: {
   label: string;
   used: number;
   limit: number | null | undefined;
+  hint?: string;
 }) {
   const pct = limit != null ? Math.min((used / limit) * 100, 100) : 0;
   const isUnlimited = limit == null;
@@ -387,6 +391,9 @@ function QuotaBar({
             style={{ width: `${pct}%` }}
           />
         </div>
+      )}
+      {hint && (
+        <p className="mt-0.5 text-[10px] text-[var(--color-text-secondary)] opacity-60">{hint}</p>
       )}
     </div>
   );

@@ -19,4 +19,6 @@ export interface TabGroupTemplate {
   tabs: TabGroupTemplateTab[];
   savedAt: string;
   updatedAt: string;
+  /** True when explicitly saved by the user via the Bookmark button — syncs across devices. */
+  pinned?: boolean;
 }

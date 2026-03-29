@@ -1,7 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Cloud, CloudOff, RefreshCw, LogOut, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import {
+  Cloud,
+  CloudOff,
+  CloudDownload,
+  RefreshCw,
+  LogOut,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+} from 'lucide-react';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import type { SyncStatus } from '@core/services/sync.service';
+import { QUOTA_WARNING_PCT } from '@core/constants/limits';
 
 type SignInResponse = { success: boolean; email?: string; error?: string };
 
@@ -12,6 +22,8 @@ export default function CloudSyncPanel() {
   const [password, setPassword] = useState('');
   const [signingIn, setSigningIn] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [pullResult, setPullResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [signInError, setSignInError] = useState<string | null>(null);
 
   const loadStatus = useCallback(async () => {
@@ -54,12 +66,29 @@ export default function CloudSyncPanel() {
     else await loadStatus();
   };
 
+  const handlePullAll = async () => {
+    setPulling(true);
+    setPullResult(null);
+    const res = await sendMessage<{ success: boolean; pulled: Record<string, number>; error?: string }>({
+      action: 'SYNC_PULL_ALL',
+      payload: {},
+    });
+    setPulling(false);
+    if (res.success && res.data?.success) {
+      const total = Object.values(res.data.pulled).reduce((s, n) => s + n, 0);
+      setPullResult({ ok: true, msg: `Restored ${total} item(s) from the cloud.` });
+    } else {
+      setPullResult({ ok: false, msg: res.data?.error ?? res.error ?? 'Restore failed' });
+    }
+  };
+
   // ─── Not signed in ────────────────────────────────────────────────────────
   if (!status?.isAuthenticated) {
     return (
       <div className="flex-1 overflow-auto p-6 flex flex-col gap-5">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center"
             style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.25)' }}
           >
             <CloudOff size={20} style={{ color: '#818cf8' }} />
@@ -113,7 +142,8 @@ export default function CloudSyncPanel() {
           </div>
 
           {signInError && (
-            <div className="flex items-center gap-2 p-2.5 rounded-xl text-xs"
+            <div
+              className="flex items-center gap-2 p-2.5 rounded-xl text-xs"
               style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}
             >
               <AlertCircle size={14} className="shrink-0" />
@@ -245,6 +275,46 @@ export default function CloudSyncPanel() {
         </button>
       </div>
 
+      {/* Restore from Cloud */}
+      <div
+        className="p-4 rounded-2xl"
+        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+      >
+        <div className="flex items-start gap-3">
+          <CloudDownload size={16} style={{ color: 'var(--newtab-text-secondary)' }} className="shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold mb-0.5" style={{ color: 'var(--newtab-text)' }}>Restore from Cloud</p>
+            <p className="text-[11px] leading-snug mb-2" style={{ color: 'var(--newtab-text-secondary)' }}>
+              Download your synced data to this device. Existing local items are kept.
+            </p>
+            <button
+              onClick={handlePullAll}
+              disabled={pulling}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-opacity disabled:opacity-50"
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: 'var(--newtab-text)',
+              }}
+            >
+              {pulling ? <Loader2 size={12} className="animate-spin" /> : <CloudDownload size={12} />}
+              {pulling ? 'Restoring…' : 'Restore Now'}
+            </button>
+            {pullResult && (
+              <div
+                className="mt-2 flex items-start gap-1.5 text-[11px]"
+                style={{ color: pullResult.ok ? '#4ade80' : '#f87171' }}
+              >
+                {pullResult.ok
+                  ? <CheckCircle2 size={12} className="shrink-0 mt-0.5" />
+                  : <AlertCircle size={12} className="shrink-0 mt-0.5" />}
+                {pullResult.msg}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Sync error */}
       {error && (
         <div
@@ -286,9 +356,15 @@ export default function CloudSyncPanel() {
           <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--newtab-text-secondary)', opacity: 0.7 }}>
             Usage
           </p>
-          <QuotaBar label="Sessions synced" used={usage?.sessions ?? 0} limit={quota.sessions_synced_limit} />
-          <QuotaBar label="Prompts synced" used={usage?.prompts ?? 0} limit={quota.prompts_create_limit} />
-          <QuotaBar label="Subscriptions synced" used={usage?.subs ?? 0} limit={quota.subs_synced_limit} />
+          <QuotaBar label="Sessions synced"       used={usage?.sessions  ?? 0} limit={quota.sessions_synced_limit} />
+          <QuotaBar label="Prompts synced"         used={usage?.prompts   ?? 0} limit={quota.prompts_create_limit} />
+          <QuotaBar label="Subscriptions synced"   used={usage?.subs      ?? 0} limit={quota.subs_synced_limit} />
+          <QuotaBar label="Folders synced"         used={usage?.folders   ?? 0} limit={quota.folders_synced_limit} />
+          <QuotaBar label="Tab groups synced"      used={usage?.tabGroups ?? 0} limit={quota.tab_groups_synced_limit} />
+          {quota.total_tabs_limit != null && quota.total_tabs_limit > 0 && (
+            <QuotaBar label="Unique tabs synced"   used={usage?.tabs      ?? 0} limit={quota.total_tabs_limit} />
+          )}
+          <QuotaBar label="Todos synced"           used={usage?.todos     ?? 0} limit={quota.todos_synced_limit} />
         </div>
       )}
 
@@ -352,7 +428,7 @@ function QuotaBar({
 }) {
   const pct = limit != null ? Math.min((used / limit) * 100, 100) : 0;
   const isUnlimited = limit == null;
-  const isWarning = !isUnlimited && pct >= 80;
+  const isWarning = !isUnlimited && pct >= QUOTA_WARNING_PCT;
 
   return (
     <div>
