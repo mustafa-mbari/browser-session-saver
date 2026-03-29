@@ -1,27 +1,87 @@
 import { useState, useEffect, useRef } from 'react';
-import { Save, FolderPlus, PenLine } from 'lucide-react';
+import { Save, FolderPlus, ChevronRight, ChevronDown } from 'lucide-react';
 import { useSession } from '@shared/hooks/useSession';
 import { useBookmarkFolderData } from '@shared/hooks/useBookmarkFolderData';
 import { useSidePanelStore } from '../stores/sidepanel.store';
 import type { SaveSessionResponse } from '@core/types/messages.types';
 import type { ToastData } from '@shared/components/Toast';
+import type { BookmarkCategory } from '@core/types/newtab.types';
 
 interface QuickActionsProps {
   onToast?: (toast: Omit<ToastData, 'id'>) => void;
 }
+
+// ── Folder tree helpers ────────────────────────────────────────────────────────
+
+interface FolderNode {
+  category: BookmarkCategory;
+  children: FolderNode[];
+}
+
+function buildTree(cats: BookmarkCategory[]): FolderNode[] {
+  function getChildren(parentId: string): FolderNode[] {
+    return cats
+      .filter((c) => c.parentCategoryId === parentId)
+      .map((c) => ({ category: c, children: getChildren(c.id) }));
+  }
+  return cats
+    .filter((c) => !c.parentCategoryId)
+    .map((c) => ({ category: c, children: getChildren(c.id) }));
+}
+
+function FolderPickerNode({ node, depth, onSave }: {
+  node: FolderNode;
+  depth: number;
+  onSave: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasChildren = node.children.length > 0;
+
+  return (
+    <div>
+      <div className="flex items-center" style={{ paddingLeft: `${depth * 10}px` }}>
+        {hasChildren ? (
+          <button
+            className="p-0.5 shrink-0 opacity-50 hover:opacity-100 transition-opacity"
+            style={{ color: 'var(--color-text)' }}
+            onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+            aria-label={expanded ? 'Collapse' : 'Expand'}
+          >
+            {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+          </button>
+        ) : (
+          <span className="w-4 shrink-0" />
+        )}
+        <button
+          onClick={() => onSave(node.category.id)}
+          className="flex-1 flex items-center gap-2 px-2 py-1.5 rounded-md text-xs hover:bg-[var(--color-bg-hover)] transition-colors text-left"
+          style={{ color: 'var(--color-text)' }}
+        >
+          <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: node.category.color || '#6366f1' }} />
+          <span className="truncate">{node.category.name}</span>
+        </button>
+      </div>
+      {expanded && node.children.map((child) => (
+        <FolderPickerNode key={child.category.id} node={child} depth={depth + 1} onSave={onSave} />
+      ))}
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
 
 export default function QuickActions({ onToast }: QuickActionsProps) {
   const { saveSession } = useSession();
   const { categories, saveCurrentTab } = useBookmarkFolderData();
   const { openPageFromMenu } = useSidePanelStore();
 
-  // Only show bookmark-type folders in the picker (not widget categories)
-  const folders = categories.filter((c) => (c.cardType === 'bookmark' || !c.cardType));
+  const folders = categories.filter((c) => c.cardType === 'bookmark' || !c.cardType);
+  const folderTree = buildTree(folders);
+
   const [saving, setSaving] = useState(false);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
-  // Close folder picker on outside click
   useEffect(() => {
     if (!showFolderPicker) return;
     const handler = (e: MouseEvent) => {
@@ -55,7 +115,7 @@ export default function QuickActions({ onToast }: QuickActionsProps) {
       openPageFromMenu('folders');
       return;
     }
-    setShowFolderPicker(!showFolderPicker);
+    setShowFolderPicker((v) => !v);
   };
 
   const handleSaveToFolder = async (folderId: string) => {
@@ -68,28 +128,22 @@ export default function QuickActions({ onToast }: QuickActionsProps) {
     }
   };
 
-  const handleCreatePrompt = () => {
-    openPageFromMenu('prompts');
-  };
-
   return (
     <div className="relative px-3 py-2 border-t border-[var(--color-border)]">
-      {/* Folder picker dropdown */}
+      {/* Hierarchical folder picker */}
       {showFolderPicker && (
         <div
           ref={pickerRef}
-          className="absolute bottom-full left-3 right-3 mb-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] shadow-lg max-h-48 overflow-y-auto z-50"
+          className="absolute bottom-full left-3 right-3 mb-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] shadow-lg max-h-56 overflow-y-auto z-50"
         >
           <div className="p-1">
-            {folders.map((folder) => (
-              <button
-                key={folder.id}
-                onClick={() => void handleSaveToFolder(folder.id)}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs hover:bg-[var(--color-bg-hover)] transition-colors text-left"
-              >
-                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: folder.color || '#6366f1' }} />
-                <span className="truncate" style={{ color: 'var(--color-text)' }}>{folder.name}</span>
-              </button>
+            {folderTree.map((node) => (
+              <FolderPickerNode
+                key={node.category.id}
+                node={node}
+                depth={0}
+                onSave={(id) => void handleSaveToFolder(id)}
+              />
             ))}
           </div>
         </div>
@@ -106,7 +160,7 @@ export default function QuickActions({ onToast }: QuickActionsProps) {
           ) : (
             <Save size={14} />
           )}
-          <span>Save</span>
+          <span>Save Session</span>
         </button>
 
         <button
@@ -115,16 +169,7 @@ export default function QuickActions({ onToast }: QuickActionsProps) {
           style={{ color: 'var(--color-text)' }}
         >
           <FolderPlus size={14} />
-          <span>Folder</span>
-        </button>
-
-        <button
-          onClick={handleCreatePrompt}
-          className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] transition-colors"
-          style={{ color: 'var(--color-text)' }}
-        >
-          <PenLine size={14} />
-          <span>Prompt</span>
+          <span>Save in Folder</span>
         </button>
       </div>
     </div>

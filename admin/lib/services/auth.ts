@@ -42,3 +42,20 @@ export async function requireAdmin(): Promise<User> {
   if (profile?.role !== 'admin') redirect('/login?error=forbidden')
   return user
 }
+
+/**
+ * Require an authenticated admin user for API routes. Returns null instead of redirecting.
+ */
+export async function requireAdminApi(): Promise<{ user: User; serviceSupabase: Awaited<ReturnType<typeof createServiceClient>> } | null> {
+  if (!isSupabaseConfigured()) {
+    const serviceSupabase = await createServiceClient()
+    return { user: MOCK_USER, serviceSupabase }
+  }
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const serviceSupabase = await createServiceClient()
+  const { data: profile } = await serviceSupabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') return null
+  return { user, serviceSupabase }
+}
