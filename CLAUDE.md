@@ -73,7 +73,7 @@ cd admin && npm run build               # Production build
 - `src/core/types/prompt.types.ts` — Prompt, PromptFolder, PromptCategory, PromptTag, PromptSectionKey, PromptFilterOptions, PromptSortField
 - `src/core/supabase/client.ts` — Singleton Supabase client using `chrome.storage.local` as auth storage adapter
 - `src/core/services/sync-auth.service.ts` — Supabase auth wrapper: `syncSignIn`, `syncSignOut`, `getSyncSession`, `getSyncUserId`, `isSyncAuthenticated`
-- `src/core/services/sync.service.ts` — Cloud sync orchestrator: `syncAll`, `pushSession`, `deleteRemoteSession`, `getSyncStatus`, `getUserQuota`; camelCase↔snake_case mappers; quota-aware (sessions/prompts/subs); status persisted to `cloud_sync_status` key
+- `src/core/services/sync.service.ts` — Cloud sync orchestrator: `syncAll`, `pushSession`, `deleteRemoteSession`, `getSyncStatus`, `getUserQuota`, `syncTabGroupTemplates`, `syncBookmarkFolders`; camelCase↔snake_case mappers; quota-aware (sessions/prompts/subs/tab-groups/bookmark-folders); status persisted to `cloud_sync_status` key; `SyncUsage` type tracks synced counts per entity
 - `src/core/types/subscription.types.ts` — Subscription, SubscriptionTemplate, BillingCycle, DueUrgency, SUPPORTED_CURRENCIES, SUBSCRIPTION_TEMPLATES (22 presets)
 - `src/core/types/tab-group.types.ts` — TabGroupTemplate, TabGroupTemplateTab
 - `src/core/config/widget-config.ts` — Widget sizing configuration registry: `WidgetSizeConfig` interface, `WIDGET_CONFIG` (per-CardType min/max/default), `getDefaultSize()`, `clampSize()`
@@ -170,12 +170,19 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - Sync strategy: push-first "full snapshot" — reads ALL local data and upserts to Supabase on each cycle, up to quota limits
 - Triggers: 15-minute `chrome.alarms` alarm (`cloud-sync`) + fire-and-forget after each session save/update/delete
 - Alarm registered synchronously in `src/background/index.ts` (MV3 requirement — before any `await`)
-- Tables: `sessions`, `prompts`, `prompt_folders`, `tracked_subscriptions`; quota via `get_user_quota(p_user_id)` RPC (cached 5 min)
-- `SyncStatus` and `UserQuota` types in `src/core/services/sync.service.ts`
+- Tables: `sessions`, `prompts`, `prompt_folders`, `tracked_subscriptions`, `tab_group_templates`, `bookmark_folders`, `bookmark_entries`; two RPCs: `get_user_quota(p_user_id)` = plan limits (cached 5 min), `get_user_usage(p_user_id)` = current synced counts (used by web dashboard)
+- `SyncStatus`, `UserQuota` (includes `tab_groups_synced_limit`, `total_tabs_limit`), and `SyncUsage` (includes `tabGroups`, `tabs`, `folders`) types in `src/core/services/sync.service.ts`
 - Status persisted to `cloud_sync_status` key in `chrome.storage.local`
 - Sidepanel view: `'cloud-sync'` in `SidePanelView` union — Cloud icon button in Header
 - Test mocking: `vi.mock('@core/services/sync-auth.service', ...)` and `vi.mock('@core/services/sync.service', ...)` added to `event-listeners.test.ts` to prevent real API calls
-- Supabase migrations: `supabase/migrations/` contains 11 SQL files (001–011) covering auth/profiles, plans, user_plans, promo_codes, sessions, prompts, tracked_subscriptions, bookmark_folders, admin_tables, triggers, quota_functions
+- Supabase migrations: `supabase/migrations/` contains 16 SQL files (001–016):
+  - 001–008: auth/profiles, plans, user_plans, promo_codes, sessions, prompts, tracked_subscriptions, bookmark_folders
+  - 009–011: admin_tables, triggers, quota_functions (`get_user_quota`, `get_user_usage`, `can_add_tracked_subscription`, `get_admin_overview`)
+  - 012: `tab_group_templates` table with RLS
+  - 013: adds `total_tabs_limit` to plans; updates `get_user_quota`; adds `board_id`/`is_native`/`native_id` columns to bookmark tables
+  - 014: adds `synced_tabs` (unique-URL dedup across sessions + tab-group tabs + bookmark entries) to `get_user_usage`; adds `total_tab_groups` to `get_admin_overview`
+  - 015: adds `tab_groups_synced_limit` to plans; updates `get_user_quota`
+  - 016: adds `synced_tab_groups` count to `get_user_usage`
 
 ## Tab Groups Feature Notes
 
@@ -219,10 +226,11 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - **Sidebar**: shadcn `SidebarProvider` + `SidebarLockProvider` with 3 modes (expanded/collapsed/hover)
 - **Theme**: Cookie-based light/dark/system with FOUC prevention via inline `<script>`
 - **Auth**: Supabase SSR client, middleware redirects unauthenticated users to `/login`
-- **Pages**: Dashboard, Billing, Settings (Profile/Appearance/Security tabs), Support, Suggestions
-- **Auth pages**: Login (email/password + Google OAuth), Register (with password strength), Forgot Password, Verify Email
+- **Pages**: Dashboard (quota + usage stats via `get_user_quota` + `get_user_usage` RPCs), Billing (plan comparison + Checkout), Settings (Profile/Appearance/Security tabs), Support, Suggestions
+- **Auth pages**: Login (email/password + Google OAuth), Register (with password strength), Forgot Password, Reset Password, Verify Email
 - **API routes**: `api/auth/sign-in`, `api/auth/sign-up`, `api/auth/forgot-password`, `api/auth/google`, `api/auth/session`
 - **Auth callbacks**: `auth/callback` (OAuth), `auth/confirm` (email verification)
+- **Env vars**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SITE_URL` (required — used in auth redirect URLs)
 - **Design tokens**: CSS custom properties (`--dark`, `--dark-card`, `--dark-border`, `--dark-elevated`, `--dark-hover`)
 - **UI components**: 19 shadcn components in `web/components/ui/`
 
@@ -234,6 +242,7 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - **Sidebar**: Custom `AdminSidebar` with CSS transition-based collapse, 10 nav items
 - **Theme**: Same cookie-based system as web app
 - **Auth**: Admin role check via Supabase `profiles.role` column; uses service-role client (`createServiceClient`) for privileged queries
-- **Pages**: Overview, Users, Statistics, Promo Codes, Subscriptions, Webhooks, Tickets, Suggestions, Quotas, Emails
+- **Pages**: Overview (stats via `get_admin_overview` RPC — includes `total_tab_groups` since migration 014), Users, Statistics, Promo Codes, Subscriptions, Webhooks, Tickets, Suggestions, Quotas, Emails
 - **UI components**: 18 shadcn components in `admin/components/ui/`
 - **Metadata**: `robots: noindex, nofollow` (not indexed by search engines)
+- **Env vars**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (see `admin/.env.local.example`)

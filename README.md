@@ -46,10 +46,10 @@ The start-tab (`chrome_url_overrides.newtab`) provides:
 ## Companion Apps
 
 ### Web App (`web/`) — port 3000
-User-facing Next.js app with Dashboard (live quota/usage from Supabase), Billing (plan comparison, Stripe integration), Settings, Support tickets, and Feature suggestions. Shares the same Supabase project as the extension.
+User-facing Next.js app with Dashboard (synced-item counts and plan limits via `get_user_quota` + `get_user_usage` RPCs), Billing (plan comparison, Checkout), Settings, Support tickets, and Feature suggestions. Auth flows: Login (email/password + Google OAuth), Register, Forgot Password, Reset Password, Verify Email. Shares the same Supabase project as the extension. Requires `NEXT_PUBLIC_SITE_URL` env var for auth redirect URLs.
 
 ### Admin App (`admin/`) — port 3001
-Internal admin panel with Overview (user stats via `get_admin_overview` RPC), Users, Statistics, Promo Codes, Subscriptions, Webhooks, Tickets, Suggestions, Quotas, and Emails — all backed by real Supabase data via service-role client.
+Internal admin panel with Overview (user stats + `total_tab_groups` via `get_admin_overview` RPC), Users, Statistics, Promo Codes, Subscriptions, Webhooks, Tickets, Suggestions, Quotas, and Emails — all backed by real Supabase data via service-role client. See `admin/.env.local.example` for required env vars.
 
 ## Tech Stack
 
@@ -158,8 +158,16 @@ src/
     └── styles/              # Tailwind globals, theme variables, glassmorphism utilities
 
 supabase/
-└── migrations/              # 11 SQL migrations (auth, plans, sessions, prompts,
-                             # subscriptions, bookmarks, admin tables, triggers, quota RPCs)
+└── migrations/              # 16 SQL migrations (001–016):
+                             #   001–011: auth/profiles, plans, user_plans, promo_codes,
+                             #            sessions, prompts, tracked_subscriptions,
+                             #            bookmark_folders, admin_tables, triggers,
+                             #            quota_functions
+                             #   012: tab_group_templates table
+                             #   013: total_tabs_limit, bookmark board/native columns
+                             #   014: get_user_usage synced_tabs, get_admin_overview total_tab_groups
+                             #   015: tab_groups_synced_limit
+                             #   016: get_user_usage synced_tab_groups
 
 web/                         # Next.js 16 user web app (port 3000)
 admin/                       # Next.js 16 admin panel (port 3001)
@@ -197,14 +205,27 @@ npm run format
 
 ## Environment Variables
 
-Create a `.env` file in the project root (see `.env.example`):
-
+**Extension** — create `.env` at project root (see `.env.example`):
 ```
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
+Injected at build time by Vite. Omitting them disables cloud sync gracefully.
 
-These are injected at build time by Vite. Omitting them disables cloud sync gracefully (placeholder values are used so the module imports without throwing).
+**Web app** — create `web/.env.local` (see `web/.env.local.example` if present):
+```
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NEXT_PUBLIC_SITE_URL=https://your-domain.com
+```
+
+**Admin app** — create `admin/.env.local` (see `admin/.env.local.example`):
+```
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
 
 ## Keyboard Shortcuts
 
@@ -246,7 +267,7 @@ These are injected at build time by Vite. Omitting them disables cloud sync grac
 
 **Storage Layer** uses chrome.storage.local for settings/metadata and IndexedDB (`browser-hub` database, v2 with `isAutoSave` and `createdAt` indexes) for session data (large payloads). The start-tab feature uses a separate `newtab-db` IndexedDB database for bookmarks, quick links, to-do items, and wallpaper blobs — never touched by the background service worker. Subscriptions, tab group templates, and prompts are stored as flat keys in chrome.storage.local via the generic `ChromeLocalKeyAdapter<T>` class.
 
-**Cloud Sync** uses `@supabase/supabase-js` with a custom `chrome.storage.local` auth adapter (no cookies in extensions). Sessions, prompts, and subscriptions are pushed to Supabase on save and via a 15-minute alarm. Quota limits (Free/Pro/Max) are enforced using the `get_user_quota` RPC.
+**Cloud Sync** uses `@supabase/supabase-js` with a custom `chrome.storage.local` auth adapter (no cookies in extensions). Sessions, prompts, subscriptions, tab group templates, and bookmark folders are pushed to Supabase on save and via a 15-minute alarm. Quota limits (Free/Pro/Max) are enforced using the `get_user_quota` RPC (plan limits); the `get_user_usage` RPC returns current synced counts and is used by the web dashboard.
 
 **Message Protocol** — typed discriminated union messages (19 action types) between UI surfaces and service worker via `chrome.runtime.sendMessage`.
 
