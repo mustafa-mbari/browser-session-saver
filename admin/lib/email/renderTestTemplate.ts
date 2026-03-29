@@ -49,17 +49,17 @@ export function renderTestTemplate(template: string): { subject: string; html: s
       })
     case 'ticket_reply':
       return buildTicketReplyEmail({
-        displayName: 'Jane Doe',
+        userName:      'Jane Doe',
         ticketSubject: 'Extension not saving sessions',
-        replyMessage: 'Thanks for reaching out! We have identified the issue and it will be fixed in the next update.',
-        ticketUrl: 'https://browserhub.app/support',
+        message:       'Thanks for reaching out! We have identified the issue and it will be fixed in the next update.',
+        status:        'resolved',
       })
     case 'suggestion_reply':
       return buildSuggestionReplyEmail({
-        displayName: 'Jane Doe',
+        userName:        'Jane Doe',
         suggestionTitle: 'Add keyboard shortcut for quick save',
-        replyMessage: "Great suggestion! We've added this to our roadmap for an upcoming release.",
-        suggestionsUrl: 'https://browserhub.app/suggestions',
+        message:         "Great suggestion! We've added this to our roadmap for an upcoming release.",
+        status:          'under_review',
       })
     default:
       return { subject: 'Test Email', html: '<p>This is a test email from Browser Hub.</p>' }
