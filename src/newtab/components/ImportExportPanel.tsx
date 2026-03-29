@@ -1,8 +1,8 @@
-import { useState, useRef, useCallback } from 'react';
-import { Download, Upload, FileJson, FileText, FileSpreadsheet, FileCode, File } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { Download, Upload, FileJson, FileText, FileSpreadsheet, FileCode, File, Cloud, CloudDownload } from 'lucide-react';
 import { useSession } from '@shared/hooks/useSession';
 import { useMessaging } from '@shared/hooks/useMessaging';
-import type { ExportFormat } from '@core/types/messages.types';
+import type { ExportFormat, DashboardSyncResponse } from '@core/types/messages.types';
 import { PromptStorage } from '@core/storage/prompt-storage';
 
 const EXPORT_FORMATS: { key: ExportFormat; label: string; desc: string; icon: typeof FileJson }[] = [
@@ -36,6 +36,13 @@ export default function ImportExportPanel() {
   const [dashboardImportResult, setDashboardImportResult] = useState<string | null>(null);
   const [showDashboardWarning, setShowDashboardWarning] = useState(false);
   const dashboardFileRef = useRef<HTMLInputElement>(null);
+
+  // Cloud dashboard sync state
+  const [syncingDashboard, setSyncingDashboard] = useState(false);
+  const [pullingDashboard, setPullingDashboard] = useState(false);
+  const [cloudSyncResult, setCloudSyncResult] = useState<string | null>(null);
+  const [cloudSyncQuota, setCloudSyncQuota] = useState<{ used: number; limit: number } | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const handleExport = async () => {
     const response = await sendMessage<string>({
@@ -92,6 +99,81 @@ export default function ImportExportPanel() {
       // Silent fail
     }
     setExportingDashboard(false);
+  };
+
+  useEffect(() => {
+    void (async () => {
+      const res = await sendMessage<{ isAuthenticated: boolean; quota: { dashboard_syncs_limit: number | null } | null; usage: { dashboardSyncsThisMonth?: number } | null }>({
+        action: 'SYNC_GET_STATUS',
+        payload: {},
+      });
+      if (res.success && res.data) {
+        setIsAuthenticated(res.data.isAuthenticated);
+        const limit = res.data.quota?.dashboard_syncs_limit ?? 0;
+        // usage comes from get_user_usage which is fetched in the web dashboard,
+        // not directly from the extension status. We start with used=0 and update after sync.
+        setCloudSyncQuota((prev) => prev ?? (res.data!.isAuthenticated ? { used: 0, limit } : null));
+      }
+    })();
+  }, [sendMessage]);
+
+  const handleSyncDashboardToCloud = async () => {
+    setSyncingDashboard(true);
+    setCloudSyncResult(null);
+    try {
+      const { exportDashboardAsJSON } = await import('@core/services/newtab-export.service');
+      const config = await exportDashboardAsJSON();
+      const res = await sendMessage<DashboardSyncResponse>({
+        action: 'SYNC_DASHBOARD',
+        payload: { config },
+      });
+      if (res.success && res.data) {
+        const d = res.data;
+        setCloudSyncQuota({ used: d.syncsUsedThisMonth, limit: d.syncsLimit });
+        setCloudSyncResult(`Dashboard synced to cloud. (${d.syncsUsedThisMonth}/${d.syncsLimit} syncs used this month)`);
+      } else {
+        setCloudSyncResult(res.data?.error ?? res.error ?? 'Sync failed');
+      }
+    } catch {
+      setCloudSyncResult('Failed to sync dashboard');
+    }
+    setSyncingDashboard(false);
+  };
+
+  const handlePullDashboardFromCloud = async () => {
+    setPullingDashboard(true);
+    setCloudSyncResult(null);
+    try {
+      const res = await sendMessage<DashboardSyncResponse>({
+        action: 'PULL_DASHBOARD',
+        payload: {},
+      });
+      if (res.success && res.data?.config) {
+        const { importDashboardFromJSON } = await import('@core/services/newtab-export.service');
+        const result = await importDashboardFromJSON(res.data.config);
+        if (result.success && result.counts) {
+          const { boards, categories, entries, todoItems } = result.counts;
+          setCloudSyncResult(
+            `Restored from cloud: ${boards} board${boards !== 1 ? 's' : ''}, ` +
+            `${categories} widget${categories !== 1 ? 's' : ''}, ` +
+            `${entries} bookmark${entries !== 1 ? 's' : ''}, ` +
+            `${todoItems} todo item${todoItems !== 1 ? 's' : ''}. Reloading…`,
+          );
+          await Promise.all([
+            PromptStorage.seedAppFolders(),
+            PromptStorage.seedDemoData(),
+          ]);
+          setTimeout(() => window.location.reload(), 1500);
+        } else {
+          setCloudSyncResult(result.error ?? 'Import failed');
+        }
+      } else {
+        setCloudSyncResult(res.data?.error ?? res.error ?? 'No cloud backup found');
+      }
+    } catch {
+      setCloudSyncResult('Failed to restore dashboard');
+    }
+    setPullingDashboard(false);
   };
 
   const processDashboardFile = useCallback(async (file: File) => {
@@ -326,6 +408,74 @@ export default function ImportExportPanel() {
               {dashboardImportResult}
             </div>
           )}
+
+          {/* ── Cloud Sync ── */}
+          <div className="border-t border-white/10 pt-4 flex flex-col gap-3">
+            <h4 className="text-xs font-semibold flex items-center gap-1.5" style={{ color: 'var(--newtab-text)' }}>
+              <Cloud size={13} className="opacity-70" />
+              Cloud Sync
+            </h4>
+
+            {!isAuthenticated ? (
+              <p className="text-xs" style={{ color: 'var(--newtab-text-secondary)' }}>
+                Sign in to Cloud Sync to back up and restore your dashboard.
+              </p>
+            ) : cloudSyncQuota?.limit === 0 ? (
+              <p className="text-xs" style={{ color: 'var(--newtab-text-secondary)' }}>
+                Dashboard sync requires a Pro or Max plan.
+              </p>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { void handleSyncDashboardToCloud(); }}
+                    disabled={syncingDashboard || (cloudSyncQuota != null && cloudSyncQuota.used >= cloudSyncQuota.limit)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/20 disabled:opacity-40"
+                    style={{ background: 'rgba(255,255,255,0.12)', color: 'var(--newtab-text)' }}
+                  >
+                    {syncingDashboard ? (
+                      <span className="h-3 w-3 border border-current border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Cloud size={12} />
+                    )}
+                    Sync to Cloud
+                  </button>
+                  <button
+                    onClick={() => { void handlePullDashboardFromCloud(); }}
+                    disabled={pullingDashboard}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/20 disabled:opacity-40"
+                    style={{ background: 'rgba(255,255,255,0.12)', color: 'var(--newtab-text)' }}
+                  >
+                    {pullingDashboard ? (
+                      <span className="h-3 w-3 border border-current border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <CloudDownload size={12} />
+                    )}
+                    Restore from Cloud
+                  </button>
+                </div>
+
+                {cloudSyncQuota && (
+                  <p className="text-[11px]" style={{ color: 'var(--newtab-text-secondary)' }}>
+                    {cloudSyncQuota.used}/{cloudSyncQuota.limit} syncs used this month
+                    {cloudSyncQuota.used >= cloudSyncQuota.limit && ' — limit reached, resets on the 1st'}
+                  </p>
+                )}
+              </>
+            )}
+
+            {cloudSyncResult && (
+              <div
+                className="rounded-lg px-3 py-2 text-xs"
+                style={{
+                  background: cloudSyncResult.includes('synced') || cloudSyncResult.includes('Restored') ? 'rgba(52,200,89,0.15)' : 'rgba(255,69,58,0.15)',
+                  color: cloudSyncResult.includes('synced') || cloudSyncResult.includes('Restored') ? '#34c859' : '#ff453a',
+                }}
+              >
+                {cloudSyncResult}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

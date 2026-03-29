@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Layers, Sparkles, FolderOpen, CreditCard, Crown, Zap, Globe, Link2, LayoutGrid } from 'lucide-react'
+import { Layers, Sparkles, FolderOpen, CreditCard, Crown, Zap, Globe, Link2, LayoutGrid, CheckSquare, LayoutDashboard } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/services/auth'
 
@@ -81,6 +81,22 @@ export default async function DashboardPage() {
       iconBg: 'bg-teal-100 dark:bg-teal-900/30',
       iconColor: 'text-teal-600 dark:text-teal-400',
     },
+    {
+      label: 'Synced Todos',
+      value: usage?.synced_todos?.toString() ?? '0',
+      limit: quota?.todos_synced_limit,
+      icon: CheckSquare,
+      iconBg: 'bg-orange-100 dark:bg-orange-900/30',
+      iconColor: 'text-orange-600 dark:text-orange-400',
+    },
+    {
+      label: 'Dashboard Syncs',
+      value: usage?.dashboard_syncs_this_month?.toString() ?? '0',
+      limit: quota?.dashboard_syncs_limit,
+      icon: LayoutDashboard,
+      iconBg: 'bg-rose-100 dark:bg-rose-900/30',
+      iconColor: 'text-rose-600 dark:text-rose-400',
+    },
   ]
 
   return (
@@ -95,7 +111,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Usage Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
         {stats.map(stat => {
           const pct = stat.limit != null && Number(stat.value) > 0
             ? Math.min(100, Math.round((Number(stat.value) / stat.limit) * 100))

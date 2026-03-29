@@ -22,6 +22,8 @@ type Plan = {
   subs_synced_limit: number | null
   subs_initial_grant: number | null
   subs_monthly_add: number | null
+  todos_synced_limit: number | null
+  dashboard_syncs_limit: number | null
 }
 
 const QUOTA_FIELDS: { key: keyof Plan; label: string; type: 'number' | 'boolean' | 'price' }[] = [
@@ -39,6 +41,8 @@ const QUOTA_FIELDS: { key: keyof Plan; label: string; type: 'number' | 'boolean'
   { key: 'subs_synced_limit',       label: 'Subscriptions synced limit', type: 'number' },
   { key: 'subs_initial_grant',      label: 'Subs initial grant (Free)', type: 'number' },
   { key: 'subs_monthly_add',        label: 'Subs monthly add (Free)',   type: 'number' },
+  { key: 'todos_synced_limit',      label: 'Todos synced limit',        type: 'number' },
+  { key: 'dashboard_syncs_limit',   label: 'Dashboard syncs/month',     type: 'number' },
 ]
 
 async function getPlans() {

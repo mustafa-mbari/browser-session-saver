@@ -1,4 +1,4 @@
-import type { Message, MessageResponse, SessionDiffResponse, SaveSessionResponse, GetSessionsResponse, SyncSignInResponse } from '@core/types/messages.types';
+import type { Message, MessageResponse, SessionDiffResponse, SaveSessionResponse, GetSessionsResponse, SyncSignInResponse, DashboardSyncResponse } from '@core/types/messages.types';
 import type { Session } from '@core/types/session.types';
 import type { Settings } from '@core/types/settings.types';
 import { STORAGE_KEYS } from '@core/types/storage.types';
@@ -13,7 +13,7 @@ import { generateId } from '@core/utils/uuid';
 import { isValidUrl, isValidSession } from '@core/utils/validators';
 import { MAX_IMPORT_SIZE_BYTES } from '@core/constants/limits';
 import { syncSignIn, syncSignOut, getSyncUserId } from '@core/services/sync-auth.service';
-import { syncAll, getSyncStatus, pushSession, deleteRemoteSession } from '@core/services/sync.service';
+import { syncAll, getSyncStatus, pushSession, deleteRemoteSession, syncDashboard, pullDashboard } from '@core/services/sync.service';
 
 export function registerEventListeners(): void {
   chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
@@ -70,6 +70,10 @@ async function handleMessage(message: Message): Promise<MessageResponse> {
       return handleSyncSignOut();
     case 'SYNC_NOW':
       return handleSyncNow();
+    case 'SYNC_DASHBOARD':
+      return handleSyncDashboard(message.payload);
+    case 'PULL_DASHBOARD':
+      return handlePullDashboard();
     default:
       return { success: false, error: 'Unknown action' };
   }
@@ -597,6 +601,24 @@ async function handleSyncNow(): Promise<MessageResponse> {
     return { success: true, data: status };
   }
   return { success: false, error: result.error };
+}
+
+async function handleSyncDashboard(payload: { config: string }): Promise<MessageResponse<DashboardSyncResponse>> {
+  const userId = await getSyncUserId();
+  if (!userId) {
+    return { success: false, error: 'Not authenticated', data: { success: false, syncsUsedThisMonth: 0, syncsLimit: 0, error: 'Not authenticated' } };
+  }
+  const result = await syncDashboard(payload.config, userId);
+  return { success: result.success, data: result, error: result.error };
+}
+
+async function handlePullDashboard(): Promise<MessageResponse<DashboardSyncResponse>> {
+  const userId = await getSyncUserId();
+  if (!userId) {
+    return { success: false, error: 'Not authenticated', data: { success: false, syncsUsedThisMonth: 0, syncsLimit: 0, error: 'Not authenticated' } };
+  }
+  const result = await pullDashboard(userId);
+  return { success: result.success, data: result, error: result.error };
 }
 
 /**

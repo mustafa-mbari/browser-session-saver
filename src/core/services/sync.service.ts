@@ -21,7 +21,7 @@ import { NewTabDB } from '@core/storage/newtab-storage';
 import type { Session } from '@core/types/session.types';
 import type { Prompt, PromptFolder } from '@core/types/prompt.types';
 import type { Subscription } from '@core/types/subscription.types';
-import type { BookmarkCategory, BookmarkEntry } from '@core/types/newtab.types';
+import type { BookmarkCategory, BookmarkEntry, TodoList, TodoItem } from '@core/types/newtab.types';
 import type { TabGroupTemplate } from '@core/types/tab-group.types';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -38,6 +38,8 @@ export interface UserQuota {
   subs_synced_limit: number | null;
   total_tabs_limit: number | null;
   tab_groups_synced_limit: number | null;
+  todos_synced_limit: number | null;
+  dashboard_syncs_limit: number | null;
   sync_enabled: boolean;
 }
 
@@ -48,6 +50,15 @@ export interface SyncUsage {
   tabs: number;      // unique non-excluded URLs synced this cycle
   folders: number;   // bookmark folder categories synced
   tabGroups: number; // tab group templates synced
+  todos: number;     // todo items synced
+}
+
+export interface DashboardSyncResult {
+  success: boolean;
+  syncsUsedThisMonth: number;
+  syncsLimit: number;
+  config?: string;
+  error?: string;
 }
 
 export interface SyncStatus {
@@ -122,7 +133,7 @@ export async function getSyncStatus(): Promise<SyncStatus> {
  * Safe to call concurrently — concurrent calls are no-ops if already syncing.
  */
 export async function syncAll(): Promise<SyncResult> {
-  const _emptyUsage: SyncUsage = { sessions: 0, prompts: 0, subs: 0, tabs: 0, folders: 0, tabGroups: 0 };
+  const _emptyUsage: SyncUsage = { sessions: 0, prompts: 0, subs: 0, tabs: 0, folders: 0, tabGroups: 0, todos: 0 };
 
   if (_isSyncing) {
     return { success: false, synced: _emptyUsage, error: 'Sync already in progress' };
@@ -136,7 +147,7 @@ export async function syncAll(): Promise<SyncResult> {
   _isSyncing = true;
   await persistStatus({ isSyncing: true, error: null });
 
-  const synced: SyncUsage = { sessions: 0, prompts: 0, subs: 0, tabs: 0, folders: 0, tabGroups: 0 };
+  const synced: SyncUsage = { sessions: 0, prompts: 0, subs: 0, tabs: 0, folders: 0, tabGroups: 0, todos: 0 };
 
   try {
     const quota = await getUserQuota(userId);
@@ -164,13 +175,14 @@ export async function syncAll(): Promise<SyncResult> {
       synced.tabs = uniqueUrls.size;
     }
 
-    // Push in parallel — all six targets are independent
-    const [sessionCount, promptCount, subCount, folderCount, tabGroupCount] = await Promise.all([
+    // Push in parallel — all targets are independent
+    const [sessionCount, promptCount, subCount, folderCount, tabGroupCount, todoCount] = await Promise.all([
       syncSessions(userId, quota, allSessions),
       syncPrompts(userId, quota),
       syncSubscriptions(userId, quota),
       syncBookmarkFolders(userId, quota, allBmEntries),
       syncTabGroupTemplates(userId, allTemplates, quota),
+      syncTodos(userId, quota),
     ]);
 
     synced.sessions  = sessionCount;
@@ -178,6 +190,7 @@ export async function syncAll(): Promise<SyncResult> {
     synced.subs      = subCount;
     synced.folders   = folderCount;
     synced.tabGroups = tabGroupCount;
+    synced.todos     = todoCount;
 
     const now = new Date().toISOString();
     await persistStatus({ lastSyncAt: now, isSyncing: false, usage: synced, error: null });
@@ -221,6 +234,70 @@ export async function deleteRemoteSession(sessionId: string): Promise<void> {
 }
 
 /**
+ * Push the dashboard config JSON snapshot to Supabase.
+ * Enforces the user's monthly `dashboard_syncs_limit` via the
+ * `sync_dashboard_config` SQL RPC (atomic check + upsert + log).
+ */
+export async function syncDashboard(config: string, userId: string): Promise<DashboardSyncResult> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(config);
+  } catch {
+    return { success: false, syncsUsedThisMonth: 0, syncsLimit: 0, error: 'Invalid dashboard JSON' };
+  }
+
+  const { data, error } = await supabase.rpc('sync_dashboard_config', {
+    p_user_id: userId,
+    p_config: parsed,
+  });
+
+  // RPC returns a single-row table
+  const row = Array.isArray(data) ? data[0] : data;
+  if (error || !row) {
+    return {
+      success: false,
+      syncsUsedThisMonth: 0,
+      syncsLimit: 0,
+      error: error?.message ?? 'Dashboard sync failed',
+    };
+  }
+
+  return {
+    success: row.success as boolean,
+    syncsUsedThisMonth: row.syncs_used as number,
+    syncsLimit: row.syncs_limit as number,
+    error: row.error ?? undefined,
+  };
+}
+
+/**
+ * Fetch the latest dashboard config snapshot from Supabase.
+ */
+export async function pullDashboard(userId: string): Promise<DashboardSyncResult> {
+  const { data, error } = await supabase
+    .from('dashboard_configs')
+    .select('config')
+    .eq('user_id', userId)
+    .single();
+
+  if (error || !data) {
+    return {
+      success: false,
+      syncsUsedThisMonth: 0,
+      syncsLimit: 0,
+      error: error?.code === 'PGRST116' ? 'No dashboard backup found in the cloud.' : (error?.message ?? 'Failed to fetch dashboard'),
+    };
+  }
+
+  return {
+    success: true,
+    syncsUsedThisMonth: 0,
+    syncsLimit: 0,
+    config: JSON.stringify(data.config),
+  };
+}
+
+/**
  * Fetch the user's **plan limits** (what they are allowed to store).
  * Calls the `get_user_quota(p_user_id)` Supabase RPC.
  * Results are cached for 5 minutes to avoid repeated round trips per sync cycle.
@@ -252,6 +329,8 @@ export async function getUserQuota(userId: string): Promise<UserQuota> {
       subs_synced_limit: null,
       total_tabs_limit: 0,
       tab_groups_synced_limit: 0,
+      todos_synced_limit: 0,
+      dashboard_syncs_limit: 0,
       sync_enabled: false,
     };
   }
@@ -455,6 +534,60 @@ async function syncBookmarkFolders(
   return toSyncFolders.length;
 }
 
+async function syncTodos(userId: string, quota: UserQuota): Promise<number> {
+  const limit = quota.todos_synced_limit ?? Infinity;
+  if (limit === 0) return 0;
+
+  const db = new NewTabDB();
+  const [allLists, allItems] = await Promise.all([
+    db.getAll<TodoList>('todoLists'),
+    db.getAll<TodoItem>('todoItems'),
+  ]);
+
+  if (allLists.length === 0 && allItems.length === 0) return 0;
+
+  // Sync all lists first (FK parent for items)
+  if (allLists.length > 0) {
+    const listRows = allLists.map((l) => todoListToRow(l, userId));
+    const { error } = await supabase.from('todo_lists').upsert(listRows, { onConflict: 'id,user_id' });
+    if (error) throw new Error(`Todo lists sync failed: ${error.message}`);
+  }
+
+  // Take most-recently-created items up to quota
+  const toSync = topByCreatedAt(allItems, limit === Infinity ? null : limit);
+
+  if (toSync.length > 0) {
+    const itemRows = toSync.map((i) => todoItemToRow(i, userId));
+    const { error } = await supabase.from('todo_items').upsert(itemRows, { onConflict: 'id,user_id' });
+    if (error) throw new Error(`Todo items sync failed: ${error.message}`);
+  }
+
+  // Reconcile: remove remote items/lists no longer present locally
+  const localItemIds = allItems.map((i) => i.id);
+  if (localItemIds.length > 0) {
+    await supabase
+      .from('todo_items')
+      .delete()
+      .eq('user_id', userId)
+      .not('id', 'in', `(${localItemIds.join(',')})`);
+  } else {
+    await supabase.from('todo_items').delete().eq('user_id', userId);
+  }
+
+  const localListIds = allLists.map((l) => l.id);
+  if (localListIds.length > 0) {
+    await supabase
+      .from('todo_lists')
+      .delete()
+      .eq('user_id', userId)
+      .not('id', 'in', `(${localListIds.join(',')})`);
+  } else {
+    await supabase.from('todo_lists').delete().eq('user_id', userId);
+  }
+
+  return toSync.length;
+}
+
 async function syncTabGroupTemplates(userId: string, allTemplates: TabGroupTemplate[], quota: UserQuota): Promise<number> {
   const limit = quota.tab_groups_synced_limit ?? Infinity;
 
@@ -570,6 +703,32 @@ function subscriptionToRow(s: Subscription, userId: string): Record<string, unkn
     notes: s.notes ?? null,
     tags: s.tags ?? [],
     created_at: s.createdAt,
+  };
+}
+
+function todoListToRow(l: TodoList, userId: string): Record<string, unknown> {
+  return {
+    id: l.id,
+    user_id: userId,
+    name: l.name,
+    icon: l.icon ?? null,
+    position: l.position,
+    created_at: l.createdAt,
+  };
+}
+
+function todoItemToRow(i: TodoItem, userId: string): Record<string, unknown> {
+  return {
+    id: i.id,
+    user_id: userId,
+    list_id: i.listId,
+    text: i.text,
+    completed: i.completed,
+    priority: i.priority,
+    due_date: i.dueDate ?? null,
+    position: i.position,
+    created_at: i.createdAt,
+    completed_at: i.completedAt ?? null,
   };
 }
 

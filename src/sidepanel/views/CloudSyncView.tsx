@@ -262,6 +262,11 @@ export default function CloudSyncView() {
               limit={quota.total_tabs_limit}
             />
           )}
+          <QuotaBar
+            label="Todos synced"
+            used={usage?.todos ?? 0}
+            limit={quota.todos_synced_limit}
+          />
         </div>
       )}
 

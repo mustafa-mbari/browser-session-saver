@@ -40,7 +40,8 @@
       "Bash(ls -la /e/AntiGravity_Projects/browser-session-saver/browser-session-saver/web/app/\\\\\\(authenticated\\\\\\))",
       "Bash(xargs -I {} basename {})",
       "Bash(grep -r import.*from.*@supabase /e/AntiGravity_Projects/browser-session-saver/browser-session-saver/web --include=*.ts --include=*.tsx)",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")"
     ],
     "additionalDirectories": [
       "E:\\Work-Timer\\web\\components\\ui",

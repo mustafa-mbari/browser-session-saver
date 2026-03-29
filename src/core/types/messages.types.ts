@@ -52,7 +52,9 @@ export type Message =
   | { action: 'SYNC_GET_STATUS'; payload: Record<string, never> }
   | { action: 'SYNC_SIGN_IN'; payload: { email: string; password: string } }
   | { action: 'SYNC_SIGN_OUT'; payload: Record<string, never> }
-  | { action: 'SYNC_NOW'; payload: Record<string, never> };
+  | { action: 'SYNC_NOW'; payload: Record<string, never> }
+  | { action: 'SYNC_DASHBOARD'; payload: { config: string } }
+  | { action: 'PULL_DASHBOARD'; payload: Record<string, never> };
 
 export interface MessageResponse<T = unknown> {
   success: boolean;
@@ -87,5 +89,13 @@ export interface SaveSessionResponse {
 export interface SyncSignInResponse {
   success: boolean;
   email?: string;
+  error?: string;
+}
+
+export interface DashboardSyncResponse {
+  success: boolean;
+  syncsUsedThisMonth: number;
+  syncsLimit: number;
+  config?: string;
   error?: string;
 }
