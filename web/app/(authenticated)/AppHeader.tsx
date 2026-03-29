@@ -42,7 +42,7 @@ export default function AppHeader({ userInfo }: Props) {
           </button>
         )}
         <Image
-          src="/icons/browser-hub_logo.png"
+          src="/icons/icon-128.png"
           alt="Browser Hub"
           width={28}
           height={28}

@@ -1,4 +1,4 @@
-import type { Session, Tab, AutoSaveTrigger } from './session.types';
+import type { Session, Tab } from './session.types';
 import type { Settings } from './settings.types';
 
 export type ExportFormat = 'json' | 'html' | 'markdown' | 'csv' | 'text';
@@ -64,7 +64,6 @@ export interface MessageResponse<T = unknown> {
 export interface AutoSaveStatusResponse {
   isActive: boolean;
   lastAutoSave: string | null;
-  lastTrigger: AutoSaveTrigger | null;
 }
 
 export interface CurrentTabsResponse {
@@ -79,6 +78,7 @@ export interface SessionDiffResponse {
   unchanged: Tab[];
 }
 
+/** `session` is `Session[]` when `allWindows=true` was passed to SAVE_SESSION; `Session` otherwise. */
 export interface SaveSessionResponse {
   session: Session | Session[];
   isDuplicate: boolean;

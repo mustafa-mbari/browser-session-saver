@@ -4,7 +4,7 @@ import { useAutoSave } from '@shared/hooks/useAutoSave';
 
 const successResponse = {
   success: true,
-  data: { isActive: true, lastAutoSave: '2026-01-01T00:00:00.000Z', lastTrigger: 'timer' },
+  data: { isActive: true, lastAutoSave: '2026-01-01T00:00:00.000Z' },
 };
 
 describe('useAutoSave', () => {
@@ -24,7 +24,6 @@ describe('useAutoSave', () => {
 
     expect(result.current.isActive).toBe(false);
     expect(result.current.lastAutoSave).toBeNull();
-    expect(result.current.lastTrigger).toBeNull();
   });
 
   it('updates status after initial fetch resolves', async () => {
@@ -38,7 +37,6 @@ describe('useAutoSave', () => {
     });
 
     expect(result.current.isActive).toBe(true);
-    expect(result.current.lastTrigger).toBe('timer');
   });
 
   it('sends AUTO_SAVE_STATUS message on mount', async () => {

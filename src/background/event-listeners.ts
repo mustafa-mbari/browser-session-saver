@@ -11,6 +11,7 @@ import { exportAsJSON, exportAsHTML, exportAsMarkdown, exportAsCSV, exportAsText
 import { importFromJSON, importFromHTML, importFromURLList } from '@core/services/import.service';
 import { generateId } from '@core/utils/uuid';
 import { isValidUrl, isValidSession } from '@core/utils/validators';
+import { MAX_IMPORT_SIZE_BYTES } from '@core/constants/limits';
 import { syncSignIn, syncSignOut, getSyncUserId } from '@core/services/sync-auth.service';
 import { syncAll, getSyncStatus, pushSession, deleteRemoteSession } from '@core/services/sync.service';
 
@@ -289,7 +290,6 @@ async function handleAutoSaveStatus(): Promise<MessageResponse> {
     data: {
       isActive: settings.enableAutoSave,
       lastAutoSave: metadata?.lastAutoSave ?? null,
-      lastTrigger: null,
     },
   };
 }
@@ -344,7 +344,7 @@ async function handleImportSessions(payload: {
   data: string;
   source: string;
 }): Promise<MessageResponse> {
-  if (payload.data.length > 5_242_880) {
+  if (payload.data.length > MAX_IMPORT_SIZE_BYTES) {
     return { success: false, error: 'Import data too large (max 5 MB)' };
   }
 
@@ -362,12 +362,18 @@ async function handleImportSessions(payload: {
       break;
   }
 
+  const validSessions = result.sessions.filter(isValidSession);
+  const invalidCount = result.sessions.length - validSessions.length;
+  if (invalidCount > 0) {
+    result.errors.push(`${invalidCount} session(s) failed schema validation and were skipped`);
+  }
+
   const storage = getSessionStorage();
-  await Promise.all(result.sessions.map(s => storage.set(s.id, s)));
+  await Promise.all(validSessions.map(s => storage.set(s.id, s)));
 
   return {
-    success: result.sessions.length > 0,
-    data: { imported: result.sessions.length, errors: result.errors },
+    success: validSessions.length > 0,
+    data: { imported: validSessions.length, errors: result.errors },
     error: result.errors.length > 0 ? result.errors.join('; ') : undefined,
   };
 }
@@ -560,7 +566,8 @@ async function handleShowDownload(payload: { downloadId: number }): Promise<Mess
 
 async function getCurrentWindowId(): Promise<number> {
   const window = await chrome.windows.getCurrent();
-  return window.id!;
+  if (!window.id) throw new Error('Could not determine current window ID');
+  return window.id;
 }
 
 // ─── Cloud Sync handlers ─────────────────────────────────────────────────────
@@ -594,14 +601,23 @@ async function handleSyncNow(): Promise<MessageResponse> {
 
 /**
  * Fire-and-forget helper: push a single session to Supabase after a local mutation.
- * Does NOT block the caller — failures are swallowed (user is never interrupted).
+ * Does NOT block the caller. On failure, writes the error to the persisted sync
+ * status so CloudSyncView can surface it next time the user opens the panel.
  */
 async function syncAfterMutation(session: Session): Promise<void> {
   try {
     const userId = await getSyncUserId();
     if (!userId) return;
     await pushSession(session, userId);
-  } catch {
-    // Intentional no-op — sync errors are silent for mutations
+  } catch (err) {
+    try {
+      const stored = await chrome.storage.local.get('cloud_sync_status');
+      const current = (stored['cloud_sync_status'] as Record<string, unknown>) ?? {};
+      await chrome.storage.local.set({
+        cloud_sync_status: { ...current, error: `Background sync failed: ${String(err)}` },
+      });
+    } catch {
+      // Best-effort — don't crash the service worker over a status write
+    }
   }
 }

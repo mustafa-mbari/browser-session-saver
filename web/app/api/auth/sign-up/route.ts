@@ -22,12 +22,17 @@ export async function POST(request: Request) {
     }
   )
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  if (!process.env.NEXT_PUBLIC_SITE_URL && process.env.NODE_ENV === 'production') {
+    console.error('[sign-up] NEXT_PUBLIC_SITE_URL is not set — auth redirect will break in production')
+  }
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { display_name: displayName },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/auth/confirm`,
+      emailRedirectTo: `${siteUrl}/auth/confirm`,
     },
   })
 

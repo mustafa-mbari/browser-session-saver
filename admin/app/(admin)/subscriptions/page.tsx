@@ -49,7 +49,7 @@ async function getSubscriptions(planFilter?: string) {
 
   const all = allRes.data ?? []
   return {
-    rows: (rowsRes.data ?? []) as unknown as UserPlanRow[],
+    rows: (rowsRes.data as UserPlanRow[] | null) ?? [],
     counts: {
       total: all.length,
       free:  all.filter(r => r.plan_id === 'free').length,

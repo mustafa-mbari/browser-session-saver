@@ -7,7 +7,6 @@ export function useAutoSave() {
   const [status, setStatus] = useState<AutoSaveStatusResponse>({
     isActive: false,
     lastAutoSave: null,
-    lastTrigger: null,
   });
 
   useEffect(() => {

@@ -221,7 +221,13 @@ export async function deleteRemoteSession(sessionId: string): Promise<void> {
 }
 
 /**
- * Fetch the user's plan quota. Results are cached for 5 minutes.
+ * Fetch the user's **plan limits** (what they are allowed to store).
+ * Calls the `get_user_quota(p_user_id)` Supabase RPC.
+ * Results are cached for 5 minutes to avoid repeated round trips per sync cycle.
+ *
+ * Distinct from `get_user_usage` (the current synced counts, used by the web dashboard).
+ * `prompts_access_limit` is intentionally not enforced here — read access to prompts
+ * happens locally and is not gated by a network check.
  */
 export async function getUserQuota(userId: string): Promise<UserQuota> {
   const now = Date.now();
@@ -255,15 +261,31 @@ export async function getUserQuota(userId: string): Promise<UserQuota> {
   return quota;
 }
 
+// ─── Internal utilities ──────────────────────────────────────────────────────
+
+/** Sort items by `updatedAt` descending and take at most `limit` items. */
+function topByUpdatedAt<T extends { updatedAt: string }>(items: T[], limit: number | null): T[] {
+  const sorted = [...items].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  );
+  return limit != null ? sorted.slice(0, limit) : sorted;
+}
+
+/** Sort items by `createdAt` descending and take at most `limit` items. */
+function topByCreatedAt<T extends { createdAt: string }>(items: T[], limit: number | null): T[] {
+  const sorted = [...items].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+  return limit != null ? sorted.slice(0, limit) : sorted;
+}
+
 // ─── Internal sync helpers ───────────────────────────────────────────────────
 
 async function syncSessions(userId: string, quota: UserQuota, allSessions: Session[]): Promise<number> {
   const limit = quota.sessions_synced_limit ?? Infinity;
 
   // Take the most recently updated sessions up to the quota limit
-  const toSync = allSessions
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, limit);
+  const toSync = topByUpdatedAt(allSessions, limit === Infinity ? null : limit);
 
   if (toSync.length === 0) return 0;
 
@@ -285,9 +307,7 @@ async function syncPrompts(userId: string, quota: UserQuota): Promise<number> {
 
   const localPrompts = allPrompts.filter((p) => p.source === 'local');
   const limit = quota.prompts_create_limit ?? Infinity;
-  const toSync = localPrompts
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, limit);
+  const toSync = topByUpdatedAt(localPrompts, limit === Infinity ? null : limit);
 
   // Sync local folders first (so FK constraints are satisfied)
   const localFolders = allFolders.filter((f) => f.source === 'local');
@@ -313,9 +333,7 @@ async function syncSubscriptions(userId: string, quota: UserQuota): Promise<numb
   if (allSubs.length === 0) return 0;
 
   const limit = quota.subs_synced_limit ?? Infinity;
-  const toSync = allSubs
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, limit);
+  const toSync = topByCreatedAt(allSubs, limit === Infinity ? null : limit);
 
   if (toSync.length === 0) return 0;
 
@@ -369,9 +387,7 @@ async function syncBookmarkFolders(
   const entryLimit  = quota.entries_per_folder_limit ?? Infinity;
 
   // Take most-recently-created folders up to quota
-  const toSyncFolders = categories
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, folderLimit);
+  const toSyncFolders = topByCreatedAt(categories, folderLimit === Infinity ? null : folderLimit);
 
   const folderIds = new Set(toSyncFolders.map((c) => c.id));
 
@@ -443,9 +459,7 @@ async function syncTabGroupTemplates(userId: string, allTemplates: TabGroupTempl
   const limit = quota.tab_groups_synced_limit ?? Infinity;
 
   // Take most-recently-updated templates up to quota limit
-  const toSync = allTemplates
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, limit);
+  const toSync = topByUpdatedAt(allTemplates, limit === Infinity ? null : limit);
 
   if (toSync.length === 0) {
     // Reconcile: if nothing to sync, remove all remote templates for this user

@@ -4,6 +4,25 @@ import { Crown, Zap, Check, X, Calendar, CreditCard, CheckCircle2, ArrowRight } 
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/services/auth'
 
+type Plan = {
+  id: string
+  name: string
+  price_monthly: number
+  sync_enabled: boolean
+  sessions_synced_limit: number | null
+  tabs_per_session_limit: number | null
+  total_tabs_limit: number | null
+  folders_synced_limit: number | null
+  tab_groups_synced_limit: number | null
+  entries_per_folder_limit: number | null
+  prompts_access_limit: number | null
+  prompts_create_limit: number | null
+  subs_synced_limit: number | null
+  notes_limit: number | null
+  todos_limit: number | null
+  [key: string]: string | number | boolean | null
+}
+
 async function getBillingData(userId: string) {
   const supabase = await createServiceClient()
   const [userPlanRes, plansRes] = await Promise.all([
@@ -16,7 +35,7 @@ async function getBillingData(userId: string) {
   ])
   return {
     userPlan: userPlanRes.data,
-    plans: plansRes.data ?? [],
+    plans: (plansRes.data ?? []) as Plan[],
   }
 }
 
@@ -164,8 +183,7 @@ export default async function BillingPage() {
                 <tr key={row.field} className={i % 2 === 0 ? 'bg-stone-50/60 dark:bg-[var(--dark-elevated)]/40' : ''}>
                   <td className="p-4 text-stone-600 dark:text-stone-400">{row.label}</td>
                   {plans.map(plan => {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const val = (plan as any)[row.field]
+                    const val = (plan as Plan)[row.field]
                     return (
                       <td key={plan.id} className="p-4 text-center font-medium text-stone-800 dark:text-stone-200">
                         {row.boolean

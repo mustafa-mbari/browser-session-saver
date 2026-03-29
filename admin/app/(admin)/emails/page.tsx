@@ -144,6 +144,19 @@ export default async function EmailsPage({
 
       {/* Send Tab */}
       {activeTab === 'Send' && (
+        <Card className="max-w-2xl border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/10 mb-4">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+              Email sending is not yet implemented
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+              This form logs intent to the <code>email_log</code> table but does <strong>not</strong> send a real email.
+              To enable actual sending, connect a transactional provider (Resend, SendGrid, etc.) in the server action.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+      {activeTab === 'Send' && (
         <Card className="max-w-2xl">
           <CardContent className="pt-6">
             <h2 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">Send Email</h2>

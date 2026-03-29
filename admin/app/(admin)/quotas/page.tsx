@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { createServiceClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 
 type Plan = {
   id: string
@@ -72,10 +73,17 @@ async function savePlan(formData: FormData) {
     revalidatePath('/quotas')
   } catch (err) {
     console.error('[savePlan]:', err)
+    redirect(`/quotas?error=${encodeURIComponent(String(err))}`)
   }
+  redirect('/quotas?saved=1')
 }
 
-export default async function QuotasPage() {
+export default async function QuotasPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string>>
+}) {
+  const params = await searchParams
   const plans = await getPlans()
 
   return (
@@ -84,6 +92,21 @@ export default async function QuotasPage() {
       <p className="text-sm text-stone-500 dark:text-stone-400 mb-6">
         Edit plan limits. Blank = unlimited. Changes apply immediately.
       </p>
+
+      {params.saved && (
+        <Card className="mb-4 border-emerald-200 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-900/10">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-sm text-emerald-700 dark:text-emerald-400">Plan limits saved successfully.</p>
+          </CardContent>
+        </Card>
+      )}
+      {params.error && (
+        <Card className="mb-4 border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-900/10">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-sm text-rose-700 dark:text-rose-400">Save failed: {params.error}</p>
+          </CardContent>
+        </Card>
+      )}
 
       {!process.env.NEXT_PUBLIC_SUPABASE_URL && (
         <Card className="mb-4 border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/10">

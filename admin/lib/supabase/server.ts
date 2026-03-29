@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import type { CookieOptions } from '@supabase/ssr'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 
@@ -13,11 +14,9 @@ export async function createClient() {
         getAll() {
           return cookieStore.getAll()
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setAll(cookiesToSet: any) {
+        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
           try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            cookiesToSet.forEach(({ name, value, options }: any) =>
+            cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
           } catch {

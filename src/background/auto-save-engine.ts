@@ -1,5 +1,6 @@
 import type { Settings } from '@core/types/settings.types';
 import type { AutoSaveTrigger, Tab, TabGroup } from '@core/types/session.types';
+import { TAB_CACHE_DEBOUNCE_MS } from '@core/constants/timings';
 import * as SessionService from '@core/services/session.service';
 import { captureTabGroups } from '@core/services/tab-group.service';
 import { setupAlarms, clearAlarms, onAlarm, updateAlarmInterval } from './alarms';
@@ -7,7 +8,7 @@ import { setupAlarms, clearAlarms, onAlarm, updateAlarmInterval } from './alarms
 let _isSaving = false;
 let _settings: Settings | null = null;
 let _initialized = false;
-let _pendingCriticalTrigger: AutoSaveTrigger | null = null;
+const _pendingCriticalTriggers = new Set<AutoSaveTrigger>();
 
 // Cache of tab state per window for window-close auto-save
 const windowTabCache = new Map<number, { tabs: Tab[]; tabGroups: TabGroup[] }>();
@@ -139,7 +140,7 @@ async function performAutoSave(trigger: AutoSaveTrigger): Promise<void> {
   // If already saving, queue critical triggers (shutdown, window_close) for retry
   if (_isSaving) {
     if (trigger === 'shutdown' || trigger === 'window_close') {
-      _pendingCriticalTrigger = trigger;
+      _pendingCriticalTriggers.add(trigger);
     }
     return;
   }
@@ -191,11 +192,13 @@ async function performAutoSave(trigger: AutoSaveTrigger): Promise<void> {
   } finally {
     _isSaving = false;
 
-    // Process queued critical trigger
-    if (_pendingCriticalTrigger) {
-      const pending = _pendingCriticalTrigger;
-      _pendingCriticalTrigger = null;
-      performAutoSave(pending);
+    // Process queued critical triggers (may have multiple if both shutdown + window_close fired)
+    if (_pendingCriticalTriggers.size > 0) {
+      const pending = [..._pendingCriticalTriggers];
+      _pendingCriticalTriggers.clear();
+      for (const t of pending) {
+        void performAutoSave(t);
+      }
     }
   }
 }
@@ -206,7 +209,7 @@ function debouncedUpdateTabCache(_tabId: number, _changeInfo: chrome.tabs.TabCha
   const windowId = tab.windowId;
   _tabCacheTimer = setTimeout(() => {
     if (windowId) updateTabCacheForWindow(windowId);
-  }, 5000);
+  }, TAB_CACHE_DEBOUNCE_MS);
 }
 
 async function updateTabCacheForWindow(windowId: number): Promise<void> {

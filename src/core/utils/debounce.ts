@@ -1,22 +1,20 @@
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function debounce<T extends (...args: any[]) => any>(
-  fn: T,
+export function debounce<A extends unknown[]>(
+  fn: (...args: A) => unknown,
   ms: number,
-): (...args: Parameters<T>) => void {
+): (...args: A) => void {
   let timeoutId: ReturnType<typeof setTimeout>;
-  return (...args: Parameters<T>) => {
+  return (...args: A) => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => fn(...args), ms);
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function throttle<T extends (...args: any[]) => any>(
-  fn: T,
+export function throttle<A extends unknown[]>(
+  fn: (...args: A) => unknown,
   ms: number,
-): (...args: Parameters<T>) => void {
+): (...args: A) => void {
   let lastCall = 0;
-  return (...args: Parameters<T>) => {
+  return (...args: A) => {
     const now = Date.now();
     if (now - lastCall >= ms) {
       lastCall = now;

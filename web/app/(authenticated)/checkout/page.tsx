@@ -8,6 +8,9 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { Crown, Zap, ArrowLeft, Check, Loader2 } from 'lucide-react'
 
+// NOTE: These feature strings must stay in sync with the actual quota values in
+// supabase/migrations/002_plans.sql and the billing page's QUOTA_ROWS table.
+// If plan limits change, update both places.
 const PLAN_INFO: Record<string, { label: string; price: string; icon: typeof Zap; color: string; features: string[] }> = {
   pro: {
     label: 'Pro',

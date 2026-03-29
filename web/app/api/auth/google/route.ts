@@ -21,15 +21,27 @@ export async function GET() {
     }
   )
 
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/auth/callback`,
-    },
-  })
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  if (!process.env.NEXT_PUBLIC_SITE_URL && process.env.NODE_ENV === 'production') {
+    console.error('[google-oauth] NEXT_PUBLIC_SITE_URL is not set — auth redirect will break in production')
+  }
 
-  if (error || !data.url) {
-    return NextResponse.redirect(new URL('/login?error=oauth_failed', process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'))
+  let data: { url: string | null } | undefined
+  let error: { message: string } | null = null
+  try {
+    const result = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${siteUrl}/auth/callback` },
+    })
+    data = result.data
+    error = result.error
+  } catch (err) {
+    console.error('[google-oauth] signInWithOAuth threw:', err)
+    return NextResponse.redirect(new URL('/login?error=oauth_failed', siteUrl))
+  }
+
+  if (error || !data?.url) {
+    return NextResponse.redirect(new URL('/login?error=oauth_failed', siteUrl))
   }
 
   return NextResponse.redirect(data.url)

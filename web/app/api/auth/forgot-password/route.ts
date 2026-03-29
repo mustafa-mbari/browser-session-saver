@@ -22,10 +22,15 @@ export async function POST(request: Request) {
     }
   )
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  if (!process.env.NEXT_PUBLIC_SITE_URL && process.env.NODE_ENV === 'production') {
+    console.error('[forgot-password] NEXT_PUBLIC_SITE_URL is not set — auth redirect will break in production')
+  }
+
   // Always return success (don't reveal if email exists)
   try {
     await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/auth/confirm?type=recovery`,
+      redirectTo: `${siteUrl}/auth/confirm?type=recovery`,
     })
   } catch (err) {
     console.error('Password reset error:', err)
