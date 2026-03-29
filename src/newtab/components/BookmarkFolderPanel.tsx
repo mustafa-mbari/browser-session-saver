@@ -670,15 +670,17 @@ function FolderDialog({
   );
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const confirm = () => {
+  const confirm = async () => {
     if (!state) return;
     if (state.type === 'new-folder' && name.trim()) onCreate(state.boardId, name.trim(), state.parentId);
     else if (state.type === 'rename-folder' && name.trim()) onRename(state.folder.id, name.trim());
     else if (state.type === 'delete-folder') onDelete(state.folder.id);
     else if (state.type === 'add-entry' && url.trim()) onAddEntry(state.categoryId, name.trim(), url.trim(), category.trim() || undefined, description.trim() || undefined);
     else if (state.type === 'edit-entry') {
-      if (selectedCategoryId && selectedCategoryId !== state.entry.categoryId) onMoveEntry(state.entry.id, selectedCategoryId);
-      onEditEntry(state.entry.id, name.trim(), url.trim(), category.trim() || undefined, description.trim() || undefined);
+      if (selectedCategoryId && selectedCategoryId !== state.entry.categoryId) {
+        await onMoveEntry(state.entry.id, selectedCategoryId);
+      }
+      await onEditEntry(state.entry.id, name.trim(), url.trim(), category.trim() || undefined, description.trim() || undefined);
     }
     else if (state.type === 'delete-entry') onDeleteEntry(state.entry.id);
     onClose();
@@ -750,15 +752,15 @@ function FolderDialog({
             )}
             <div className="grid grid-cols-2 gap-3">
               <div><label className="block text-xs text-white/50 mb-1">Category</label><Input placeholder="e.g. Work, Dev" value={category} onChange={(e) => setCategory(e.target.value)} /></div>
-              <div><label className="block text-xs text-white/50 mb-1">Description</label><Input placeholder="Optional note…" value={description} onChange={(e) => setDescription(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') confirm(); }} /></div>
+              <div><label className="block text-xs text-white/50 mb-1">Description</label><Input placeholder="Optional note…" value={description} onChange={(e) => setDescription(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void confirm(); }} /></div>
             </div>
           </div>
         ) : isFolder ? (
-          <Input ref={inputRef} placeholder="Folder name" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') confirm(); }} />
+          <Input ref={inputRef} placeholder="Folder name" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void confirm(); }} />
         ) : null}
         <DialogFooter className="gap-2">
           <button className="px-3 py-1.5 rounded-md text-sm text-white/60 hover:bg-white/10 transition-colors" onClick={onClose}>Cancel</button>
-          <button className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${isDelete ? 'bg-red-500/80 hover:bg-red-500 text-white' : 'bg-white/15 hover:bg-white/25 text-white'}`} onClick={confirm}>
+          <button className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${isDelete ? 'bg-red-500/80 hover:bg-red-500 text-white' : 'bg-white/15 hover:bg-white/25 text-white'}`} onClick={() => void confirm()}>
             {isDelete ? 'Delete' : 'Confirm'}
           </button>
         </DialogFooter>

@@ -1,19 +1,19 @@
-const LOGO_URL      = process.env.SMTP_LOGO_URL      || ''
-const WEBSITE_URL   = process.env.NEXT_PUBLIC_SITE_URL || 'https://browserhub.app'
-const SUPPORT_EMAIL = process.env.SMTP_SUPPORT_EMAIL   || 'support@browserhub.app'
-
 function logoOrText(): string {
-  if (LOGO_URL) {
-    return `<a href="${WEBSITE_URL}" style="text-decoration: none;">
-              <img src="${LOGO_URL}" alt="Browser Hub" width="160" style="display: block; width: 160px; height: auto;">
+  const logoUrl    = process.env.SMTP_LOGO_URL || ''
+  const websiteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://browserhub.app'
+  if (logoUrl) {
+    return `<a href="${websiteUrl}" style="text-decoration: none;">
+              <img src="${logoUrl}" alt="Browser Hub" width="120" style="display: block; width: 120px; height: auto;">
             </a>`
   }
-  return `<a href="${WEBSITE_URL}" style="text-decoration: none; font-size: 22px; font-weight: 700; color: #1c1917; letter-spacing: -0.5px;">
+  return `<a href="${websiteUrl}" style="text-decoration: none; font-size: 22px; font-weight: 700; color: #1c1917; letter-spacing: -0.5px;">
             Browser Hub
           </a>`
 }
 
 export function wrapInBaseLayout(content: string, preheader?: string): string {
+  const websiteUrl   = process.env.NEXT_PUBLIC_SITE_URL || 'https://browserhub.app'
+  const supportEmail = process.env.SMTP_SUPPORT_EMAIL   || 'support@w-timer.com'
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -64,11 +64,11 @@ export function wrapInBaseLayout(content: string, preheader?: string): string {
           <tr>
             <td style="padding-top: 32px; text-align: center;">
               <p style="margin: 0 0 8px; font-size: 13px; color: #a8a29e;">
-                <a href="${WEBSITE_URL}" style="color: #78716c; text-decoration: none;">${WEBSITE_URL.replace(/^https?:\/\//, '')}</a>
+                <a href="${websiteUrl}" style="color: #78716c; text-decoration: none;">${websiteUrl.replace(/^https?:\/\//, '')}</a>
               </p>
               <p style="margin: 0 0 8px; font-size: 12px; color: #a8a29e;">
                 Questions? Contact us at
-                <a href="mailto:${SUPPORT_EMAIL}" style="color: #6366f1; text-decoration: none;">${SUPPORT_EMAIL}</a>
+                <a href="mailto:${supportEmail}" style="color: #6366f1; text-decoration: none;">${supportEmail}</a>
               </p>
               <p style="margin: 0; font-size: 11px; color: #d6d3d1;">
                 &copy; ${new Date().getFullYear()} Browser Hub. All rights reserved.

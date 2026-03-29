@@ -634,11 +634,11 @@ export default function FoldersView() {
         onColorFolder={(id, color) => { void updateFolderColor(id, color); }}
         onDelete={(id) => { void deleteFolder(id); }}
         onAddEntry={(categoryId, title, url) => { void addEntry(categoryId, title, url); }}
-        onEditEntry={(id, title, url, newCategoryId) => {
+        onEditEntry={async (id, title, url, newCategoryId) => {
           if (dialog?.type === 'edit-entry' && dialog.entry.categoryId !== newCategoryId) {
-            void moveEntry(id, newCategoryId);
+            await moveEntry(id, newCategoryId);
           }
-          void renameEntry(id, title, url);
+          await renameEntry(id, title, url);
         }}
         onDeleteEntry={(id) => { void deleteEntry(id); }}
         categories={bookmarkCategories}

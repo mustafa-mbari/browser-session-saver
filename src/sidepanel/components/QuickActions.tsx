@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Save, FolderPlus, ChevronRight, ChevronDown } from 'lucide-react';
 import { useSession } from '@shared/hooks/useSession';
 import { useBookmarkFolderData } from '@shared/hooks/useBookmarkFolderData';
-import { useSidePanelStore } from '../stores/sidepanel.store';
 import type { SaveSessionResponse } from '@core/types/messages.types';
 import type { ToastData } from '@shared/components/Toast';
 import type { BookmarkCategory } from '@core/types/newtab.types';
@@ -72,8 +71,7 @@ function FolderPickerNode({ node, depth, onSave }: {
 
 export default function QuickActions({ onToast }: QuickActionsProps) {
   const { saveSession } = useSession();
-  const { categories, saveCurrentTab } = useBookmarkFolderData();
-  const { openPageFromMenu } = useSidePanelStore();
+  const { categories, saveCurrentTab, reload } = useBookmarkFolderData();
 
   const folders = categories.filter((c) => c.cardType === 'bookmark' || !c.cardType);
   const folderTree = buildTree(folders);
@@ -82,6 +80,7 @@ export default function QuickActions({ onToast }: QuickActionsProps) {
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
+  // Close picker on outside click
   useEffect(() => {
     if (!showFolderPicker) return;
     const handler = (e: MouseEvent) => {
@@ -92,6 +91,11 @@ export default function QuickActions({ onToast }: QuickActionsProps) {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [showFolderPicker]);
+
+  // Reload from IndexedDB every time the picker opens so newly created folders appear immediately
+  useEffect(() => {
+    if (showFolderPicker) void reload();
+  }, [showFolderPicker, reload]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -110,11 +114,6 @@ export default function QuickActions({ onToast }: QuickActionsProps) {
   };
 
   const handleFolderClick = () => {
-    if (folders.length === 0) {
-      onToast?.({ message: 'Create a folder first', type: 'warning' });
-      openPageFromMenu('folders');
-      return;
-    }
     setShowFolderPicker((v) => !v);
   };
 
@@ -137,14 +136,23 @@ export default function QuickActions({ onToast }: QuickActionsProps) {
           className="absolute bottom-full left-3 right-3 mb-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] shadow-lg max-h-56 overflow-y-auto z-50"
         >
           <div className="p-1">
-            {folderTree.map((node) => (
-              <FolderPickerNode
-                key={node.category.id}
-                node={node}
-                depth={0}
-                onSave={(id) => void handleSaveToFolder(id)}
-              />
-            ))}
+            {folderTree.length === 0 ? (
+              <p
+                className="px-3 py-2 text-xs opacity-50 text-center"
+                style={{ color: 'var(--color-text)' }}
+              >
+                No folders yet — create one in the Folders tab
+              </p>
+            ) : (
+              folderTree.map((node) => (
+                <FolderPickerNode
+                  key={node.category.id}
+                  node={node}
+                  depth={0}
+                  onSave={(id) => void handleSaveToFolder(id)}
+                />
+              ))
+            )}
           </div>
         </div>
       )}
