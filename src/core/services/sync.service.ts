@@ -14,6 +14,7 @@
 import { supabase } from '@core/supabase/client';
 import { getSyncUserId, getSyncEmail } from '@core/services/sync-auth.service';
 import { getAllSessions } from '@core/services/session.service';
+import { getSessionStorage } from '@core/storage/storage-factory';
 import { PromptStorage } from '@core/storage/prompt-storage';
 import { SubscriptionStorage } from '@core/storage/subscription-storage';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
@@ -75,6 +76,19 @@ export interface SyncStatus {
 export interface SyncResult {
   success: boolean;
   synced: SyncUsage;
+  error?: string;
+}
+
+export interface PullResult {
+  success: boolean;
+  pulled: {
+    sessions: number;
+    prompts: number;
+    subs: number;
+    tabGroups: number;
+    folders: number;
+    todos: number;
+  };
   error?: string;
 }
 
@@ -295,6 +309,45 @@ export async function pullDashboard(userId: string): Promise<DashboardSyncResult
     syncsLimit: 0,
     config: JSON.stringify(data.config),
   };
+}
+
+/**
+ * Pull all synced data from Supabase and merge it into local storage.
+ * Existing local items are preserved (merge by ID — no overwrites).
+ * Safe to call on a new device right after sign-in.
+ */
+export async function pullAll(): Promise<PullResult> {
+  const emptyPulled = { sessions: 0, prompts: 0, subs: 0, tabGroups: 0, folders: 0, todos: 0 };
+
+  const userId = await getSyncUserId();
+  if (!userId) {
+    return { success: false, pulled: emptyPulled, error: 'Not authenticated' };
+  }
+
+  try {
+    const [sessionCount, promptCount, subCount, tabGroupCount, folderCount, todoCount] = await Promise.all([
+      pullSessions(userId),
+      pullPrompts(userId),
+      pullSubscriptions(userId),
+      pullTabGroupTemplates(userId),
+      pullBookmarkFolders(userId),
+      pullTodos(userId),
+    ]);
+
+    return {
+      success: true,
+      pulled: {
+        sessions: sessionCount,
+        prompts: promptCount,
+        subs: subCount,
+        tabGroups: tabGroupCount,
+        folders: folderCount,
+        todos: todoCount,
+      },
+    };
+  } catch (err) {
+    return { success: false, pulled: emptyPulled, error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 /**
@@ -562,7 +615,8 @@ async function syncTodos(userId: string, quota: UserQuota): Promise<number> {
     if (error) throw new Error(`Todo items sync failed: ${error.message}`);
   }
 
-  // Reconcile: remove remote items/lists no longer present locally
+  // Reconcile: remove remote items/lists no longer present locally.
+  // Skip when local is empty — avoids wiping cloud data on a fresh device.
   const localItemIds = allItems.map((i) => i.id);
   if (localItemIds.length > 0) {
     await supabase
@@ -570,8 +624,6 @@ async function syncTodos(userId: string, quota: UserQuota): Promise<number> {
       .delete()
       .eq('user_id', userId)
       .not('id', 'in', `(${localItemIds.join(',')})`);
-  } else {
-    await supabase.from('todo_items').delete().eq('user_id', userId);
   }
 
   const localListIds = allLists.map((l) => l.id);
@@ -581,8 +633,6 @@ async function syncTodos(userId: string, quota: UserQuota): Promise<number> {
       .delete()
       .eq('user_id', userId)
       .not('id', 'in', `(${localListIds.join(',')})`);
-  } else {
-    await supabase.from('todo_lists').delete().eq('user_id', userId);
   }
 
   return toSync.length;
@@ -595,8 +645,7 @@ async function syncTabGroupTemplates(userId: string, allTemplates: TabGroupTempl
   const toSync = topByUpdatedAt(allTemplates, limit === Infinity ? null : limit);
 
   if (toSync.length === 0) {
-    // Reconcile: if nothing to sync, remove all remote templates for this user
-    await supabase.from('tab_group_templates').delete().eq('user_id', userId);
+    // Nothing local — skip reconcile to avoid wiping cloud data on a fresh device
     return 0;
   }
 
@@ -729,6 +778,282 @@ function todoItemToRow(i: TodoItem, userId: string): Record<string, unknown> {
     position: i.position,
     created_at: i.createdAt,
     completed_at: i.completedAt ?? null,
+  };
+}
+
+// ─── Internal pull helpers ───────────────────────────────────────────────────
+
+async function pullSessions(userId: string): Promise<number> {
+  const { data, error } = await supabase.from('sessions').select('*').eq('user_id', userId);
+  if (error) throw new Error(`Session pull failed: ${error.message}`);
+  if (!data || data.length === 0) return 0;
+
+  const storage = getSessionStorage();
+  const existing = await storage.getAll();
+  const existingIds = new Set(Object.keys(existing));
+  const toWrite = (data as Record<string, unknown>[]).filter((r) => !existingIds.has(r.id as string));
+  await Promise.all(toWrite.map((r) => storage.set(r.id as string, rowToSession(r))));
+  return toWrite.length;
+}
+
+async function pullPrompts(userId: string): Promise<number> {
+  const [{ data: promptRows, error: pErr }, { data: folderRows, error: fErr }] = await Promise.all([
+    supabase.from('prompts').select('*').eq('user_id', userId),
+    supabase.from('prompt_folders').select('*').eq('user_id', userId),
+  ]);
+  if (pErr) throw new Error(`Prompt pull failed: ${pErr.message}`);
+  if (fErr) throw new Error(`Prompt folder pull failed: ${fErr.message}`);
+
+  const [existingPrompts, existingFolders] = await Promise.all([
+    PromptStorage.getAll(),
+    PromptStorage.getFolders(),
+  ]);
+  const existingPromptIds = new Set(existingPrompts.map((p) => p.id));
+  const existingFolderIds = new Set(existingFolders.map((f) => f.id));
+
+  const newFolders = (folderRows ?? []).filter((r) => !existingFolderIds.has(r.id as string));
+  const newPrompts = (promptRows ?? []).filter((r) => !existingPromptIds.has(r.id as string));
+
+  await Promise.all([
+    ...newFolders.map((r) => PromptStorage.saveFolder(rowToPromptFolder(r as Record<string, unknown>))),
+    ...newPrompts.map((r) => PromptStorage.save(rowToPrompt(r as Record<string, unknown>))),
+  ]);
+
+  return newPrompts.length;
+}
+
+async function pullSubscriptions(userId: string): Promise<number> {
+  const { data, error } = await supabase.from('tracked_subscriptions').select('*').eq('user_id', userId);
+  if (error) throw new Error(`Subscription pull failed: ${error.message}`);
+  if (!data || data.length === 0) return 0;
+
+  const subs = (data as Record<string, unknown>[]).map(rowToSubscription);
+  await SubscriptionStorage.importMany(subs);
+  return subs.length;
+}
+
+async function pullTabGroupTemplates(userId: string): Promise<number> {
+  const { data, error } = await supabase.from('tab_group_templates').select('*').eq('user_id', userId);
+  if (error) throw new Error(`Tab group pull failed: ${error.message}`);
+  if (!data || data.length === 0) return 0;
+
+  const existing = await TabGroupTemplateStorage.getAll();
+  const existingKeys = new Set(existing.map((t) => t.key));
+  const toWrite = (data as Record<string, unknown>[]).filter((r) => !existingKeys.has(r.key as string));
+  await Promise.all(toWrite.map((r) => TabGroupTemplateStorage.upsert(rowToTabGroupTemplate(r))));
+  return toWrite.length;
+}
+
+async function pullBookmarkFolders(userId: string): Promise<number> {
+  const [{ data: folderRows, error: fErr }, { data: entryRows, error: eErr }] = await Promise.all([
+    supabase.from('bookmark_folders').select('*').eq('user_id', userId),
+    supabase.from('bookmark_entries').select('*').eq('user_id', userId),
+  ]);
+  if (fErr) throw new Error(`Bookmark folder pull failed: ${fErr.message}`);
+  if (eErr) throw new Error(`Bookmark entry pull failed: ${eErr.message}`);
+  if (!folderRows || folderRows.length === 0) return 0;
+
+  const db = new NewTabDB();
+  const [existingFolders, existingEntries] = await Promise.all([
+    db.getAll<BookmarkCategory>('bookmarkCategories'),
+    db.getAll<BookmarkEntry>('bookmarkEntries'),
+  ]);
+  const existingFolderIds = new Set(existingFolders.map((c) => c.id));
+  const existingEntryIds = new Set(existingEntries.map((e) => e.id));
+
+  const allEntries = (entryRows ?? []) as Record<string, unknown>[];
+  // Group entry IDs by folder for bookmarkIds reconstruction
+  const entryIdsByFolder = allEntries.reduce<Record<string, string[]>>((acc, r) => {
+    const fid = r.folder_id as string;
+    (acc[fid] ??= []).push(r.id as string);
+    return acc;
+  }, {});
+
+  const newFolders = (folderRows as Record<string, unknown>[]).filter((r) => !existingFolderIds.has(r.id as string));
+  const newEntries = allEntries.filter((r) => !existingEntryIds.has(r.id as string));
+
+  const now = new Date().toISOString();
+  await Promise.all([
+    ...newFolders.map((r) =>
+      db.put<BookmarkCategory>('bookmarkCategories', rowToBookmarkCategory(r, entryIdsByFolder[r.id as string] ?? [], now)),
+    ),
+    ...newEntries.map((r) =>
+      db.put<BookmarkEntry>('bookmarkEntries', rowToBookmarkEntry(r, now)),
+    ),
+  ]);
+
+  return newFolders.length;
+}
+
+async function pullTodos(userId: string): Promise<number> {
+  const [{ data: listRows, error: lErr }, { data: itemRows, error: iErr }] = await Promise.all([
+    supabase.from('todo_lists').select('*').eq('user_id', userId),
+    supabase.from('todo_items').select('*').eq('user_id', userId),
+  ]);
+  if (lErr) throw new Error(`Todo list pull failed: ${lErr.message}`);
+  if (iErr) throw new Error(`Todo item pull failed: ${iErr.message}`);
+  if (!listRows && !itemRows) return 0;
+
+  const db = new NewTabDB();
+  const [existingLists, existingItems] = await Promise.all([
+    db.getAll<TodoList>('todoLists'),
+    db.getAll<TodoItem>('todoItems'),
+  ]);
+  const existingListIds = new Set(existingLists.map((l) => l.id));
+  const existingItemIds = new Set(existingItems.map((i) => i.id));
+
+  const newLists = (listRows ?? []).filter((r) => !existingListIds.has(r.id as string));
+  const newItems = (itemRows ?? []).filter((r) => !existingItemIds.has(r.id as string));
+
+  await Promise.all([
+    ...newLists.map((r) => db.put<TodoList>('todoLists', rowToTodoList(r as Record<string, unknown>))),
+    ...newItems.map((r) => db.put<TodoItem>('todoItems', rowToTodoItem(r as Record<string, unknown>))),
+  ]);
+
+  return newItems.length;
+}
+
+// ─── Row mappers (snake_case → camelCase) ────────────────────────────────────
+
+function rowToSession(r: Record<string, unknown>): Session {
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    createdAt: r.created_at as string,
+    updatedAt: r.updated_at as string,
+    tabs: (r.tabs ?? []) as Session['tabs'],
+    tabGroups: (r.tab_groups ?? []) as Session['tabGroups'],
+    windowId: (r.window_id ?? 0) as number,
+    tags: (r.tags ?? []) as string[],
+    isPinned: (r.is_pinned ?? false) as boolean,
+    isStarred: (r.is_starred ?? false) as boolean,
+    isLocked: (r.is_locked ?? false) as boolean,
+    isAutoSave: (r.is_auto_save ?? false) as boolean,
+    autoSaveTrigger: (r.auto_save_trigger ?? 'manual') as Session['autoSaveTrigger'],
+    notes: (r.notes ?? '') as string,
+    tabCount: (r.tab_count ?? 0) as number,
+    version: (r.version ?? '1') as string,
+  };
+}
+
+function rowToPrompt(r: Record<string, unknown>): Prompt {
+  return {
+    id: r.id as string,
+    title: r.title as string,
+    content: r.content as string,
+    description: (r.description ?? undefined) as string | undefined,
+    categoryId: (r.category_id ?? undefined) as string | undefined,
+    folderId: (r.folder_id ?? undefined) as string | undefined,
+    source: (r.source ?? 'local') as Prompt['source'],
+    tags: (r.tags ?? []) as string[],
+    isFavorite: (r.is_favorite ?? false) as boolean,
+    isPinned: (r.is_pinned ?? false) as boolean,
+    usageCount: (r.usage_count ?? 0) as number,
+    lastUsedAt: (r.last_used_at ?? undefined) as string | undefined,
+    createdAt: r.created_at as string,
+    updatedAt: r.updated_at as string,
+  };
+}
+
+function rowToPromptFolder(r: Record<string, unknown>): PromptFolder {
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    icon: (r.icon ?? undefined) as string | undefined,
+    color: (r.color ?? undefined) as string | undefined,
+    source: (r.source ?? 'local') as PromptFolder['source'],
+    parentId: (r.parent_id ?? undefined) as string | undefined,
+    position: (r.position ?? 0) as number,
+    createdAt: r.created_at as string,
+  };
+}
+
+function rowToSubscription(r: Record<string, unknown>): Subscription {
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    logo: (r.logo ?? undefined) as string | undefined,
+    url: (r.url ?? undefined) as string | undefined,
+    email: (r.email ?? undefined) as string | undefined,
+    category: r.category as string,
+    price: r.price as number,
+    currency: r.currency as string,
+    billingCycle: r.billing_cycle as Subscription['billingCycle'],
+    nextBillingDate: r.next_billing_date as string,
+    paymentMethod: (r.payment_method ?? undefined) as string | undefined,
+    status: r.status as Subscription['status'],
+    reminder: r.reminder as number,
+    notes: (r.notes ?? undefined) as string | undefined,
+    tags: (r.tags ?? []) as string[],
+    createdAt: r.created_at as string,
+  };
+}
+
+function rowToTabGroupTemplate(r: Record<string, unknown>): TabGroupTemplate {
+  return {
+    key: r.key as string,
+    title: r.title as string,
+    color: r.color as TabGroupTemplate['color'],
+    tabs: (r.tabs ?? []) as TabGroupTemplate['tabs'],
+    savedAt: r.saved_at as string,
+    updatedAt: r.updated_at as string,
+  };
+}
+
+function rowToBookmarkCategory(r: Record<string, unknown>, bookmarkIds: string[], fallbackDate: string): BookmarkCategory {
+  return {
+    id: r.id as string,
+    boardId: (r.board_id ?? '') as string,
+    name: r.name as string,
+    icon: (r.icon ?? '') as string,
+    color: (r.color ?? '') as string,
+    bookmarkIds,
+    collapsed: false,
+    colSpan: (r.col_span ?? 3) as BookmarkCategory['colSpan'],
+    rowSpan: (r.row_span ?? 3) as BookmarkCategory['rowSpan'],
+    cardType: (r.card_type ?? 'bookmark') as BookmarkCategory['cardType'],
+    noteContent: (r.note_content ?? undefined) as string | undefined,
+    parentCategoryId: (r.parent_folder_id ?? undefined) as string | undefined,
+    createdAt: fallbackDate,
+  };
+}
+
+function rowToBookmarkEntry(r: Record<string, unknown>, fallbackDate: string): BookmarkEntry {
+  return {
+    id: r.id as string,
+    categoryId: r.folder_id as string,
+    title: r.title as string,
+    url: r.url as string,
+    favIconUrl: (r.fav_icon_url ?? '') as string,
+    addedAt: fallbackDate,
+    isNative: (r.is_native ?? false) as boolean,
+    nativeId: (r.native_id ?? undefined) as string | undefined,
+    category: (r.category ?? undefined) as string | undefined,
+    description: (r.description ?? undefined) as string | undefined,
+  };
+}
+
+function rowToTodoList(r: Record<string, unknown>): TodoList {
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    icon: (r.icon ?? '') as string,
+    position: (r.position ?? 0) as number,
+    createdAt: r.created_at as string,
+  };
+}
+
+function rowToTodoItem(r: Record<string, unknown>): TodoItem {
+  return {
+    id: r.id as string,
+    listId: r.list_id as string,
+    text: r.text as string,
+    completed: (r.completed ?? false) as boolean,
+    priority: (r.priority ?? 'none') as TodoItem['priority'],
+    dueDate: (r.due_date ?? undefined) as string | undefined,
+    position: (r.position ?? 0) as number,
+    createdAt: r.created_at as string,
+    completedAt: (r.completed_at ?? undefined) as string | undefined,
   };
 }
 

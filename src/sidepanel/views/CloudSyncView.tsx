@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Cloud, CloudOff, RefreshCw, LogOut, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Cloud, CloudOff, RefreshCw, LogOut, CheckCircle2, AlertCircle, Loader2, CloudDownload } from 'lucide-react';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import type { SyncStatus } from '@core/services/sync.service';
 import { QUOTA_WARNING_PCT } from '@core/constants/limits';
@@ -13,6 +13,8 @@ export default function CloudSyncView() {
   const [password, setPassword] = useState('');
   const [signingIn, setSigningIn] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [pullResult, setPullResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [signInError, setSignInError] = useState<string | null>(null);
 
   const loadStatus = useCallback(async () => {
@@ -53,6 +55,23 @@ export default function CloudSyncView() {
     setSyncing(false);
     if (res.success && res.data) setStatus(res.data);
     else await loadStatus();
+  };
+
+  const handlePullAll = async () => {
+    setPulling(true);
+    setPullResult(null);
+    const res = await sendMessage<{ success: boolean; pulled: Record<string, number>; error?: string }>({
+      action: 'SYNC_PULL_ALL',
+      payload: {},
+    });
+    setPulling(false);
+    if (res.success && res.data?.success) {
+      const p = res.data.pulled;
+      const total = Object.values(p).reduce((s, n) => s + n, 0);
+      setPullResult({ ok: true, msg: `Restored ${total} item(s) from the cloud.` });
+    } else {
+      setPullResult({ ok: false, msg: res.data?.error ?? res.error ?? 'Restore failed' });
+    }
   };
 
   // ─── Not signed in ────────────────────────────────────────────────────────
@@ -197,6 +216,31 @@ export default function CloudSyncView() {
           )}
           Sync Now
         </button>
+      </div>
+
+      {/* Restore from Cloud */}
+      <div className="flex items-start gap-3 p-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+        <CloudDownload size={16} className="text-[var(--color-text-secondary)] shrink-0 mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium mb-0.5">Restore from Cloud</p>
+          <p className="text-[11px] text-[var(--color-text-secondary)] leading-snug mb-2">
+            Download your synced data to this device. Existing local items are kept.
+          </p>
+          <button
+            onClick={handlePullAll}
+            disabled={pulling}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] disabled:opacity-50 transition-colors"
+          >
+            {pulling ? <Loader2 size={12} className="animate-spin" /> : <CloudDownload size={12} />}
+            {pulling ? 'Restoring…' : 'Restore Now'}
+          </button>
+          {pullResult && (
+            <div className={`mt-2 flex items-start gap-1.5 text-[11px] ${pullResult.ok ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {pullResult.ok ? <CheckCircle2 size={12} className="shrink-0 mt-0.5" /> : <AlertCircle size={12} className="shrink-0 mt-0.5" />}
+              {pullResult.msg}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Sync error */}

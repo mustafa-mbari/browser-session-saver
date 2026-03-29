@@ -54,7 +54,8 @@ export type Message =
   | { action: 'SYNC_SIGN_OUT'; payload: Record<string, never> }
   | { action: 'SYNC_NOW'; payload: Record<string, never> }
   | { action: 'SYNC_DASHBOARD'; payload: { config: string } }
-  | { action: 'PULL_DASHBOARD'; payload: Record<string, never> };
+  | { action: 'PULL_DASHBOARD'; payload: Record<string, never> }
+  | { action: 'SYNC_PULL_ALL'; payload: Record<string, never> };
 
 export interface MessageResponse<T = unknown> {
   success: boolean;

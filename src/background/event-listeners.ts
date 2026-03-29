@@ -13,7 +13,7 @@ import { generateId } from '@core/utils/uuid';
 import { isValidUrl, isValidSession } from '@core/utils/validators';
 import { MAX_IMPORT_SIZE_BYTES } from '@core/constants/limits';
 import { syncSignIn, syncSignOut, getSyncUserId } from '@core/services/sync-auth.service';
-import { syncAll, getSyncStatus, pushSession, deleteRemoteSession, syncDashboard, pullDashboard } from '@core/services/sync.service';
+import { syncAll, getSyncStatus, pushSession, deleteRemoteSession, syncDashboard, pullDashboard, pullAll } from '@core/services/sync.service';
 
 export function registerEventListeners(): void {
   chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
@@ -74,6 +74,8 @@ async function handleMessage(message: Message): Promise<MessageResponse> {
       return handleSyncDashboard(message.payload);
     case 'PULL_DASHBOARD':
       return handlePullDashboard();
+    case 'SYNC_PULL_ALL':
+      return handlePullAll();
     default:
       return { success: false, error: 'Unknown action' };
   }
@@ -618,6 +620,13 @@ async function handlePullDashboard(): Promise<MessageResponse<DashboardSyncRespo
     return { success: false, error: 'Not authenticated', data: { success: false, syncsUsedThisMonth: 0, syncsLimit: 0, error: 'Not authenticated' } };
   }
   const result = await pullDashboard(userId);
+  return { success: result.success, data: result, error: result.error };
+}
+
+async function handlePullAll(): Promise<MessageResponse> {
+  const userId = await getSyncUserId();
+  if (!userId) return { success: false, error: 'Not authenticated' };
+  const result = await pullAll();
   return { success: result.success, data: result, error: result.error };
 }
 
