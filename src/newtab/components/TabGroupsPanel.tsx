@@ -12,6 +12,8 @@ import {
   X,
   Monitor,
   XCircle,
+  Bookmark,
+  BookmarkCheck,
 } from 'lucide-react';
 import LoadingSpinner from '@shared/components/LoadingSpinner';
 import type { ChromeGroupColor } from '@core/types/session.types';
@@ -87,8 +89,17 @@ function LiveGroupCard({ group, onRefresh }: { group: LiveGroup; onRefresh: () =
   const [draftColor, setDraftColor] = useState<ChromeGroupColor>(group.color);
   const [saving, setSaving] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [bookmarking, setBookmarking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const accentColor = GROUP_COLORS[group.color] ?? '#9aa0a6';
+  const templateKey = `${group.title}-${group.color}`;
+
+  useEffect(() => {
+    TabGroupTemplateStorage.getAll().then((all) => {
+      setBookmarked(all.some((t) => t.key === templateKey));
+    });
+  }, [templateKey]);
 
   const startEdit = () => {
     setDraftTitle(group.title);
@@ -148,6 +159,29 @@ function LiveGroupCard({ group, onRefresh }: { group: LiveGroup; onRefresh: () =
     if (firstTab?.id) {
       await chrome.windows.update(group.windowId, { focused: true });
       await chrome.tabs.update(firstTab.id, { active: true });
+    }
+  };
+
+  const handleSaveAsTemplate = async () => {
+    setBookmarking(true);
+    try {
+      const now = new Date().toISOString();
+      await TabGroupTemplateStorage.upsert({
+        key: templateKey,
+        title: group.title,
+        color: group.color,
+        tabs: group.tabs.map((t) => ({
+          url: t.url ?? '',
+          title: t.title ?? '',
+          favIconUrl: t.favIconUrl ?? '',
+        })),
+        savedAt: now,
+        updatedAt: now,
+      });
+      setBookmarked(true);
+      onRefresh();
+    } finally {
+      setBookmarking(false);
     }
   };
 
@@ -216,6 +250,22 @@ function LiveGroupCard({ group, onRefresh }: { group: LiveGroup; onRefresh: () =
 
         {!editing && (
           <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={() => void handleSaveAsTemplate()}
+              disabled={bookmarking}
+              title={bookmarked ? 'Saved — syncs across devices' : 'Save as template (keeps tabs open)'}
+              className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors disabled:opacity-50 ${
+                bookmarked
+                  ? 'bg-green-500/20 text-green-300'
+                  : 'bg-white/10 hover:bg-white/20'
+              }`}
+              style={bookmarked ? {} : { color: 'var(--newtab-text)' }}
+            >
+              {bookmarking
+                ? <span className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin inline-block" />
+                : bookmarked ? <BookmarkCheck size={11} /> : <Bookmark size={11} />}
+              {!bookmarking && (bookmarked ? 'Saved' : 'Save')}
+            </button>
             <button
               onClick={() => void handleFocus()}
               className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors"

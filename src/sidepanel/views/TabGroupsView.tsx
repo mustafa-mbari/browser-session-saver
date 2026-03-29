@@ -13,6 +13,8 @@ import {
   XCircle,
   MoreVertical,
   RotateCcw,
+  Bookmark,
+  BookmarkCheck,
 } from 'lucide-react';
 import type { ChromeGroupColor } from '@core/types/session.types';
 import type { TabGroupTemplate } from '@core/types/tab-group.types';
@@ -89,8 +91,17 @@ function LiveGroupRow({ group, onRefresh }: { group: LiveGroup; onRefresh: () =>
   const [draftColor, setDraftColor] = useState<ChromeGroupColor>(group.color);
   const [saving, setSaving] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [bookmarking, setBookmarking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const accentColor = GROUP_COLOR_MAP[group.color] ?? '#9aa0a6';
+  const templateKey = `${group.title}-${group.color}`;
+
+  useEffect(() => {
+    TabGroupTemplateStorage.getAll().then((all) => {
+      setBookmarked(all.some((t) => t.key === templateKey));
+    });
+  }, [templateKey]);
 
   const startEdit = useCallback(() => {
     setDraftTitle(group.title);
@@ -157,6 +168,29 @@ function LiveGroupRow({ group, onRefresh }: { group: LiveGroup; onRefresh: () =>
     await chrome.tabGroups.update(group.id, { collapsed: !group.collapsed });
     onRefresh();
   }, [group.id, group.collapsed, onRefresh]);
+
+  const handleSaveAsTemplate = useCallback(async () => {
+    setBookmarking(true);
+    try {
+      const now = new Date().toISOString();
+      await TabGroupTemplateStorage.upsert({
+        key: templateKey,
+        title: group.title,
+        color: group.color,
+        tabs: group.tabs.map((t) => ({
+          url: t.url ?? '',
+          title: t.title ?? '',
+          favIconUrl: t.favIconUrl ?? '',
+        })),
+        savedAt: now,
+        updatedAt: now,
+      });
+      setBookmarked(true);
+      onRefresh();
+    } finally {
+      setBookmarking(false);
+    }
+  }, [group, templateKey, onRefresh]);
 
   const menuItems = useMemo(() => [
     { label: 'Rename',             icon: Edit2,     onClick: startEdit },
@@ -230,7 +264,7 @@ function LiveGroupRow({ group, onRefresh }: { group: LiveGroup; onRefresh: () =>
                   collapsed
                 </button>
               )}
-              {(closing || saving) ? (
+              {(closing || saving || bookmarking) ? (
                 <span className="w-6 h-6 flex items-center justify-center">
                   <span
                     className="w-3 h-3 border border-t-transparent rounded-full animate-spin"
@@ -238,15 +272,25 @@ function LiveGroupRow({ group, onRefresh }: { group: LiveGroup; onRefresh: () =>
                   />
                 </span>
               ) : (
-                <ContextMenu items={menuItems}>
+                <>
                   <button
-                    className="p-1 rounded hover:bg-[var(--color-bg-secondary)] transition-colors"
-                    style={{ color: 'var(--color-text-secondary)' }}
-                    aria-label="More actions"
+                    onClick={(e) => { e.stopPropagation(); void handleSaveAsTemplate(); }}
+                    title={bookmarked ? 'Saved — syncs across devices' : 'Save as template'}
+                    className="p-1 rounded transition-colors"
+                    style={{ color: bookmarked ? '#34c759' : 'var(--color-text-secondary)' }}
                   >
-                    <MoreVertical size={13} />
+                    {bookmarked ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
                   </button>
-                </ContextMenu>
+                  <ContextMenu items={menuItems}>
+                    <button
+                      className="p-1 rounded hover:bg-[var(--color-bg-secondary)] transition-colors"
+                      style={{ color: 'var(--color-text-secondary)' }}
+                      aria-label="More actions"
+                    >
+                      <MoreVertical size={13} />
+                    </button>
+                  </ContextMenu>
+                </>
               )}
             </div>
           </div>

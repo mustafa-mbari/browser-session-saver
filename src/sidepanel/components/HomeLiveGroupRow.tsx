@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
-import { MoreVertical, Edit2, Check, X, ChevronDown, ChevronRight, Monitor, XCircle, Trash2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { MoreVertical, Edit2, Check, X, ChevronDown, ChevronRight, Monitor, XCircle, Trash2, Bookmark, BookmarkCheck } from 'lucide-react';
 import type { ToastData } from '@shared/components/Toast';
 import ContextMenu from '@shared/components/ContextMenu';
 import type { ChromeGroupColor } from '@core/types/session.types';
@@ -26,8 +26,17 @@ export default function HomeLiveGroupRow({ group, onRefresh, onToast }: HomeLive
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(group.title);
   const [busy, setBusy] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
+  const [bookmarking, setBookmarking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const accentColor = GROUP_COLORS[group.color] ?? '#9aa0a6';
+  const templateKey = `${group.title}-${group.color}`;
+
+  useEffect(() => {
+    TabGroupTemplateStorage.getAll().then((all) => {
+      setBookmarked(all.some((t) => t.key === templateKey));
+    });
+  }, [templateKey]);
 
   const startEdit = useCallback(() => {
     setDraftTitle(group.title);
@@ -83,6 +92,26 @@ export default function HomeLiveGroupRow({ group, onRefresh, onToast }: HomeLive
     }
   }, [group.tabs, onRefresh]);
 
+  const handleSaveAsTemplate = useCallback(async () => {
+    setBookmarking(true);
+    try {
+      const now = new Date().toISOString();
+      await TabGroupTemplateStorage.upsert({
+        key: templateKey,
+        title: group.title,
+        color: group.color,
+        tabs: group.tabs.map((t) => ({ url: t.url ?? '', title: t.title ?? '', favIconUrl: t.favIconUrl ?? '' })),
+        savedAt: now,
+        updatedAt: now,
+      });
+      setBookmarked(true);
+      onToast({ message: 'Tab group saved', type: 'success' });
+      await onRefresh();
+    } finally {
+      setBookmarking(false);
+    }
+  }, [group, templateKey, onRefresh, onToast]);
+
   const menuItems = useMemo(() => [
     { label: 'Rename',             icon: Edit2,    onClick: startEdit },
     { label: 'Restore Here',       icon: Monitor,  onClick: () => void handleFocus() },
@@ -127,20 +156,30 @@ export default function HomeLiveGroupRow({ group, onRefresh, onToast }: HomeLive
             <span className="text-xs shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
               {group.tabs.length}t
             </span>
-            {busy ? (
+            {(busy || bookmarking) ? (
               <span className="w-5 h-5 flex items-center justify-center shrink-0">
                 <span className="w-3 h-3 border border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-text-secondary)' }} />
               </span>
             ) : (
-              <ContextMenu items={menuItems}>
+              <>
                 <button
-                  className="p-0.5 rounded hover:bg-[var(--color-bg-secondary)] transition-colors shrink-0"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                  aria-label="More actions"
+                  onClick={(e) => { e.stopPropagation(); void handleSaveAsTemplate(); }}
+                  title={bookmarked ? 'Saved — syncs across devices' : 'Save as template'}
+                  className="p-0.5 rounded transition-colors shrink-0"
+                  style={{ color: bookmarked ? '#34c759' : 'var(--color-text-secondary)' }}
                 >
-                  <MoreVertical size={13} />
+                  {bookmarked ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
                 </button>
-              </ContextMenu>
+                <ContextMenu items={menuItems}>
+                  <button
+                    className="p-0.5 rounded hover:bg-[var(--color-bg-secondary)] transition-colors shrink-0"
+                    style={{ color: 'var(--color-text-secondary)' }}
+                    aria-label="More actions"
+                  >
+                    <MoreVertical size={13} />
+                  </button>
+                </ContextMenu>
+              </>
             )}
           </>
         )}

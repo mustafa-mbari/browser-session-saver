@@ -5,7 +5,7 @@ import type { Subscription, CustomCategory } from '@core/types/subscription.type
 import { CATEGORY_LABELS } from '@core/types/subscription.types';
 import { SubscriptionStorage } from '@core/storage/subscription-storage';
 import { SubscriptionService } from '@core/services/subscription.service';
-import { resolveFavIcon, getFaviconInitial } from '@core/utils/favicon';
+import { resolveFavIcon, getFaviconFallbackUrl, getFaviconInitial } from '@core/utils/favicon';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
 import { safeOpenUrl } from '@core/utils/safe-open';
 
@@ -49,10 +49,13 @@ const CATEGORY_EMOJI: Record<string, string> = {
 };
 
 function FaviconSmall({ url, name }: { url?: string; name: string }) {
-  const [failed, setFailed] = useState(false);
-  const faviconUrl = url ? resolveFavIcon('', url) : '';
+  const [tryIdx, setTryIdx] = useState(0);
+  const sources = url
+    ? [resolveFavIcon('', url), getFaviconFallbackUrl(url)].filter(Boolean)
+    : [];
+  const src = sources[tryIdx] ?? '';
 
-  if (!faviconUrl || failed) {
+  if (!src) {
     return (
       <span
         className="w-4 h-4 flex items-center justify-center rounded-sm bg-white/20 font-bold shrink-0"
@@ -64,10 +67,10 @@ function FaviconSmall({ url, name }: { url?: string; name: string }) {
   }
   return (
     <img
-      src={faviconUrl}
+      src={src}
       alt={name}
       className="w-4 h-4 rounded-sm shrink-0"
-      onError={() => setFailed(true)}
+      onError={() => setTryIdx((i) => i + 1)}
     />
   );
 }

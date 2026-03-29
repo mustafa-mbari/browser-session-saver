@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ExternalLink, Pencil, Pause, Play, XCircle, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Subscription } from '@core/types/subscription.types';
 import { SubscriptionService } from '@core/services/subscription.service';
-import { resolveFavIcon, getFaviconInitial } from '@core/utils/favicon';
+import { resolveFavIcon, getFaviconFallbackUrl, getFaviconInitial } from '@core/utils/favicon';
 
 interface Props {
   subscription: Subscription;
@@ -28,10 +28,13 @@ const statusBadge: Record<Subscription['status'], { label: string; cls: string }
 };
 
 function FaviconImage({ url, name, size = 16 }: { url?: string; name: string; size?: number }) {
-  const [failed, setFailed] = useState(false);
-  const faviconUrl = url ? resolveFavIcon('', url) : '';
+  const [tryIdx, setTryIdx] = useState(0);
+  const sources = url
+    ? [resolveFavIcon('', url), getFaviconFallbackUrl(url)].filter(Boolean)
+    : [];
+  const src = sources[tryIdx] ?? '';
 
-  if (!faviconUrl || failed) {
+  if (!src) {
     return (
       <span
         className="flex items-center justify-center rounded bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 font-bold shrink-0"
@@ -44,11 +47,11 @@ function FaviconImage({ url, name, size = 16 }: { url?: string; name: string; si
 
   return (
     <img
-      src={faviconUrl}
+      src={src}
       alt=""
       className="rounded shrink-0"
       style={{ width: size, height: size }}
-      onError={() => setFailed(true)}
+      onError={() => setTryIdx((i) => i + 1)}
     />
   );
 }

@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Pencil, Trash2 } from 'lucide-react';
 import ContextMenu from '@shared/components/ContextMenu';
 import type { BookmarkEntry, CardDensity } from '@core/types/newtab.types';
-import { resolveFavIcon, getFaviconInitial } from '@core/utils/favicon';
+import { resolveFavIcon, getFaviconFallbackUrl, getFaviconInitial } from '@core/utils/favicon';
 import { safeOpenUrl } from '@core/utils/safe-open';
 
 export interface BookmarkEntryRowProps {
@@ -18,7 +18,7 @@ export default function BookmarkEntryRow({ entry, density, onDelete, onRename }:
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
   });
-  const [imgFailed, setImgFailed] = useState(false);
+  const [favTryIdx, setFavTryIdx] = useState(0);
   const [isRenaming, setIsRenaming] = useState(false);
   const [draft, setDraft] = useState(entry.title || entry.url);
   const [draftUrl, setDraftUrl] = useState(entry.url);
@@ -57,8 +57,10 @@ export default function BookmarkEntryRow({ entry, density, onDelete, onRename }:
     { label: 'Delete', icon: Trash2, onClick: () => onDelete(entry.id), danger: true },
   ];
 
-  const favicon = !imgFailed ? (
-    <img src={resolveFavIcon(entry.favIconUrl, entry.url)} alt="" className={`${iconCls} rounded shrink-0`} onError={() => setImgFailed(true)} />
+  const favSources = [resolveFavIcon(entry.favIconUrl, entry.url), getFaviconFallbackUrl(entry.url)].filter(Boolean);
+  const favSrc = favSources[favTryIdx] ?? '';
+  const favicon = favSrc ? (
+    <img src={favSrc} alt="" className={`${iconCls} rounded shrink-0`} onError={() => setFavTryIdx((i) => i + 1)} />
   ) : (
     <span className={`${iconCls} flex items-center justify-center rounded bg-white/20 font-bold shrink-0`} style={{ color: 'var(--newtab-text)' }}>
       {getFaviconInitial(entry.title, entry.url)}
