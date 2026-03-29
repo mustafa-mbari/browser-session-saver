@@ -205,11 +205,12 @@ function LiveGroupRow({
         });
         setBookmarked(true);
       }
-      onRefresh();
+      // Only reload the saved list — no need for a heavy live reload
+      onPinChange();
     } finally {
       setBookmarking(false);
     }
-  }, [bookmarked, group, templateKey, onRefresh]);
+  }, [bookmarked, group, templateKey, onPinChange]);
 
   const menuItems = useMemo(() => [
     { label: 'Rename',             icon: Edit2,     onClick: startEdit },
@@ -420,7 +421,7 @@ function SavedGroupRow({
       },
       danger: true,
     },
-  ], [template, onRestore, onDelete, startEdit]);
+  ], [template, onRestore, onDelete, startEdit, isLive]);
 
   return (
     <div
@@ -616,6 +617,8 @@ export default function TabGroupsView() {
       await reloadSaved();
     } catch {
       setLiveGroups([]);
+      // Still reload saved so savedLoading becomes false even on error
+      await reloadSaved();
     } finally {
       setLiveLoading(false);
     }
@@ -759,7 +762,12 @@ export default function TabGroupsView() {
                   />
                 ) : (
                   filteredLive.map((g) => (
-                    <LiveGroupRow key={g.id} group={g} onRefresh={() => void loadLiveGroups()} />
+                    <LiveGroupRow
+                      key={g.id}
+                      group={g}
+                      onRefresh={() => void loadLiveGroups()}
+                      onPinChange={() => void reloadSaved()}
+                    />
                   ))
                 )}
               </div>
@@ -844,6 +852,7 @@ export default function TabGroupsView() {
                       onDelete={handleDeleteTemplate}
                       onRename={handleRenameTemplate}
                       onTogglePin={handleTogglePinTemplate}
+                      isLive={liveKeys.has(t.key)}
                     />
                   ))
                 )}
