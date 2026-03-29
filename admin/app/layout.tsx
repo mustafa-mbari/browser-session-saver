@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   title: 'Browser Hub Admin',
   description: 'Admin panel for Browser Hub',
   robots: 'noindex, nofollow',
+  icons: {
+    icon: { url: '/icons/icon-128.png', type: 'image/png', sizes: '128x128' },
+  },
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
