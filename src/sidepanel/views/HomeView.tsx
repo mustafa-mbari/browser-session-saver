@@ -18,9 +18,9 @@ import type { SessionFilter } from '@core/types/messages.types';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import type { Session } from '@core/types/session.types';
 import { formatRelative } from '@core/utils/date';
+import { RESTORE_PROMPT_MAX_AGE_MS } from '@core/constants/timings';
 
 const PROMPT_KEY = 'session_restore_prompt';
-const PROMPT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 const SEARCH_PLACEHOLDERS: Record<HomeTab, string> = {
   session: 'Search sessions… (#tag to filter)',
@@ -50,7 +50,7 @@ export default function HomeView() {
           resolve((r as Record<string, { shownAt: number } | undefined>)[PROMPT_KEY]),
         ),
       );
-      if (!record || Date.now() - record.shownAt > PROMPT_MAX_AGE_MS) return;
+      if (!record || Date.now() - record.shownAt > RESTORE_PROMPT_MAX_AGE_MS) return;
       const autoSave = sessions.find(s => s.isAutoSave);
       if (autoSave) setRestorePromptSession(autoSave);
     }

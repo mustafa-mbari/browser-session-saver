@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Cloud, CloudOff, RefreshCw, LogOut, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import type { SyncStatus } from '@core/services/sync.service';
+import { QUOTA_WARNING_PCT } from '@core/constants/limits';
 
 type SignInResponse = { success: boolean; email?: string; error?: string };
 
@@ -320,7 +321,7 @@ function QuotaBar({
 }) {
   const pct = limit != null ? Math.min((used / limit) * 100, 100) : 0;
   const isUnlimited = limit == null;
-  const isWarning = !isUnlimited && pct >= 80;
+  const isWarning = !isUnlimited && pct >= QUOTA_WARNING_PCT;
 
   return (
     <div>

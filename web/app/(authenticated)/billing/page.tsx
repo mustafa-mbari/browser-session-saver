@@ -190,7 +190,7 @@ export default async function BillingPage() {
                           ? (val
                             ? <Check className="h-4 w-4 text-emerald-500 mx-auto" />
                             : <X className="h-4 w-4 text-stone-300 dark:text-stone-600 mx-auto" />)
-                          : fmt(val)}
+                          : fmt(val as number | null)}
                       </td>
                     )
                   })}

@@ -33,6 +33,7 @@ import {
 import { Input } from '@shared/components/ui/input';
 import { useBookmarkFolderData } from '@shared/hooks/useBookmarkFolderData';
 import type { BookmarkCategory, BookmarkEntry } from '@core/types/newtab.types';
+import { TOAST_DISMISS_MS } from '@core/constants/timings';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -423,7 +424,7 @@ export default function BookmarksPanel() {
     const id = folderId ?? selectedFolderForSave;
     if (!id) {
       setSaveStatus('Right-click a folder and choose "Save Current Tab Here"');
-      setTimeout(() => setSaveStatus(null), 2500);
+      setTimeout(() => setSaveStatus(null), TOAST_DISMISS_MS);
       return;
     }
     const entry = await data.saveCurrentTab(id);
@@ -432,7 +433,7 @@ export default function BookmarksPanel() {
     } else {
       setSaveStatus('Could not get current tab');
     }
-    setTimeout(() => setSaveStatus(null), 2500);
+    setTimeout(() => setSaveStatus(null), TOAST_DISMISS_MS);
   }, [data, selectedFolderForSave]);
 
   const handleCreate = async (boardId: string, name: string, parentId?: string) => {

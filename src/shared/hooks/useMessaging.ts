@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import type { Message, MessageResponse } from '@core/types/messages.types';
-
-const MESSAGE_TIMEOUT_MS = 10_000;
+import { MESSAGE_TIMEOUT_MS } from '@core/constants/timings';
 
 export function useMessaging() {
   const sendMessage = useCallback(

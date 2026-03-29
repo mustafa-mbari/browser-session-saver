@@ -51,6 +51,7 @@ import { Input } from '@shared/components/ui/input';
 import { Separator } from '@shared/components/ui/separator';
 import { useBookmarkFolderData, type FolderNode } from '@shared/hooks/useBookmarkFolderData';
 import type { Board, BookmarkCategory, BookmarkEntry } from '@core/types/newtab.types';
+import { TOAST_DISMISS_MS } from '@core/constants/timings';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -916,7 +917,7 @@ export default function BookmarkFolderPanel() {
     if (!selectedFolderId) { setSaveMessage('Select a folder first'); setTimeout(() => setSaveMessage(null), 2000); return; }
     const entry = await data.saveCurrentTab(selectedFolderId);
     setSaveMessage(entry ? `Saved: ${entry.title || entry.url}` : 'Could not get current tab');
-    setTimeout(() => setSaveMessage(null), 2500);
+    setTimeout(() => setSaveMessage(null), TOAST_DISMISS_MS);
   };
 
   const handleCreate = async (boardId: string, name: string, parentId?: string) => {

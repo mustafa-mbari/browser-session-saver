@@ -4,9 +4,9 @@ import type { Session } from '@core/types/session.types';
 import * as SessionService from '@core/services/session.service';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import { formatRelative } from '@core/utils/date';
+import { RESTORE_PROMPT_MAX_AGE_MS } from '@core/constants/timings';
 
 const PROMPT_KEY = 'session_restore_prompt';
-const PROMPT_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface PromptRecord {
   shownAt: number;
@@ -36,7 +36,7 @@ export default function SessionRestoreReminder() {
     async function check() {
       const record = await getPromptRecord();
       if (!record) return;
-      if (Date.now() - record.shownAt > PROMPT_MAX_AGE_MS) {
+      if (Date.now() - record.shownAt > RESTORE_PROMPT_MAX_AGE_MS) {
         void clearPrompt();
         return;
       }
