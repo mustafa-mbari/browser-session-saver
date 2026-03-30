@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Copy, Check, Pin, Sparkles, ArrowRight, Clock, PenLine, X } from 'lucide-react';
+import { Copy, Check, Pin, Sparkles, ArrowRight, Clock, PenLine, X, Share2 } from 'lucide-react';
+import SharePromptModal from '@shared/components/SharePromptModal';
 import type { SpanValue } from '@core/types/newtab.types';
 import type { Prompt } from '@core/types/prompt.types';
 import { PromptStorage } from '@core/storage/prompt-storage';
@@ -16,6 +17,7 @@ export default function PromptCardBody({ colSpan, rowSpan }: Props) {
   const [loaded, setLoaded] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [fillPrompt, setFillPrompt] = useState<Prompt | null>(null);
+  const [sharingPrompt, setSharingPrompt] = useState<Prompt | null>(null);
   const setActiveView = useNewTabUIStore((s) => s.setActiveView);
 
   useEffect(() => {
@@ -96,6 +98,7 @@ export default function PromptCardBody({ colSpan, rowSpan }: Props) {
                   copied={copied}
                   onCopy={() => void handleCopy(p)}
                   onFill={() => setFillPrompt(p)}
+                  onShare={() => setSharingPrompt(p)}
                   compact={isCompact}
                 />
               ))}
@@ -120,6 +123,7 @@ export default function PromptCardBody({ colSpan, rowSpan }: Props) {
                   copied={copied}
                   onCopy={() => void handleCopy(p)}
                   onFill={() => setFillPrompt(p)}
+                  onShare={() => setSharingPrompt(p)}
                   compact={false}
                 />
               ))}
@@ -148,6 +152,14 @@ export default function PromptCardBody({ colSpan, rowSpan }: Props) {
           onCopy={(filled) => void handleFillCopy(filled, fillPrompt.id)}
         />
       )}
+
+      {/* Share modal */}
+      {sharingPrompt && (
+        <SharePromptModal
+          prompt={sharingPrompt}
+          onClose={() => setSharingPrompt(null)}
+        />
+      )}
     </>
   );
 }
@@ -157,12 +169,14 @@ function PromptRow({
   copied,
   onCopy,
   onFill,
+  onShare,
   compact,
 }: {
   prompt: Prompt;
   copied: string | null;
   onCopy: () => void;
   onFill: () => void;
+  onShare: () => void;
   compact: boolean;
 }) {
   const hasVariables = PromptService.extractVariables(prompt.content).length > 0;
@@ -196,6 +210,14 @@ function PromptRow({
             <PenLine size={12} />
           </button>
         )}
+        <button
+          onClick={onShare}
+          className="p-1 rounded hover:bg-white/10 transition-colors"
+          title="Share prompt"
+          style={{ color: 'var(--newtab-text)' }}
+        >
+          <Share2 size={12} />
+        </button>
         <button
           onClick={onCopy}
           className="p-1 rounded hover:bg-white/10 transition-colors"

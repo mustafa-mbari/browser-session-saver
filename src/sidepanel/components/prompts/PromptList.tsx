@@ -15,6 +15,7 @@ interface PromptListProps {
   onTogglePin: (id: string) => void;
   onCopy: (id: string) => void;
   onUse: (p: Prompt) => void;
+  onShare: (p: Prompt) => void;
 }
 
 export default function PromptList({
@@ -28,6 +29,7 @@ export default function PromptList({
   onTogglePin,
   onCopy,
   onUse,
+  onShare,
 }: PromptListProps) {
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -236,6 +238,7 @@ export default function PromptList({
                   onTogglePin={onTogglePin}
                   onCopy={onCopy}
                   onUse={onUse}
+                  onShare={onShare}
                 />
               ))}
             </div>
@@ -278,6 +281,7 @@ export default function PromptList({
                       onTogglePin={onTogglePin}
                       onCopy={onCopy}
                       onUse={onUse}
+                  onShare={onShare}
                     />
                   ))}
                 </div>
@@ -298,6 +302,7 @@ export default function PromptList({
               onTogglePin={onTogglePin}
               onCopy={onCopy}
               onUse={onUse}
+              onShare={onShare}
             />
           ))
         )}

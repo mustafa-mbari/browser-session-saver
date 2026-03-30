@@ -3,8 +3,9 @@ import {
   Plus, Search, Copy, Check, Pencil, Trash2, ArrowRightLeft,
   Pin, PinOff, Star, ChevronDown, ChevronUp, Zap, X, Sparkles, Cpu,
   Home, LayoutList, Zap as ZapIcon, Star as StarIcon, Monitor, Globe, Folder, FolderOpen,
-  ChevronRight, ChevronDown as ChevronDownIcon,
+  ChevronRight, ChevronDown as ChevronDownIcon, Share2,
 } from 'lucide-react';
+import SharePromptModal from '@shared/components/SharePromptModal';
 
 const DEFAULT_MODELS = ['GPT-4o', 'Claude 3.5', 'Gemini 1.5', 'Llama 3'];
 
@@ -326,6 +327,7 @@ function PanelPromptCard({
   onTogglePin,
   onCopy,
   onUse,
+  onShare,
 }: {
   prompt: Prompt;
   tags: PromptTag[];
@@ -336,6 +338,7 @@ function PanelPromptCard({
   onTogglePin: (id: string) => void;
   onCopy: (id: string) => void;
   onUse: (p: Prompt) => void;
+  onShare: (p: Prompt) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -447,6 +450,14 @@ function PanelPromptCard({
                 <Zap size={13} /> Fill & Copy
               </button>
             )}
+            <button
+              onClick={(e) => { e.stopPropagation(); onShare(prompt); }}
+              className="p-2 rounded-lg bg-white/5 hover:bg-white/15 transition-colors"
+              style={TS}
+              title="Share prompt"
+            >
+              <Share2 size={13} />
+            </button>
             <button
               onClick={(e) => { e.stopPropagation(); onEdit(prompt); }}
               className="p-2 rounded-lg bg-white/5 hover:bg-white/15 transition-colors"
@@ -1329,6 +1340,7 @@ export default function PromptsPanel() {
   const [formOpen, setFormOpen] = useState(false);
   const [editPrompt, setEditPrompt] = useState<Prompt | null>(null);
   const [variablesPrompt, setVariablesPrompt] = useState<Prompt | null>(null);
+  const [sharingPrompt, setSharingPrompt] = useState<Prompt | null>(null);
 
   const reloadAll = useCallback(async () => {
     const [p, c, t, f] = await Promise.all([
@@ -1774,6 +1786,7 @@ export default function PromptsPanel() {
                   onTogglePin={(id) => void handleTogglePin(id)}
                   onCopy={(id) => void handleCopy(id)}
                   onUse={handleUse}
+                  onShare={(p) => setSharingPrompt(p)}
                 />
               ))
             )}
@@ -1787,6 +1800,14 @@ export default function PromptsPanel() {
           prompt={variablesPrompt}
           onClose={() => setVariablesPrompt(null)}
           onCopy={(id) => { void handleCopy(id); setVariablesPrompt(null); }}
+        />
+      )}
+
+      {/* Share modal */}
+      {sharingPrompt && (
+        <SharePromptModal
+          prompt={sharingPrompt}
+          onClose={() => setSharingPrompt(null)}
         />
       )}
 

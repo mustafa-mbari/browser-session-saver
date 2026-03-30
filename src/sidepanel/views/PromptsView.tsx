@@ -17,6 +17,7 @@ import PromptForm from '../components/prompts/PromptForm';
 import PromptCard from '../components/prompts/PromptCard';
 import PromptVariablesModal from '../components/prompts/PromptVariablesModal';
 import PromptSectionNav from '../components/prompts/PromptSectionNav';
+import SharePromptModal from '@shared/components/SharePromptModal';
 
 function triggerCloudSync(): void {
   void chrome.runtime.sendMessage({ action: 'SYNC_NOW', payload: {} });
@@ -35,6 +36,7 @@ export default function PromptsView() {
   const [formOpen, setFormOpen] = useState(false);
   const [editPrompt, setEditPrompt] = useState<Prompt | null>(null);
   const [variablesPrompt, setVariablesPrompt] = useState<Prompt | null>(null);
+  const [sharingPrompt, setSharingPrompt] = useState<Prompt | null>(null);
 
   useEffect(() => {
     void Promise.all([
@@ -355,6 +357,7 @@ export default function PromptsView() {
               onTogglePin={(id) => void handleTogglePin(id)}
               onCopy={(id) => void handleCopy(id)}
               onUse={handleUse}
+              onShare={setSharingPrompt}
             />
           ) : (
             <PromptList
@@ -368,6 +371,7 @@ export default function PromptsView() {
               onTogglePin={(id) => void handleTogglePin(id)}
               onCopy={(id) => void handleCopy(id)}
               onUse={handleUse}
+              onShare={setSharingPrompt}
             />
           )}
         </div>
@@ -379,6 +383,14 @@ export default function PromptsView() {
           prompt={variablesPrompt}
           onClose={() => setVariablesPrompt(null)}
           onCopy={(id) => { void handleCopy(id); setVariablesPrompt(null); }}
+        />
+      )}
+
+      {/* Share modal */}
+      {sharingPrompt && (
+        <SharePromptModal
+          prompt={sharingPrompt}
+          onClose={() => setSharingPrompt(null)}
         />
       )}
 
@@ -422,10 +434,11 @@ interface StartPageContentProps {
   onTogglePin: (id: string) => void;
   onCopy: (id: string) => void;
   onUse: (p: Prompt) => void;
+  onShare: (p: Prompt) => void;
 }
 
 function StartPageContent({
-  prompts, tags, categories, folders, onEdit, onDelete, onToggleFavorite, onTogglePin, onCopy, onUse,
+  prompts, tags, categories, folders, onEdit, onDelete, onToggleFavorite, onTogglePin, onCopy, onUse, onShare,
 }: StartPageContentProps) {
   if (prompts.length === 0) {
     return (
@@ -455,6 +468,7 @@ function StartPageContent({
           onTogglePin={onTogglePin}
           onCopy={onCopy}
           onUse={onUse}
+          onShare={onShare}
         />
       ))}
     </div>

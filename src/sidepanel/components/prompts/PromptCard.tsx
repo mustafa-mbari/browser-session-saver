@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Copy, Check, Pencil, Trash2, Pin, PinOff, Star, ChevronDown, ChevronUp, Zap, Monitor, Globe } from 'lucide-react';
+import { Copy, Check, Pencil, Trash2, Pin, PinOff, Star, ChevronDown, ChevronUp, Zap, Monitor, Globe, Share2 } from 'lucide-react';
 import type { Prompt, PromptTag, PromptCategory, PromptFolder } from '@core/types/prompt.types';
 import { PromptService } from '@core/services/prompt.service';
 
@@ -14,6 +14,7 @@ interface PromptCardProps {
   onTogglePin: (id: string) => void;
   onCopy: (id: string) => void;
   onUse: (p: Prompt) => void;
+  onShare: (p: Prompt) => void;
 }
 
 export default function PromptCard({
@@ -27,6 +28,7 @@ export default function PromptCard({
   onTogglePin,
   onCopy,
   onUse,
+  onShare,
 }: PromptCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -181,6 +183,15 @@ export default function PromptCard({
                 Use
               </button>
             )}
+
+            {/* Share */}
+            <button
+              onClick={(e) => { e.stopPropagation(); onShare(prompt); }}
+              className="p-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] transition-colors"
+              title="Share prompt"
+            >
+              <Share2 size={12} />
+            </button>
 
             {/* Edit */}
             <button
