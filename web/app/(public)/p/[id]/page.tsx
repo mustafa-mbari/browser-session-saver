@@ -50,12 +50,12 @@ export default async function SharedPromptPage({ params }: Props) {
   }
 
   // Increment view count — fire and forget
-  supabase
-    .from('shared_prompts')
-    .update({ view_count: (prompt as SharedPrompt).view_count + 1 })
-    .eq('id', id)
-    .then(() => {})
-    .catch(() => {})
+  void Promise.resolve(
+    supabase
+      .from('shared_prompts')
+      .update({ view_count: (prompt as SharedPrompt).view_count + 1 })
+      .eq('id', id)
+  ).catch(() => {})
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-[var(--dark)]">
