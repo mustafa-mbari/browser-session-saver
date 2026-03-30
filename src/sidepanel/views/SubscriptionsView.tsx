@@ -9,6 +9,10 @@ import SubscriptionAnalytics from '../components/subscriptions/SubscriptionAnaly
 
 type SubView = 'list' | 'calendar' | 'analytics';
 
+function triggerCloudSync(): void {
+  void chrome.runtime.sendMessage({ action: 'SYNC_NOW', payload: {} });
+}
+
 export default function SubscriptionsView() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [activeTab, setActiveTab] = useState<SubView>('list');
@@ -25,6 +29,7 @@ export default function SubscriptionsView() {
 
   const handleSave = useCallback(async (sub: Subscription) => {
     await SubscriptionStorage.save(sub);
+    triggerCloudSync();
     setSubscriptions((prev) => {
       const idx = prev.findIndex((s) => s.id === sub.id);
       if (idx >= 0) {
@@ -40,11 +45,13 @@ export default function SubscriptionsView() {
 
   const handleDelete = useCallback(async (id: string) => {
     await SubscriptionStorage.delete(id);
+    triggerCloudSync();
     setSubscriptions((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
   const handleStatusChange = useCallback(async (id: string, status: Subscription['status']) => {
     await SubscriptionStorage.update(id, { status });
+    triggerCloudSync();
     setSubscriptions((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
   }, []);
 
@@ -55,6 +62,7 @@ export default function SubscriptionsView() {
 
   const handleImport = useCallback(async (imported: Subscription[]) => {
     await SubscriptionStorage.importMany(imported);
+    triggerCloudSync();
     const all = await SubscriptionStorage.getAll();
     setSubscriptions(all);
   }, []);

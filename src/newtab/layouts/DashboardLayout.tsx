@@ -24,6 +24,10 @@ import { DEFAULT_NEWTAB_SETTINGS } from '@core/types/newtab.types';
 import type { QuickLink, CardType, SpanValue, BookmarkCategory } from '@core/types/newtab.types';
 import { getDefaultSize, clampSize } from '@core/config/widget-config';
 
+function triggerCloudSync(): void {
+  void chrome.runtime.sendMessage({ action: 'SYNC_NOW', payload: {} });
+}
+
 export default function DashboardLayout() {
   const uiStore = useNewTabUIStore();
   const dataStore = useNewTabDataStore();
@@ -99,22 +103,26 @@ export default function DashboardLayout() {
       favIconUrl: getFaviconUrl(url),
       isNative: false,
     });
+    triggerCloudSync();
     dataStore.setEntries([...entries, entry]);
   }, [entries]);
 
   const handleDeleteEntry = useCallback(async (id: string) => {
     await BookmarkService.deleteEntry(newtabDB, id);
+    triggerCloudSync();
     dataStore.setEntries(entries.filter((e) => e.id !== id));
   }, [entries]);
 
   const handleRenameEntry = useCallback(async (id: string, title: string, url: string) => {
     await BookmarkService.updateEntry(newtabDB, id, { title, url });
+    triggerCloudSync();
     dataStore.setEntries(entries.map((e) => (e.id === id ? { ...e, title, url } : e)));
   }, [entries]);
 
   const handleDeleteCategory = useCallback(async (id: string) => {
     const cat = categories.find((c) => c.id === id);
     await BookmarkService.removeWidgetFromBoard(newtabDB, id);
+    triggerCloudSync();
     // Keep category + entries in the store — the folder persists in the Folders explorer
     if (cat?.boardId) {
       dataStore.setBoards(boards.map((b) =>
@@ -140,6 +148,7 @@ export default function DashboardLayout() {
   const handleReorderEntries = useCallback(async (categoryId: string, orderedIds: string[]) => {
     // Persist order via category's bookmarkIds
     await BookmarkService.updateCategory(newtabDB, categoryId, { bookmarkIds: orderedIds });
+    triggerCloudSync();
     // Reorder the entries array in the store so the UI reflects the new order immediately
     const map = new Map(orderedIds.map((id, idx) => [id, idx]));
     const catEntries = entries.filter((e) => e.categoryId === categoryId);
@@ -166,6 +175,7 @@ export default function DashboardLayout() {
 
   const handleImportNative = useCallback(async (boardId: string) => {
     await BookmarkService.importNativeBookmarks(newtabDB, boardId);
+    triggerCloudSync();
     const newCats = await BookmarkService.getCategories(newtabDB, boardId);
     dataStore.setCategories([...categories.filter((c) => c.boardId !== boardId), ...newCats]);
   }, [categories]);
@@ -186,6 +196,7 @@ export default function DashboardLayout() {
     const cat = await BookmarkService.saveCategory(newtabDB, {
       boardId, ...defaults[cardType], bookmarkIds: [], collapsed: false, ...getDefaultSize(cardType), cardType,
     });
+    triggerCloudSync();
     dataStore.setCategories([...categories, cat]);
     // Update boards state so the new widget passes the boardCategories filter immediately
     dataStore.setBoards(boards.map((b) =>
@@ -197,6 +208,7 @@ export default function DashboardLayout() {
   const handleLinkFolder = useCallback(async (categoryId: string) => {
     if (!activeBoard) return;
     await BookmarkService.addExistingFolderAsWidget(newtabDB, categoryId, activeBoard.id);
+    triggerCloudSync();
     // Update boards store: add to the active board's categoryIds
     dataStore.setBoards(boards.map((b) =>
       b.id === activeBoard.id
@@ -221,6 +233,7 @@ export default function DashboardLayout() {
 
   const handleUpdateNote = useCallback(async (id: string, noteContent: string) => {
     await BookmarkService.updateCategory(newtabDB, id, { noteContent });
+    triggerCloudSync();
     dataStore.setCategories(categories.map((c) => (c.id === id ? { ...c, noteContent } : c)));
   }, [categories]);
 
@@ -231,6 +244,7 @@ export default function DashboardLayout() {
 
   const handleRenameCard = useCallback(async (id: string, name: string) => {
     await BookmarkService.updateCategory(newtabDB, id, { name });
+    triggerCloudSync();
     dataStore.setCategories(categories.map((c) => (c.id === id ? { ...c, name } : c)));
   }, [categories]);
 
@@ -258,6 +272,7 @@ export default function DashboardLayout() {
         isNative: false,
       })),
     );
+    triggerCloudSync();
     dataStore.setCategories([...categories, newCat]);
     dataStore.setEntries([...entries, ...newEntries]);
     // Update boards state so the duplicate passes the boardCategories filter immediately
@@ -276,6 +291,7 @@ export default function DashboardLayout() {
     }
     pendingReorders.current = {};
     pendingResizes.current = {};
+    triggerCloudSync();
     setHasUnsavedLayoutChanges(false);
     setSavedFeedback(true);
     setTimeout(() => setSavedFeedback(false), 2000);
@@ -285,6 +301,7 @@ export default function DashboardLayout() {
     const board = await BookmarkService.saveBoard(newtabDB, {
       name: 'New Board', icon: '📋', categoryIds: [],
     });
+    triggerCloudSync();
     dataStore.setBoards([...boards, board]);
     uiStore.updateSettings({ activeBoardId: board.id });
   }, [boards]);
@@ -292,12 +309,14 @@ export default function DashboardLayout() {
   const handleRenameBoard = useCallback(async (id: string, name: string) => {
     if (boards[0]?.id === id) return; // Main board is permanent
     await BookmarkService.updateBoard(newtabDB, id, { name });
+    triggerCloudSync();
     dataStore.setBoards(boards.map((b) => (b.id === id ? { ...b, name } : b)));
   }, [boards]);
 
   const handleDeleteBoard = useCallback(async (id: string) => {
     if (boards[0]?.id === id) return; // Main board cannot be deleted
     await BookmarkService.deleteBoard(newtabDB, id);
+    triggerCloudSync();
     const nextBoards = boards.filter((b) => b.id !== id);
     dataStore.setBoards(nextBoards);
     dataStore.setCategories(categories.filter((c) => c.boardId !== id));

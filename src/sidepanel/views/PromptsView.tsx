@@ -18,6 +18,10 @@ import PromptCard from '../components/prompts/PromptCard';
 import PromptVariablesModal from '../components/prompts/PromptVariablesModal';
 import PromptSectionNav from '../components/prompts/PromptSectionNav';
 
+function triggerCloudSync(): void {
+  void chrome.runtime.sendMessage({ action: 'SYNC_NOW', payload: {} });
+}
+
 export default function PromptsView() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [categories, setCategories] = useState<PromptCategory[]>([]);
@@ -65,6 +69,7 @@ export default function PromptsView() {
 
   const handleSave = useCallback(async (prompt: Prompt) => {
     await PromptStorage.save(prompt);
+    triggerCloudSync();
     setPrompts((prev) => {
       const idx = prev.findIndex((p) => p.id === prompt.id);
       if (idx >= 0) { const next = [...prev]; next[idx] = prompt; return next; }
@@ -76,6 +81,7 @@ export default function PromptsView() {
 
   const handleDelete = useCallback(async (id: string) => {
     await PromptStorage.delete(id);
+    triggerCloudSync();
     setPrompts((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
@@ -83,6 +89,7 @@ export default function PromptsView() {
     const prompt = prompts.find((p) => p.id === id);
     if (!prompt) return;
     await PromptStorage.update(id, { isFavorite: !prompt.isFavorite });
+    triggerCloudSync();
     setPrompts((prev) => prev.map((p) => p.id === id ? { ...p, isFavorite: !p.isFavorite } : p));
   }, [prompts]);
 
@@ -90,6 +97,7 @@ export default function PromptsView() {
     const prompt = prompts.find((p) => p.id === id);
     if (!prompt) return;
     await PromptStorage.update(id, { isPinned: !prompt.isPinned });
+    triggerCloudSync();
     setPrompts((prev) => prev.map((p) => p.id === id ? { ...p, isPinned: !p.isPinned } : p));
   }, [prompts]);
 
@@ -125,6 +133,7 @@ export default function PromptsView() {
       createdAt: new Date().toISOString(),
     };
     await PromptStorage.saveFolder(folder);
+    triggerCloudSync();
     setFolders((prev) => [...prev, folder]);
     return folder;
   }, [folders]);
@@ -134,11 +143,13 @@ export default function PromptsView() {
     if (!folder) return;
     const updated = { ...folder, ...updates };
     await PromptStorage.saveFolder(updated);
+    triggerCloudSync();
     setFolders((prev) => prev.map((f) => f.id === id ? updated : f));
   }, [folders]);
 
   const handleDeleteFolder = useCallback(async (id: string) => {
     await PromptStorage.deleteFolder(id);
+    triggerCloudSync();
     setFolders((prev) => prev.filter((f) => f.id !== id));
     setPrompts((prev) => prev.map((p) => p.folderId === id ? { ...p, folderId: undefined } : p));
     // If deleted folder was active, go back to source root
@@ -155,6 +166,7 @@ export default function PromptsView() {
     );
     const updated: PromptFolder = { ...folder, parentId: newParentId, position: siblings.length };
     await PromptStorage.saveFolder(updated);
+    triggerCloudSync();
     setFolders((prev) => prev.map((f) => f.id === id ? updated : f));
   }, [folders]);
 
@@ -167,6 +179,7 @@ export default function PromptsView() {
       color: `hsl(${Math.floor(Math.random() * 360)}, 65%, 55%)`,
     };
     await PromptStorage.saveTag(tag);
+    triggerCloudSync();
     setTags((prev) => [...prev, tag]);
     return tag;
   }, []);
@@ -180,6 +193,7 @@ export default function PromptsView() {
       createdAt: new Date().toISOString(),
     };
     await PromptStorage.saveCategory(cat);
+    triggerCloudSync();
     setCategories((prev) => [...prev, cat]);
     return cat;
   }, []);
@@ -199,6 +213,7 @@ export default function PromptsView() {
     setCategories(c);
     setTags(t);
     setFolders(f);
+    triggerCloudSync();
     setSeeding(false);
   }, []);
 
