@@ -8,7 +8,7 @@ import { STORAGE_KEYS } from '@core/types/storage.types';
 import { DEFAULT_SETTINGS } from '@core/types/settings.types';
 import type { Settings } from '@core/types/settings.types';
 import { getSyncUserId } from '@core/services/sync-auth.service';
-import { syncAll } from '@core/services/sync.service';
+import { syncAll, pullAll } from '@core/services/sync.service';
 
 console.log('Browser Hub service worker started');
 
@@ -27,8 +27,10 @@ initAutoSaveEngine(DEFAULT_SETTINGS);
 chrome.alarms.create('cloud-sync', { periodInMinutes: 15 });
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'cloud-sync') {
-    void getSyncUserId().then((userId) => {
-      if (userId) void syncAll();
+    void getSyncUserId().then(async (userId) => {
+      if (!userId) return;
+      await syncAll();
+      void pullAll(); // pull after push so new data from other devices arrives
     });
   }
 });

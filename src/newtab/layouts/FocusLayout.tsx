@@ -18,6 +18,10 @@ import { useState } from 'react';
 import type { QuickLink, CardType } from '@core/types/newtab.types';
 import { getDefaultSize } from '@core/config/widget-config';
 
+function triggerCloudSync(): void {
+  void chrome.runtime.sendMessage({ action: 'SYNC_NOW', payload: {} });
+}
+
 export default function FocusLayout() {
   const uiStore = useNewTabUIStore();
   const dataStore = useNewTabDataStore();
@@ -66,6 +70,7 @@ export default function FocusLayout() {
       priority: 'none',
       position: todoItems.filter((i) => i.listId === listId).length,
     });
+    triggerCloudSync();
     dataStore.setTodoItems([...todoItems, item]);
   }, [todoItems]);
 
@@ -76,16 +81,19 @@ export default function FocusLayout() {
       ? { completed: false, completedAt: undefined }
       : { completed: true, completedAt: new Date().toISOString() };
     await TodoService.updateTodoItem(newtabDB, id, updates);
+    triggerCloudSync();
     dataStore.setTodoItems(todoItems.map((i) => (i.id === id ? { ...i, ...updates } : i)));
   }, [todoItems]);
 
   const handleDeleteTodo = useCallback(async (id: string) => {
     await TodoService.deleteTodoItem(newtabDB, id);
+    triggerCloudSync();
     dataStore.setTodoItems(todoItems.filter((i) => i.id !== id));
   }, [todoItems]);
 
   const handleReorderTodo = useCallback(async (listId: string, orderedIds: string[]) => {
     await TodoService.reorderTodoItems(newtabDB, listId, orderedIds);
+    triggerCloudSync();
     const map = new Map(orderedIds.map((id, idx) => [id, idx]));
     dataStore.setTodoItems(
       todoItems.map((i) => (map.has(i.id) ? { ...i, position: map.get(i.id)! } : i)),
@@ -100,21 +108,25 @@ export default function FocusLayout() {
       favIconUrl: getFaviconUrl(url),
       isNative: false,
     });
+    triggerCloudSync();
     dataStore.setEntries([...entries, entry]);
   }, [entries]);
 
   const handleDeleteEntry = useCallback(async (id: string) => {
     await BookmarkService.deleteEntry(newtabDB, id);
+    triggerCloudSync();
     dataStore.setEntries(entries.filter((e) => e.id !== id));
   }, [entries]);
 
   const handleRenameEntry = useCallback(async (id: string, title: string, url: string) => {
     await BookmarkService.updateEntry(newtabDB, id, { title, url });
+    triggerCloudSync();
     dataStore.setEntries(entries.map((e) => (e.id === id ? { ...e, title, url } : e)));
   }, [entries]);
 
   const handleDeleteCategory = useCallback(async (id: string) => {
     await BookmarkService.deleteCategory(newtabDB, id);
+    triggerCloudSync();
     dataStore.setCategories(categories.filter((c) => c.id !== id));
     dataStore.setEntries(entries.filter((e) => e.categoryId !== id));
   }, [categories, entries]);

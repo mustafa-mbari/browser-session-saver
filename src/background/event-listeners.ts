@@ -588,6 +588,10 @@ async function handleSyncSignIn(payload: {
   password: string;
 }): Promise<MessageResponse<SyncSignInResponse>> {
   const result = await syncSignIn(payload.email, payload.password);
+  if (result.success) {
+    // Auto-pull on sign-in so a second device gets cloud data immediately
+    void pullAll();
+  }
   return { success: result.success, data: result, error: result.error };
 }
 
