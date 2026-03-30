@@ -17,11 +17,14 @@
     "downloads",
     "downloads.open"
   ],
-  "optional_permissions": ["history"],
+  "optional_permissions": [
+    "history"
+  ],
   "host_permissions": [
     "https://api.open-meteo.com/*",
     "https://ipinfo.io/*",
-    "https://*.supabase.co/*"
+    "https://*.supabase.co/*",
+    "https://bh.mbari.de/*"
   ],
   "chrome_url_overrides": {
     "newtab": "src/newtab/index.html"
