@@ -58,12 +58,18 @@ export default async function SharedPromptPage({ params }: Props) {
   ).catch(() => {})
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-[var(--dark)]">
+    <div
+      className="min-h-screen"
+      style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1030 50%, #0f0f1a 100%)' }}
+    >
       {/* Top sticky marketing banner */}
-      <div className="sticky top-0 z-50 bg-amber-500 text-white">
+      <div
+        className="sticky top-0 z-50 text-white"
+        style={{ background: 'linear-gradient(90deg, #625fff, #8b5cf6)' }}
+      >
         <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-sm font-medium">
-            <span className="text-base">🌐</span>
+            <span className="text-base">✨</span>
             <span>
               Created with <strong>Browser Hub</strong> — your all-in-one browser productivity tool
             </span>
@@ -72,7 +78,8 @@ export default async function SharedPromptPage({ params }: Props) {
             href="https://chromewebstore.google.com/detail/browser-hub"
             target="_blank"
             rel="noopener noreferrer"
-            className="shrink-0 bg-white text-amber-600 text-sm font-semibold px-3 py-1 rounded-lg hover:bg-amber-50 transition-colors"
+            className="shrink-0 bg-white text-sm font-semibold px-3 py-1 rounded-lg hover:bg-white/90 transition-colors"
+            style={{ color: '#625fff' }}
           >
             Download Free →
           </a>
@@ -85,13 +92,16 @@ export default async function SharedPromptPage({ params }: Props) {
       </div>
 
       {/* Bottom marketing section */}
-      <div className="bg-stone-900 dark:bg-stone-950 text-white mt-16 py-16 px-4">
+      <div className="mt-16 py-16 px-4" style={{ background: 'rgba(0,0,0,0.3)' }}>
         <div className="max-w-4xl mx-auto text-center">
-          <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-amber-500 mx-auto mb-6">
-            <span className="text-2xl">🌐</span>
+          <div
+            className="flex items-center justify-center h-14 w-14 rounded-2xl mx-auto mb-6"
+            style={{ background: 'linear-gradient(135deg, #625fff, #8b5cf6)' }}
+          >
+            <span className="text-2xl">✨</span>
           </div>
-          <h2 className="text-3xl font-bold mb-3">Browser Hub</h2>
-          <p className="text-stone-400 text-lg mb-10 max-w-2xl mx-auto">
+          <h2 className="text-3xl font-bold mb-3 text-white">Browser Hub</h2>
+          <p className="text-lg mb-10 max-w-2xl mx-auto" style={{ color: 'rgba(255,255,255,0.5)' }}>
             Your all-in-one browser productivity tool. Save sessions, manage prompts, track
             subscriptions, and organize tab groups — all in one place.
           </p>
@@ -107,12 +117,16 @@ export default async function SharedPromptPage({ params }: Props) {
             ].map((feature) => (
               <div
                 key={feature.title}
-                className="bg-stone-800 rounded-xl p-4 flex gap-3 items-start"
+                className="rounded-xl p-4 flex gap-3 items-start"
+                style={{
+                  background: 'rgba(98, 95, 255, 0.08)',
+                  border: '1px solid rgba(98, 95, 255, 0.2)',
+                }}
               >
                 <span className="text-xl shrink-0">{feature.icon}</span>
                 <div>
                   <div className="font-semibold text-sm text-white">{feature.title}</div>
-                  <div className="text-stone-400 text-xs mt-0.5">{feature.desc}</div>
+                  <div className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>{feature.desc}</div>
                 </div>
               </div>
             ))}
@@ -123,19 +137,21 @@ export default async function SharedPromptPage({ params }: Props) {
               href="https://chromewebstore.google.com/detail/browser-hub"
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-amber-500 hover:bg-amber-400 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+              className="text-white font-semibold px-6 py-3 rounded-xl transition-opacity hover:opacity-90"
+              style={{ background: 'linear-gradient(135deg, #625fff, #8b5cf6)' }}
             >
               Download Extension Free
             </a>
             <a
               href="/register"
-              className="border border-stone-600 hover:border-stone-400 text-stone-300 hover:text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+              className="font-semibold px-6 py-3 rounded-xl transition-colors hover:text-white"
+              style={{ border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
             >
               Sign Up Free →
             </a>
           </div>
 
-          <p className="text-stone-500 text-sm mt-8">
+          <p className="text-sm mt-8" style={{ color: 'rgba(255,255,255,0.25)' }}>
             Free to use · Chrome Extension · No credit card required
           </p>
         </div>
