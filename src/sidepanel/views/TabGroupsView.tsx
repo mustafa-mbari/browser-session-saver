@@ -210,7 +210,7 @@ function LiveGroupRow({
     } finally {
       setBookmarking(false);
     }
-  }, [bookmarked, group, templateKey, onPinChange]);
+  }, [group, templateKey, onPinChange]);
 
   const menuItems = useMemo(() => [
     { label: 'Rename',             icon: Edit2,     onClick: startEdit },
@@ -622,6 +622,12 @@ export default function TabGroupsView() {
     } finally {
       setLiveLoading(false);
     }
+  }, [reloadSaved]);
+
+  // Load saved templates immediately on mount — independent of live group loading.
+  // Ensures the Saved section renders even if loadLiveGroups is slow or errors.
+  useEffect(() => {
+    void reloadSaved();
   }, [reloadSaved]);
 
   useEffect(() => {

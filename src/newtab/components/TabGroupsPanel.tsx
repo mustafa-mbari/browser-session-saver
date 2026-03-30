@@ -81,7 +81,15 @@ function ColorPicker({
 
 // ── Live Group Card ────────────────────────────────────────────────────────────
 
-function LiveGroupCard({ group, onRefresh }: { group: LiveGroup; onRefresh: () => void }) {
+function LiveGroupCard({
+  group,
+  onRefresh,
+  onPinChange,
+}: {
+  group: LiveGroup;
+  onRefresh: () => void;
+  onPinChange: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(group.title);
@@ -189,7 +197,7 @@ function LiveGroupCard({ group, onRefresh }: { group: LiveGroup; onRefresh: () =
         });
         setBookmarked(true);
       }
-      onRefresh();
+      onPinChange();
     } finally {
       setBookmarking(false);
     }
@@ -575,9 +583,14 @@ export default function TabGroupsPanel() {
       await reloadSaved();
     } catch {
       setLiveGroups([]);
+      await reloadSaved();
     } finally {
       setLiveLoading(false);
     }
+  }, [reloadSaved]);
+
+  useEffect(() => {
+    void reloadSaved();
   }, [reloadSaved]);
 
   useEffect(() => {
@@ -723,7 +736,12 @@ export default function TabGroupsPanel() {
             ) : (
               <div className="flex flex-col gap-2">
                 {filteredLive.map((g) => (
-                  <LiveGroupCard key={g.id} group={g} onRefresh={() => void loadLiveGroups()} />
+                  <LiveGroupCard
+                    key={g.id}
+                    group={g}
+                    onRefresh={() => void loadLiveGroups()}
+                    onPinChange={() => void reloadSaved()}
+                  />
                 ))}
               </div>
             )}
