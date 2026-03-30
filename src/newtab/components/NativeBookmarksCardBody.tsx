@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getFaviconUrl } from '@core/utils/favicon';
+import { getFaviconUrl, getChromeInternalFaviconUrl, getFaviconFallbackUrl } from '@core/utils/favicon';
 import type { SpanValue } from '@core/types/newtab.types';
 
 interface NativeNode {
@@ -9,14 +9,13 @@ interface NativeNode {
   children?: NativeNode[];
 }
 
-function getFaviconSrc(url: string): string {
-  return getFaviconUrl(url, 16);
-}
-
 function BookmarkNode({ node, depth = 0 }: { node: NativeNode; depth?: number }) {
   const [expanded, setExpanded] = useState(depth === 0);
+  const [favTryIdx, setFavTryIdx] = useState(0);
 
   if (node.url) {
+    const favSources = [getFaviconUrl(node.url, 16), getChromeInternalFaviconUrl(node.url, 16), getFaviconFallbackUrl(node.url, 16)].filter(Boolean);
+    const favSrc = favSources[favTryIdx] ?? '';
     return (
       <a
         href={node.url}
@@ -24,12 +23,14 @@ function BookmarkNode({ node, depth = 0 }: { node: NativeNode; depth?: number })
         style={{ color: 'var(--newtab-text)', paddingLeft: `${8 + depth * 14}px`, paddingRight: 8 }}
         title={node.title || node.url}
       >
-        <img
-          src={getFaviconSrc(node.url)}
-          alt=""
-          className="w-3 h-3 rounded shrink-0"
-          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-        />
+        {favSrc && (
+          <img
+            src={favSrc}
+            alt=""
+            className="w-3 h-3 rounded shrink-0"
+            onError={() => setFavTryIdx((i) => i + 1)}
+          />
+        )}
         <span className="truncate">{node.title || node.url}</span>
       </a>
     );

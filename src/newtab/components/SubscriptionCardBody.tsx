@@ -5,7 +5,7 @@ import type { Subscription, CustomCategory } from '@core/types/subscription.type
 import { CATEGORY_LABELS } from '@core/types/subscription.types';
 import { SubscriptionStorage } from '@core/storage/subscription-storage';
 import { SubscriptionService } from '@core/services/subscription.service';
-import { resolveFavIcon, getFaviconFallbackUrl, getFaviconInitial } from '@core/utils/favicon';
+import { resolveFavIcon, getFaviconFallbackUrl, getFaviconInitial, getChromeInternalFaviconUrl } from '@core/utils/favicon';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
 import { safeOpenUrl } from '@core/utils/safe-open';
 
@@ -51,7 +51,7 @@ const CATEGORY_EMOJI: Record<string, string> = {
 function FaviconSmall({ url, name }: { url?: string; name: string }) {
   const [tryIdx, setTryIdx] = useState(0);
   const sources = url
-    ? [resolveFavIcon('', url), getFaviconFallbackUrl(url)].filter(Boolean)
+    ? [resolveFavIcon('', url), getChromeInternalFaviconUrl(url), getFaviconFallbackUrl(url)].filter(Boolean)
     : [];
   const src = sources[tryIdx] ?? '';
 

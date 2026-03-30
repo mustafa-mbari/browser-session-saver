@@ -1,6 +1,6 @@
 import { SUBSCRIPTION_TEMPLATES, CATEGORY_LABELS } from '@core/types/subscription.types';
 import type { SubscriptionTemplate } from '@core/types/subscription.types';
-import { resolveFavIcon, getFaviconInitial } from '@core/utils/favicon';
+import { resolveFavIcon, getFaviconInitial, getChromeInternalFaviconUrl, getFaviconFallbackUrl } from '@core/utils/favicon';
 import { useState } from 'react';
 
 interface Props {
@@ -9,10 +9,13 @@ interface Props {
 }
 
 function TemplateFavicon({ url, name }: { url?: string; name: string }) {
-  const [failed, setFailed] = useState(false);
-  const faviconUrl = url ? resolveFavIcon('', url) : '';
+  const [tryIdx, setTryIdx] = useState(0);
+  const sources = url
+    ? [resolveFavIcon('', url), getChromeInternalFaviconUrl(url), getFaviconFallbackUrl(url)].filter(Boolean)
+    : [];
+  const src = sources[tryIdx] ?? '';
 
-  if (!faviconUrl || failed) {
+  if (!src) {
     return (
       <span className="w-8 h-8 flex items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 font-bold text-sm">
         {getFaviconInitial(name, url ?? '')}
@@ -21,10 +24,10 @@ function TemplateFavicon({ url, name }: { url?: string; name: string }) {
   }
   return (
     <img
-      src={faviconUrl}
+      src={src}
       alt={name}
       className="w-8 h-8 rounded-lg object-contain"
-      onError={() => setFailed(true)}
+      onError={() => setTryIdx((i) => i + 1)}
     />
   );
 }

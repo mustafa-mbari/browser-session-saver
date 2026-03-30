@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react';
 import EmptyState from '@shared/components/EmptyState';
 import { Globe } from 'lucide-react';
-import { getFaviconUrl } from '@core/utils/favicon';
+import { getFaviconUrl, getChromeInternalFaviconUrl, getFaviconFallbackUrl } from '@core/utils/favicon';
 
 interface Site {
   url: string;
   title: string;
+}
+
+function SiteFavicon({ url }: { url: string }) {
+  const [tryIdx, setTryIdx] = useState(0);
+  const sources = [getFaviconUrl(url), getChromeInternalFaviconUrl(url), getFaviconFallbackUrl(url)].filter(Boolean);
+  const src = sources[tryIdx] ?? '';
+  return src ? (
+    <img src={src} alt="" className="w-8 h-8 rounded" onError={() => setTryIdx((i) => i + 1)} />
+  ) : null;
 }
 
 export default function FrequentlyVisitedPanel() {
@@ -41,7 +50,6 @@ export default function FrequentlyVisitedPanel() {
   return (
     <div className="flex flex-wrap gap-4 justify-center py-4">
       {sites.map((site) => {
-        const faviconUrl = getFaviconUrl(site.url);
         return (
           <a
             key={site.url}
@@ -49,14 +57,7 @@ export default function FrequentlyVisitedPanel() {
             className="flex flex-col items-center gap-2 group"
           >
             <div className="glass w-20 h-20 rounded-2xl flex items-center justify-center transition-transform duration-200 group-hover:scale-105 shadow-md">
-              <img
-                src={faviconUrl}
-                alt=""
-                className="w-8 h-8 rounded"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = 'none';
-                }}
-              />
+              <SiteFavicon url={site.url} />
             </div>
             <span
               className="text-xs truncate max-w-[80px] text-center"

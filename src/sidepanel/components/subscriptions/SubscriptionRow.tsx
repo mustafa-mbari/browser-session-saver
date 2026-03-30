@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ExternalLink, Pencil, Pause, Play, XCircle, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Subscription } from '@core/types/subscription.types';
 import { SubscriptionService } from '@core/services/subscription.service';
-import { resolveFavIcon, getFaviconFallbackUrl, getFaviconInitial } from '@core/utils/favicon';
+import { resolveFavIcon, getFaviconFallbackUrl, getFaviconInitial, getChromeInternalFaviconUrl } from '@core/utils/favicon';
 
 interface Props {
   subscription: Subscription;
@@ -30,7 +30,7 @@ const statusBadge: Record<Subscription['status'], { label: string; cls: string }
 function FaviconImage({ url, name, size = 16 }: { url?: string; name: string; size?: number }) {
   const [tryIdx, setTryIdx] = useState(0);
   const sources = url
-    ? [resolveFavIcon('', url), getFaviconFallbackUrl(url)].filter(Boolean)
+    ? [resolveFavIcon('', url), getChromeInternalFaviconUrl(url), getFaviconFallbackUrl(url)].filter(Boolean)
     : [];
   const src = sources[tryIdx] ?? '';
 

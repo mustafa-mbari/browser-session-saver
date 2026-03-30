@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Pencil, Trash2 } from 'lucide-react';
 import ContextMenu from '@shared/components/ContextMenu';
 import type { BookmarkEntry, CardDensity } from '@core/types/newtab.types';
-import { resolveFavIcon, getFaviconFallbackUrl, getFaviconInitial } from '@core/utils/favicon';
+import { resolveFavIcon, getFaviconFallbackUrl, getFaviconInitial, getChromeInternalFaviconUrl } from '@core/utils/favicon';
 import { safeOpenUrl } from '@core/utils/safe-open';
 
 export interface BookmarkEntryRowProps {
@@ -57,7 +57,7 @@ export default function BookmarkEntryRow({ entry, density, onDelete, onRename }:
     { label: 'Delete', icon: Trash2, onClick: () => onDelete(entry.id), danger: true },
   ];
 
-  const favSources = [resolveFavIcon(entry.favIconUrl, entry.url), getFaviconFallbackUrl(entry.url)].filter(Boolean);
+  const favSources = [resolveFavIcon(entry.favIconUrl, entry.url), getChromeInternalFaviconUrl(entry.url), getFaviconFallbackUrl(entry.url)].filter(Boolean);
   const favSrc = favSources[favTryIdx] ?? '';
   const favicon = favSrc ? (
     <img src={favSrc} alt="" className={`${iconCls} rounded shrink-0`} onError={() => setFavTryIdx((i) => i + 1)} />

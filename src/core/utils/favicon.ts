@@ -45,6 +45,21 @@ export function getFaviconFallbackUrl(url: string, size = 32): string {
 }
 
 /**
+ * Chrome's internal favicon cache. No external network request — reads from
+ * Chrome's on-disk favicon DB. Works offline and behind corporate firewalls.
+ * Returns a favicon for any URL the user has previously visited in Chrome.
+ */
+export function getChromeInternalFaviconUrl(url: string, size = 32): string {
+  try {
+    const { hostname, protocol } = new URL(url);
+    if (isLocalHost(hostname, protocol)) return '';
+    return `chrome://favicon2/?pageUrl=${encodeURIComponent(url)}&size=${size}&scaleFactor=1x`;
+  } catch {
+    return '';
+  }
+}
+
+/**
  * Returns the first character of the title or URL for use as a letter avatar
  * when a favicon fails to load.
  */

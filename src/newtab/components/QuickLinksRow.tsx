@@ -11,12 +11,12 @@ import { CSS } from '@dnd-kit/utilities';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import type { QuickLink } from '@core/types/newtab.types';
 import { useSortableItems } from '@newtab/hooks/useBookmarkDnd';
-import { resolveFavIcon, getFaviconFallbackUrl, getFaviconInitial } from '@core/utils/favicon';
+import { resolveFavIcon, getFaviconFallbackUrl, getFaviconInitial, getChromeInternalFaviconUrl } from '@core/utils/favicon';
 import { safeOpenUrl } from '@core/utils/safe-open';
 
 function FaviconChip({ url, title, favIconUrl, hovered }: { url: string; title: string; favIconUrl: string; hovered: boolean }) {
   const [tryIdx, setTryIdx] = useState(0);
-  const sources = [resolveFavIcon(favIconUrl, url), getFaviconFallbackUrl(url)].filter(Boolean);
+  const sources = [resolveFavIcon(favIconUrl, url), getChromeInternalFaviconUrl(url), getFaviconFallbackUrl(url)].filter(Boolean);
   const src = sources[tryIdx] ?? '';
   return (
     <div className={`glass w-14 h-14 rounded-full flex items-center justify-center transition-transform duration-200 shadow-md ${hovered ? 'scale-110 ring-2 ring-white/30' : ''}`}>

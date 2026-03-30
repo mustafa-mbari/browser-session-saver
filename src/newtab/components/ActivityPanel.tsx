@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { History } from 'lucide-react';
 import EmptyState from '@shared/components/EmptyState';
-import { getFaviconUrl } from '@core/utils/favicon';
+import { getFaviconUrl, getChromeInternalFaviconUrl, getFaviconFallbackUrl } from '@core/utils/favicon';
 
 interface HistoryItem {
   id: string;
@@ -9,6 +9,15 @@ interface HistoryItem {
   title?: string;
   visitCount?: number;
   lastVisitTime?: number;
+}
+
+function HistoryFavicon({ url }: { url: string }) {
+  const [tryIdx, setTryIdx] = useState(0);
+  const sources = [getFaviconUrl(url), getChromeInternalFaviconUrl(url), getFaviconFallbackUrl(url)].filter(Boolean);
+  const src = sources[tryIdx] ?? '';
+  return src ? (
+    <img src={src} alt="" className="w-4 h-4 rounded shrink-0" onError={() => setTryIdx((i) => i + 1)} />
+  ) : null;
 }
 
 export default function ActivityPanel() {
@@ -66,11 +75,7 @@ export default function ActivityPanel() {
           href={item.url}
           className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/10 transition-colors"
         >
-          <img
-            src={getFaviconUrl(item.url)}
-            alt=""
-            className="w-4 h-4 rounded shrink-0"
-          />
+          <HistoryFavicon url={item.url} />
           <div className="flex-1 min-w-0">
             <div className="text-sm truncate" style={{ color: 'var(--newtab-text)' }}>
               {item.title || item.url}
