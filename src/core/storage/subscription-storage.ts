@@ -57,4 +57,15 @@ export const SubscriptionStorage = {
     }
     await subsAdapter.setAll(Array.from(map.values()));
   },
+
+  replaceCustomCategories(cats: CustomCategory[]): Promise<void> {
+    return catsAdapter.setAll(cats);
+  },
+
+  async mergeCustomCategories(incoming: CustomCategory[]): Promise<void> {
+    const existing = await catsAdapter.getAll();
+    const map = new Map(existing.map((c) => [c.value, c]));
+    incoming.forEach((c) => map.set(c.value, c));
+    await catsAdapter.setAll(Array.from(map.values()));
+  },
 };

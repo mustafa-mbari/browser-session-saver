@@ -27,4 +27,8 @@ export class TabGroupTemplateStorage {
     const all = await adapter.getAll();
     await adapter.setAll(all.filter((t) => t.key !== key));
   }
+
+  static replaceAll(templates: TabGroupTemplate[]): Promise<void> {
+    return adapter.setAll(templates);
+  }
 }

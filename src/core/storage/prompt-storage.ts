@@ -154,6 +154,33 @@ export const PromptStorage = {
     await tagsAdapter.setAll(all.filter((t) => t.id !== id));
   },
 
+  // ── Bulk helpers (used by import service) ─────────────────────────────
+
+  setFolders: (folders: PromptFolder[]): Promise<void> => foldersAdapter.setAll(folders),
+  setCategories: (categories: PromptCategory[]): Promise<void> => categoriesAdapter.setAll(categories),
+  setTags: (tags: PromptTag[]): Promise<void> => tagsAdapter.setAll(tags),
+
+  async mergeFolders(incoming: PromptFolder[]): Promise<void> {
+    const existing = await foldersAdapter.getAll();
+    const map = new Map(existing.map((f) => [f.id, f]));
+    incoming.forEach((f) => map.set(f.id, f));
+    await foldersAdapter.setAll(Array.from(map.values()));
+  },
+
+  async mergeCategories(incoming: PromptCategory[]): Promise<void> {
+    const existing = await categoriesAdapter.getAll();
+    const map = new Map(existing.map((c) => [c.id, c]));
+    incoming.forEach((c) => map.set(c.id, c));
+    await categoriesAdapter.setAll(Array.from(map.values()));
+  },
+
+  async mergeTags(incoming: PromptTag[]): Promise<void> {
+    const existing = await tagsAdapter.getAll();
+    const map = new Map(existing.map((t) => [t.id, t]));
+    incoming.forEach((t) => map.set(t.id, t));
+    await tagsAdapter.setAll(Array.from(map.values()));
+  },
+
   // ── App Folders Seed ───────────────────────────────────────────────────
 
   async seedAppFolders(): Promise<void> {
