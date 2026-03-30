@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import { createServiceClient } from '@/lib/supabase/server'
 import SharedPromptClient from './SharedPromptClient'
 
@@ -10,6 +11,7 @@ interface SharedPrompt {
   prompt_description: string | null
   tags: string[]
   compatible_models: string[]
+  shared_by_name: string | null
   view_count: number
   created_at: string
 }
@@ -41,7 +43,7 @@ export default async function SharedPromptPage({ params }: Props) {
 
   const { data: prompt, error } = await supabase
     .from('shared_prompts')
-    .select('id, prompt_title, prompt_content, prompt_description, tags, compatible_models, view_count, created_at')
+    .select('id, prompt_title, prompt_content, prompt_description, tags, compatible_models, shared_by_name, view_count, created_at')
     .eq('id', id)
     .single()
 
@@ -58,18 +60,23 @@ export default async function SharedPromptPage({ params }: Props) {
   ).catch(() => {})
 
   return (
-    <div
-      className="min-h-screen"
-      style={{ background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1030 50%, #0f0f1a 100%)' }}
-    >
+    <div className="min-h-screen bg-stone-50 dark:[background:linear-gradient(135deg,#0f0f1a_0%,#1a1030_50%,#0f0f1a_100%)]">
       {/* Top sticky marketing banner */}
       <div
         className="sticky top-0 z-50 text-white"
         style={{ background: 'linear-gradient(90deg, #625fff, #8b5cf6)' }}
       >
         <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <span className="text-base">✨</span>
+          <div className="flex items-center gap-2.5 text-sm font-medium">
+            <div className="bg-white/20 rounded-lg p-1 shrink-0">
+              <Image
+                src="/icons/browser-hub_logo.png"
+                width={20}
+                height={20}
+                alt="Browser Hub"
+                className="block"
+              />
+            </div>
             <span>
               Created with <strong>Browser Hub</strong> — your all-in-one browser productivity tool
             </span>
@@ -92,16 +99,22 @@ export default async function SharedPromptPage({ params }: Props) {
       </div>
 
       {/* Bottom marketing section */}
-      <div className="mt-16 py-16 px-4" style={{ background: 'rgba(0,0,0,0.3)' }}>
+      <div className="mt-16 py-16 px-4 bg-stone-100 dark:[background:rgba(0,0,0,0.35)]">
         <div className="max-w-4xl mx-auto text-center">
           <div
             className="flex items-center justify-center h-14 w-14 rounded-2xl mx-auto mb-6"
             style={{ background: 'linear-gradient(135deg, #625fff, #8b5cf6)' }}
           >
-            <span className="text-2xl">✨</span>
+            <Image
+              src="/icons/browser-hub_logo.png"
+              width={32}
+              height={32}
+              alt="Browser Hub"
+              className="block"
+            />
           </div>
-          <h2 className="text-3xl font-bold mb-3 text-white">Browser Hub</h2>
-          <p className="text-lg mb-10 max-w-2xl mx-auto" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          <h2 className="text-3xl font-bold mb-3 text-stone-900 dark:text-white">Browser Hub</h2>
+          <p className="text-lg mb-10 max-w-2xl mx-auto text-stone-600 dark:text-white/50">
             Your all-in-one browser productivity tool. Save sessions, manage prompts, track
             subscriptions, and organize tab groups — all in one place.
           </p>
@@ -117,16 +130,12 @@ export default async function SharedPromptPage({ params }: Props) {
             ].map((feature) => (
               <div
                 key={feature.title}
-                className="rounded-xl p-4 flex gap-3 items-start"
-                style={{
-                  background: 'rgba(98, 95, 255, 0.08)',
-                  border: '1px solid rgba(98, 95, 255, 0.2)',
-                }}
+                className="rounded-xl p-4 flex gap-3 items-start bg-white border border-stone-200 dark:[background:rgba(98,95,255,0.08)] dark:[border-color:rgba(98,95,255,0.2)]"
               >
                 <span className="text-xl shrink-0">{feature.icon}</span>
                 <div>
-                  <div className="font-semibold text-sm text-white">{feature.title}</div>
-                  <div className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>{feature.desc}</div>
+                  <div className="font-semibold text-sm text-stone-900 dark:text-white">{feature.title}</div>
+                  <div className="text-xs mt-0.5 text-stone-500 dark:text-white/40">{feature.desc}</div>
                 </div>
               </div>
             ))}
@@ -144,14 +153,13 @@ export default async function SharedPromptPage({ params }: Props) {
             </a>
             <a
               href="/register"
-              className="font-semibold px-6 py-3 rounded-xl transition-colors hover:text-white"
-              style={{ border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
+              className="font-semibold px-6 py-3 rounded-xl transition-colors border text-stone-600 border-stone-300 hover:text-stone-900 hover:border-stone-400 dark:border-white/15 dark:text-white/70 dark:hover:text-white dark:hover:border-white/30"
             >
               Sign Up Free →
             </a>
           </div>
 
-          <p className="text-sm mt-8" style={{ color: 'rgba(255,255,255,0.25)' }}>
+          <p className="text-sm mt-8 text-stone-400 dark:text-white/25">
             Free to use · Chrome Extension · No credit card required
           </p>
         </div>

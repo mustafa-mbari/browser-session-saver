@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Copy, Check, ExternalLink, Share2 } from 'lucide-react';
 import type { Prompt } from '@core/types/prompt.types';
+import { getSyncEmail } from '@core/services/sync-auth.service';
 
 interface Props {
   prompt: Prompt;
@@ -21,18 +22,21 @@ export default function SharePromptModal({ prompt, onClose }: Props) {
   useEffect(() => {
     const controller = new AbortController();
 
-    fetch(`${SITE_URL}/api/prompts/share`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: prompt.title,
-        content: prompt.content,
-        description: prompt.description ?? null,
-        tags: prompt.tags,
-        compatibleModels: prompt.compatibleModels ?? [],
-      }),
-      signal: controller.signal,
-    })
+    getSyncEmail().then((email) =>
+      fetch(`${SITE_URL}/api/prompts/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: prompt.title,
+          content: prompt.content,
+          description: prompt.description ?? null,
+          tags: prompt.tags,
+          compatibleModels: prompt.compatibleModels ?? [],
+          creatorName: email ?? null,
+        }),
+        signal: controller.signal,
+      })
+    )
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -88,7 +92,7 @@ export default function SharePromptModal({ prompt, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Share2 size={16} className="text-amber-500" />
+            <Share2 size={16} className="text-[#625fff]" />
             <h2 className="text-base font-semibold">Share Prompt</h2>
           </div>
           <button
@@ -111,7 +115,7 @@ export default function SharePromptModal({ prompt, onClose }: Props) {
         {/* State-dependent body */}
         {state.kind === 'loading' && (
           <div className="flex items-center justify-center py-6 gap-2">
-            <div className="h-4 w-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+            <div className="h-4 w-4 border-2 border-[#625fff] border-t-transparent rounded-full animate-spin" />
             <span className="text-sm" style={{ color: 'var(--color-text-secondary, #6b7280)' }}>
               Creating share link…
             </span>
@@ -123,7 +127,7 @@ export default function SharePromptModal({ prompt, onClose }: Props) {
             <p className="text-sm text-red-500 mb-3">{state.message}</p>
             <button
               onClick={() => setState({ kind: 'loading' })}
-              className="text-sm text-amber-500 hover:underline"
+              className="text-sm text-[#625fff] hover:underline"
             >
               Try again
             </button>
@@ -151,7 +155,7 @@ export default function SharePromptModal({ prompt, onClose }: Props) {
             <div className="flex gap-2">
               <button
                 onClick={handleCopy}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors bg-amber-500 text-white hover:bg-amber-600"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors bg-[#625fff] text-white hover:bg-[#7c6fff]"
               >
                 {copied ? <Check size={14} /> : <Copy size={14} />}
                 {copied ? 'Copied!' : 'Copy Link'}

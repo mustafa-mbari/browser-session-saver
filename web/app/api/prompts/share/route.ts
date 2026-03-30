@@ -15,7 +15,7 @@ export async function OPTIONS() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { title, content, description, tags, compatibleModels } = body
+    const { title, content, description, tags, compatibleModels, creatorName } = body
 
     if (!title?.trim() || !content?.trim()) {
       return NextResponse.json(
@@ -34,6 +34,7 @@ export async function POST(request: Request) {
         prompt_description: description?.trim() ?? null,
         tags: Array.isArray(tags) ? tags : [],
         compatible_models: Array.isArray(compatibleModels) ? compatibleModels : [],
+        shared_by_name: typeof creatorName === 'string' && creatorName.trim() ? creatorName.trim() : null,
       })
       .select('id')
       .single()

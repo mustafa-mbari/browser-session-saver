@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Copy, Check, ChevronDown, ChevronUp } from 'lucide-react'
+import { useTheme } from '@/lib/theme'
 
 interface SharedPrompt {
   id: string
@@ -10,6 +11,7 @@ interface SharedPrompt {
   prompt_description: string | null
   tags: string[]
   compatible_models: string[]
+  shared_by_name: string | null
   view_count: number
   created_at: string
 }
@@ -35,6 +37,9 @@ const PRIMARY_HOVER = '#7c6fff'
 const PRIMARY_LIGHT = '#a78bfa'
 
 export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt }) {
+  const { resolvedTheme } = useTheme()
+  const dark = resolvedTheme === 'dark'
+
   const variables = useMemo(() => extractVariables(prompt.prompt_content), [prompt.prompt_content])
   const hasVariables = variables.length > 0
 
@@ -64,21 +69,46 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
     year: 'numeric',
   })
 
-  return (
-    <div
-      className="rounded-3xl overflow-hidden"
-      style={{
+  // Theme-dependent style values
+  const cardStyle = dark
+    ? {
         background: 'rgba(255,255,255,0.04)',
         backdropFilter: 'blur(24px)',
         WebkitBackdropFilter: 'blur(24px)',
         border: '1px solid rgba(255,255,255,0.08)',
-        boxShadow: '0 0 80px rgba(98, 95, 255, 0.15), 0 24px 64px rgba(0,0,0,0.4)',
-      }}
-    >
+        boxShadow: '0 0 80px rgba(98,95,255,0.15), 0 24px 64px rgba(0,0,0,0.4)',
+      }
+    : {
+        background: '#ffffff',
+        border: '1px solid rgba(0,0,0,0.07)',
+        boxShadow: '0 4px 32px rgba(98,95,255,0.10), 0 1px 8px rgba(0,0,0,0.05)',
+      }
+
+  const titleColor = dark ? '#ffffff' : '#1c1917'
+  const descColor = dark ? 'rgba(255,255,255,0.55)' : '#57534e'
+  const dividerColor = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'
+  const sectionLabelColor = dark ? 'rgba(255,255,255,0.35)' : '#78716c'
+  const tagBg = dark ? 'rgba(255,255,255,0.07)' : '#f5f5f4'
+  const tagColor = dark ? 'rgba(255,255,255,0.5)' : '#78716c'
+  const dateColor = dark ? 'rgba(255,255,255,0.3)' : '#a8a29e'
+  const inputStyle = dark
+    ? { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }
+    : { background: '#fafaf9', border: '1px solid rgba(0,0,0,0.1)', color: '#1c1917' }
+  const codeBlockStyle = dark
+    ? { background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.75)' }
+    : { background: '#fafaf9', border: '1px solid rgba(0,0,0,0.07)', color: '#292524' }
+  const footerBg = dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'
+  const viewCountColor = dark ? 'rgba(255,255,255,0.28)' : '#a8a29e'
+  const rawToggleColor = rawToggleHovered
+    ? (dark ? 'rgba(255,255,255,0.55)' : '#57534e')
+    : (dark ? 'rgba(255,255,255,0.28)' : '#c0bbb7')
+
+  return (
+    <div className="rounded-3xl overflow-hidden" style={cardStyle}>
       {/* Header */}
       <div className="px-6 pt-7 pb-5">
         <div className="flex items-start justify-between gap-4">
-          <h1 className="text-3xl font-bold text-white leading-tight">
+          <h1 className="text-3xl font-bold leading-tight" style={{ color: titleColor }}>
             {prompt.prompt_title}
           </h1>
           {!hasVariables && (
@@ -96,7 +126,7 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
         </div>
 
         {prompt.prompt_description && (
-          <p className="mt-2.5 text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
+          <p className="mt-2.5 text-sm leading-relaxed" style={{ color: descColor }}>
             {prompt.prompt_description}
           </p>
         )}
@@ -108,9 +138,9 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
               key={model}
               className="text-xs px-2.5 py-0.5 rounded-full font-medium"
               style={{
-                background: 'rgba(98, 95, 255, 0.18)',
+                background: 'rgba(98,95,255,0.15)',
                 color: PRIMARY_LIGHT,
-                border: '1px solid rgba(98, 95, 255, 0.3)',
+                border: '1px solid rgba(98,95,255,0.25)',
               }}
             >
               {model}
@@ -120,21 +150,18 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
             <span
               key={tag}
               className="text-xs px-2.5 py-0.5 rounded-full"
-              style={{
-                background: 'rgba(255,255,255,0.07)',
-                color: 'rgba(255,255,255,0.5)',
-              }}
+              style={{ background: tagBg, color: tagColor }}
             >
               #{tag}
             </span>
           ))}
-          <span className="text-xs ml-auto" style={{ color: 'rgba(255,255,255,0.3)' }}>
+          <span className="text-xs ml-auto" style={{ color: dateColor }}>
             {formattedDate}
           </span>
         </div>
       </div>
 
-      <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }} />
+      <div style={{ borderTop: `1px solid ${dividerColor}` }} />
 
       {hasVariables ? (
         /* Interactive variable fill-in mode */
@@ -144,7 +171,7 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
             <div className="lg:w-1/3 shrink-0">
               <h2
                 className="text-[10px] font-semibold uppercase tracking-widest mb-3"
-                style={{ color: 'rgba(255,255,255,0.4)' }}
+                style={{ color: sectionLabelColor }}
               >
                 Fill in variables
               </h2>
@@ -164,17 +191,17 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
                         setValues((prev) => ({ ...prev, [variable]: e.target.value }))
                       }
                       placeholder={`Enter ${variable}…`}
-                      className="w-full text-sm rounded-xl px-3 py-2 text-white placeholder-white/20 outline-none transition-all"
+                      className="w-full text-sm rounded-xl px-3 py-2 outline-none transition-all"
                       style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)',
+                        ...inputStyle,
+                        caretColor: PRIMARY,
                       }}
                       onFocus={(e) => {
                         e.target.style.border = `1px solid ${PRIMARY}`
-                        e.target.style.boxShadow = `0 0 0 3px rgba(98, 95, 255, 0.15)`
+                        e.target.style.boxShadow = `0 0 0 3px rgba(98,95,255,0.15)`
                       }}
                       onBlur={(e) => {
-                        e.target.style.border = '1px solid rgba(255,255,255,0.1)'
+                        e.target.style.border = inputStyle.border
                         e.target.style.boxShadow = 'none'
                       }}
                     />
@@ -188,7 +215,7 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
               <div className="flex items-center justify-between mb-3">
                 <h2
                   className="text-[10px] font-semibold uppercase tracking-widest"
-                  style={{ color: 'rgba(255,255,255,0.4)' }}
+                  style={{ color: sectionLabelColor }}
                 >
                   Preview
                 </h2>
@@ -202,11 +229,7 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
               </div>
               <div
                 className="rounded-2xl p-4 text-sm whitespace-pre-wrap leading-relaxed min-h-[120px] font-mono"
-                style={{
-                  background: 'rgba(0,0,0,0.25)',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                  color: 'rgba(255,255,255,0.75)',
-                }}
+                style={codeBlockStyle}
               >
                 {finalContent}
               </div>
@@ -220,7 +243,7 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
               onMouseEnter={() => setRawToggleHovered(true)}
               onMouseLeave={() => setRawToggleHovered(false)}
               className="flex items-center gap-1 text-xs transition-colors"
-              style={{ color: rawToggleHovered ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.28)' }}
+              style={{ color: rawToggleColor }}
             >
               {showRaw ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               {showRaw ? 'Hide raw prompt' : 'Show raw prompt'}
@@ -229,9 +252,8 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
               <div
                 className="mt-2 rounded-2xl p-4 text-xs whitespace-pre-wrap font-mono"
                 style={{
-                  background: 'rgba(0,0,0,0.25)',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                  color: 'rgba(255,255,255,0.45)',
+                  ...codeBlockStyle,
+                  color: dark ? 'rgba(255,255,255,0.4)' : '#a8a29e',
                 }}
               >
                 {prompt.prompt_content}
@@ -244,11 +266,7 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
         <div className="p-6">
           <div
             className="rounded-2xl p-4 text-sm whitespace-pre-wrap leading-relaxed font-mono"
-            style={{
-              background: 'rgba(0,0,0,0.25)',
-              border: '1px solid rgba(255,255,255,0.07)',
-              color: 'rgba(255,255,255,0.75)',
-            }}
+            style={codeBlockStyle}
           >
             {prompt.prompt_content}
           </div>
@@ -257,20 +275,30 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
 
       {/* Footer */}
       <div
-        className="px-6 py-3.5 flex items-center justify-between"
-        style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}
+        className="px-6 py-3.5 flex items-center justify-between gap-4"
+        style={{ borderTop: `1px solid ${dividerColor}`, background: footerBg }}
       >
-        <div className="flex items-center gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.28)' }}>
-          <span>👁</span>
-          <span>
-            {prompt.view_count.toLocaleString()} view{prompt.view_count !== 1 ? 's' : ''}
+        <div className="flex items-center gap-3 text-xs min-w-0" style={{ color: viewCountColor }}>
+          <span className="flex items-center gap-1 shrink-0">
+            <span>👁</span>
+            <span>
+              {prompt.view_count.toLocaleString()} view{prompt.view_count !== 1 ? 's' : ''}
+            </span>
           </span>
+          {prompt.shared_by_name && (
+            <>
+              <span className="opacity-40">·</span>
+              <span className="truncate">
+                Shared by <span className="font-medium">{prompt.shared_by_name}</span>
+              </span>
+            </>
+          )}
         </div>
         <a
           href="/"
           onMouseEnter={() => setFooterLinkHovered(true)}
           onMouseLeave={() => setFooterLinkHovered(false)}
-          className="text-xs font-medium transition-colors"
+          className="text-xs font-medium transition-colors shrink-0"
           style={{ color: footerLinkHovered ? '#c4b5fd' : PRIMARY_LIGHT }}
         >
           Made with Browser Hub ✨
