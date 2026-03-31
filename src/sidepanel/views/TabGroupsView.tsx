@@ -637,6 +637,15 @@ export default function TabGroupsView() {
     void reloadSaved();
   }, [reloadSaved]);
 
+  // Reload saved templates when background SW completes a pull
+  useEffect(() => {
+    const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
+      if (changes.cloud_last_pull_at) void reloadSaved();
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
+  }, [reloadSaved]);
+
   useEffect(() => {
     void loadLiveGroups();
   }, [loadLiveGroups]);

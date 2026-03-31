@@ -20,12 +20,23 @@ export default function SubscriptionsView() {
   const [editSub, setEditSub] = useState<Subscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     void SubscriptionStorage.getAll().then((subs) => {
       setSubscriptions(subs);
       setIsLoading(false);
     });
   }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Reload when background SW completes a pull
+  useEffect(() => {
+    const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
+      if (changes.cloud_last_pull_at) loadData();
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
+  }, [loadData]);
 
   const handleSave = useCallback(async (sub: Subscription) => {
     await SubscriptionStorage.save(sub);

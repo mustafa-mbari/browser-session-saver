@@ -589,8 +589,11 @@ async function handleSyncSignIn(payload: {
 }): Promise<MessageResponse<SyncSignInResponse>> {
   const result = await syncSignIn(payload.email, payload.password);
   if (result.success) {
-    // Auto-pull on sign-in so a second device gets cloud data immediately
-    void pullAll();
+    // Auto-pull on sign-in so a second device gets cloud data immediately.
+    // Fire-and-forget: write the reload signal when pull finishes so open pages refresh.
+    pullAll()
+      .then(() => chrome.storage.local.set({ cloud_last_pull_at: Date.now() }))
+      .catch(() => {});
   }
   return { success: result.success, data: result, error: result.error };
 }
@@ -601,12 +604,15 @@ async function handleSyncSignOut(): Promise<MessageResponse> {
 }
 
 async function handleSyncNow(): Promise<MessageResponse> {
-  const result = await syncAll();
-  if (result.success) {
-    const status = await getSyncStatus();
-    return { success: true, data: status };
+  // Bidirectional: push local data up, then pull remote changes down.
+  const syncResult = await syncAll();
+  if (!syncResult.success) return { success: false, error: syncResult.error };
+  const pullResult = await pullAll();
+  if (pullResult.success) {
+    try { await chrome.storage.local.set({ cloud_last_pull_at: Date.now() }); } catch {}
   }
-  return { success: false, error: result.error };
+  const status = await getSyncStatus();
+  return { success: true, data: status };
 }
 
 async function handleSyncDashboard(payload: { config: string }): Promise<MessageResponse<DashboardSyncResponse>> {
@@ -631,6 +637,10 @@ async function handlePullAll(): Promise<MessageResponse> {
   const userId = await getSyncUserId();
   if (!userId) return { success: false, error: 'Not authenticated' };
   const result = await pullAll();
+  if (result.success) {
+    // Signal all open pages to reload their data from storage
+    try { await chrome.storage.local.set({ cloud_last_pull_at: Date.now() }); } catch {}
+  }
   return { success: result.success, data: result, error: result.error };
 }
 

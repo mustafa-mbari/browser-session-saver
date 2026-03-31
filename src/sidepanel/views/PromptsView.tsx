@@ -38,7 +38,7 @@ export default function PromptsView() {
   const [variablesPrompt, setVariablesPrompt] = useState<Prompt | null>(null);
   const [sharingPrompt, setSharingPrompt] = useState<Prompt | null>(null);
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     void Promise.all([
       PromptStorage.getAll(),
       PromptStorage.getCategories(),
@@ -52,6 +52,17 @@ export default function PromptsView() {
       setIsLoading(false);
     });
   }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Reload when background SW completes a pull
+  useEffect(() => {
+    const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
+      if (changes.cloud_last_pull_at) loadData();
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
+  }, [loadData]);
 
   const [hintAnimate, setHintAnimate] = useState(false);
 

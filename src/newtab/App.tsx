@@ -1,4 +1,4 @@
-import { useEffect, useRef, lazy, Suspense } from 'react';
+import { useEffect, useRef, lazy, Suspense, useState } from 'react';
 import { useTheme } from '@shared/hooks/useTheme';
 import { loadLocale } from '@shared/utils/i18n';
 import { useNewTabSettings } from '@newtab/hooks/useNewTabSettings';
@@ -29,6 +29,16 @@ const KeyboardHelpModal = lazy(() => import('@newtab/components/KeyboardHelpModa
 export default function App() {
   const { isLoading } = useNewTabSettings();
   useTheme();
+
+  // Incremented whenever the background SW completes a pull, triggering a data reload.
+  const [dataVersion, setDataVersion] = useState(0);
+  useEffect(() => {
+    const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
+      if (changes.cloud_last_pull_at) setDataVersion((v) => v + 1);
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
+  }, []);
 
   const uiStore = useNewTabUIStore();
   const dataStore = useNewTabDataStore();
@@ -90,7 +100,9 @@ export default function App() {
         // First launch: seed default boards, quick links, and a default todo list.
         // If the user is already signed in, pull their cloud data first and skip
         // the demo "Private"/"Work" cards — their real folders will come from sync.
-        if (boards.length === 0) {
+        // Guard with dataVersion === 0 so we never re-seed on subsequent reloads
+        // triggered by the cloud_last_pull_at signal.
+        if (boards.length === 0 && dataVersion === 0) {
           const isAuth = await isSyncAuthenticated();
           if (isAuth) {
             try { await pullAll(); } catch { /* ignore network errors — seeding still proceeds */ }
@@ -173,7 +185,7 @@ export default function App() {
     }
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [dataVersion]);
 
   if (isLoading) {
     return (
