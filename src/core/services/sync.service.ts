@@ -616,10 +616,36 @@ async function syncTodos(userId: string, quota: UserQuota): Promise<number> {
   if (limit === 0) return 0;
 
   const db = new NewTabDB();
-  const [allLists, allItems] = await Promise.all([
+  const [allLists, allItems, allCategories] = await Promise.all([
     db.getAll<TodoList>('todoLists'),
     db.getAll<TodoItem>('todoItems'),
+    db.getAll<BookmarkCategory>('bookmarkCategories'),
   ]);
+
+  // Harvest todos from dashboard card widgets (stored as JSON in noteContent).
+  // Each todo card becomes a synthetic TodoList (id = category.id) + TodoItems.
+  const now = new Date().toISOString();
+  const existingListIds = new Set(allLists.map((l) => l.id));
+  const existingItemIds = new Set(allItems.map((i) => i.id));
+  for (const cat of allCategories) {
+    if (cat.cardType !== 'todo' || !cat.noteContent) continue;
+    let cardItems: { id: string; text: string; done: boolean }[];
+    try { cardItems = JSON.parse(cat.noteContent); } catch { continue; }
+    if (!cardItems.length) continue;
+    if (!existingListIds.has(cat.id)) {
+      allLists.push({ id: cat.id, name: cat.name, icon: cat.icon ?? '✅', position: 0, createdAt: cat.createdAt ?? now });
+      existingListIds.add(cat.id);
+    }
+    cardItems.forEach((item, idx) => {
+      if (!existingItemIds.has(item.id)) {
+        allItems.push({ id: item.id, listId: cat.id, text: item.text, completed: item.done, priority: 'none', position: idx, createdAt: now });
+        existingItemIds.add(item.id);
+      } else {
+        const existing = allItems.find((i) => i.id === item.id);
+        if (existing) { existing.completed = item.done; existing.text = item.text; existing.position = idx; }
+      }
+    });
+  }
 
   if (allLists.length === 0 && allItems.length === 0) return 0;
 
@@ -925,6 +951,28 @@ async function pullTodos(userId: string): Promise<number> {
     ...(listRows ?? []).map((r) => db.put<TodoList>('todoLists', rowToTodoList(r as Record<string, unknown>))),
     ...(itemRows ?? []).map((r) => db.put<TodoItem>('todoItems', rowToTodoItem(r as Record<string, unknown>))),
   ]);
+
+  // For dashboard card todo widgets: write pulled items back into the category's
+  // noteContent so the card UI reflects the synced state on reload.
+  const allCategories = await db.getAll<BookmarkCategory>('bookmarkCategories');
+  const todoCardMap = new Map(allCategories.filter((c) => c.cardType === 'todo').map((c) => [c.id, c]));
+  if (todoCardMap.size > 0) {
+    const byList: Record<string, Array<{ id: string; text: string; done: boolean; position: number }>> = {};
+    for (const r of (itemRows ?? [])) {
+      const listId = r.list_id as string;
+      if (todoCardMap.has(listId)) {
+        (byList[listId] ??= []).push({ id: r.id as string, text: r.text as string, done: r.completed as boolean, position: (r.position as number) ?? 0 });
+      }
+    }
+    await Promise.all(
+      Object.entries(byList).map(([listId, items]) => {
+        const cat = todoCardMap.get(listId)!;
+        const sorted = [...items].sort((a, b) => a.position - b.position);
+        const noteContent = JSON.stringify(sorted.map(({ id, text, done }) => ({ id, text, done })));
+        return db.put<BookmarkCategory>('bookmarkCategories', { ...cat, noteContent });
+      }),
+    );
+  }
 
   return (itemRows ?? []).length;
 }

@@ -311,7 +311,7 @@ export default function CloudSyncView() {
             label="Todos synced"
             used={usage?.todos ?? 0}
             limit={quota.todos_synced_limit}
-            hint="Tracks Focus-layout to-do lists only"
+            hint="Includes dashboard card todos and Focus-layout to-do lists"
           />
         </div>
       )}
