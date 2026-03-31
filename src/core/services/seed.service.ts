@@ -16,8 +16,14 @@ interface SeedResult {
 /**
  * Seeds the two default boards (Main + Bookmarks) and a default TodoList.
  * Should only be called when the DB has no boards yet.
+ * Pass `{ skipSampleCards: true }` when the user is authenticated — their real
+ * folders will be restored from cloud sync, so the demo Private/Work cards
+ * should not be created.
  */
-export async function seedDefaultData(db: NewTabDB): Promise<SeedResult> {
+export async function seedDefaultData(
+  db: NewTabDB,
+  options?: { skipSampleCards?: boolean },
+): Promise<SeedResult> {
   const base = Date.now();
 
   // ── Main board cards ──────────────────────────────────────────────────────
@@ -52,7 +58,7 @@ export async function seedDefaultData(db: NewTabDB): Promise<SeedResult> {
     createdAt: ts(base, 1),
   };
 
-  const mainCards = [privateCard, workCard];
+  const mainCards = options?.skipSampleCards ? [] : [privateCard, workCard];
 
   const mainBoard: Board = {
     id: mainBoardId,

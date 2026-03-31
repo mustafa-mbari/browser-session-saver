@@ -12,6 +12,8 @@ import * as BookmarkService from '@core/services/bookmark.service';
 import * as QuickLinksService from '@core/services/quicklinks.service';
 import * as TodoService from '@core/services/todo.service';
 import { seedDefaultData } from '@core/services/seed.service';
+import { isSyncAuthenticated } from '@core/services/sync-auth.service';
+import { pullAll } from '@core/services/sync.service';
 import BackgroundLayer from '@newtab/components/BackgroundLayer';
 import MinimalLayout from '@newtab/layouts/MinimalLayout';
 import FocusLayout from '@newtab/layouts/FocusLayout';
@@ -85,9 +87,15 @@ export default function App() {
           TodoService.getTodoLists(newtabDB),
         ]);
 
-        // First launch: seed default boards, quick links, and a default todo list
+        // First launch: seed default boards, quick links, and a default todo list.
+        // If the user is already signed in, pull their cloud data first and skip
+        // the demo "Private"/"Work" cards — their real folders will come from sync.
         if (boards.length === 0) {
-          const seeded = await seedDefaultData(newtabDB);
+          const isAuth = await isSyncAuthenticated();
+          if (isAuth) {
+            try { await pullAll(); } catch { /* ignore network errors — seeding still proceeds */ }
+          }
+          const seeded = await seedDefaultData(newtabDB, { skipSampleCards: isAuth });
           const [seededBoards, seededLinks, seededLists] = await Promise.all([
             BookmarkService.getBoards(newtabDB),
             QuickLinksService.getQuickLinks(newtabDB),

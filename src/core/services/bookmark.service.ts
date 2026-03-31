@@ -84,6 +84,9 @@ export async function updateCategory(
 ): Promise<void> {
   const existing = await db.get<BookmarkCategory>(CATEGORIES, id);
   if (!existing) return;
+  if ('name' in updates && updates.name) {
+    await assertNoDuplicateName(db, updates.name, existing.boardId, existing.parentCategoryId, id);
+  }
   await db.put(CATEGORIES, { ...existing, ...updates });
 }
 
@@ -155,6 +158,26 @@ export async function deleteEntry(db: NewTabDB, id: string): Promise<void> {
   await db.delete(ENTRIES, id);
 }
 
+/** Throws if a sibling folder at the same level already uses the same name (case-insensitive). */
+async function assertNoDuplicateName(
+  db: NewTabDB,
+  name: string,
+  boardId: string,
+  parentCategoryId: string | undefined,
+  excludeId?: string,
+): Promise<void> {
+  const all = await db.getAll<BookmarkCategory>(CATEGORIES);
+  const siblings = all.filter(
+    (c) =>
+      c.boardId === boardId &&
+      (c.parentCategoryId ?? undefined) === parentCategoryId &&
+      c.id !== excludeId,
+  );
+  if (siblings.some((c) => c.name.trim().toLowerCase() === name.trim().toLowerCase())) {
+    throw new Error(`A folder named "${name.trim()}" already exists at this level`);
+  }
+}
+
 /**
  * Creates a top-level folder for the Folders explorer WITHOUT adding it to
  * the board's categoryIds. The folder is stored in the DB but is NOT a
@@ -165,6 +188,7 @@ export async function createTopLevelFolder(
   boardId: string,
   name: string,
 ): Promise<BookmarkCategory> {
+  await assertNoDuplicateName(db, name, boardId, undefined);
   const cat: BookmarkCategory = {
     id: generateId(),
     boardId,
@@ -316,6 +340,7 @@ export async function createSubFolder(
   name: string,
   boardId: string,
 ): Promise<BookmarkCategory> {
+  await assertNoDuplicateName(db, name, boardId, parentCategoryId);
   const cat: BookmarkCategory = {
     id: generateId(),
     boardId,

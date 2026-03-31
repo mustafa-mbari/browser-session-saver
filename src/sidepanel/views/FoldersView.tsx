@@ -73,9 +73,9 @@ function FolderDialog({
 }: {
   state: DialogState;
   onClose: () => void;
-  onCreate: (boardId: string, name: string) => void;
-  onCreateSub: (parentId: string, name: string, boardId: string) => void;
-  onRename: (id: string, name: string) => void;
+  onCreate: (boardId: string, name: string) => Promise<void>;
+  onCreateSub: (parentId: string, name: string, boardId: string) => Promise<void>;
+  onRename: (id: string, name: string) => Promise<void>;
   onColorFolder: (id: string, color: string) => void;
   onDelete: (id: string) => void;
   onAddEntry: (categoryId: string, title: string, url: string) => void;
@@ -94,6 +94,7 @@ function FolderDialog({
   const [editCategoryId, setEditCategoryId] = useState(() =>
     state?.type === 'edit-entry' ? state.entry.categoryId : ''
   );
+  const [nameError, setNameError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   if (!state) return null;
@@ -135,20 +136,31 @@ function FolderDialog({
     state.type === 'add-entry' ? 'Add URL' :
     state.type === 'edit-entry' ? 'Edit Bookmark' : 'Delete Entry';
 
-  const confirm = () => {
+  const confirm = async () => {
     if (!state) return;
-    if (state.type === 'new-folder' && value.trim()) {
-      if (state.parentId) {
-        onCreateSub(state.parentId, value.trim(), state.boardId);
-      } else {
-        onCreate(state.boardId, value.trim());
+    setNameError('');
+    try {
+      if (state.type === 'new-folder' && value.trim()) {
+        if (state.parentId) {
+          await onCreateSub(state.parentId, value.trim(), state.boardId);
+        } else {
+          await onCreate(state.boardId, value.trim());
+        }
+      } else if (state.type === 'rename-folder' && value.trim()) {
+        await onRename(state.folder.id, value.trim());
+      } else if (state.type === 'delete-folder') {
+        onDelete(state.folder.id);
+      } else if (state.type === 'add-entry' && urlValue.trim()) {
+        onAddEntry(state.categoryId, value.trim() || urlValue.trim(), urlValue.trim());
+      } else if (state.type === 'edit-entry') {
+        onEditEntry(state.entry.id, value.trim() || state.entry.title, urlValue.trim() || state.entry.url, editCategoryId);
+      } else if (state.type === 'delete-entry') {
+        onDeleteEntry(state.entry.id);
       }
-    } else if (state.type === 'rename-folder' && value.trim()) onRename(state.folder.id, value.trim());
-    else if (state.type === 'delete-folder') onDelete(state.folder.id);
-    else if (state.type === 'add-entry' && urlValue.trim()) onAddEntry(state.categoryId, value.trim() || urlValue.trim(), urlValue.trim());
-    else if (state.type === 'edit-entry') onEditEntry(state.entry.id, value.trim() || state.entry.title, urlValue.trim() || state.entry.url, editCategoryId);
-    else if (state.type === 'delete-entry') onDeleteEntry(state.entry.id);
-    onClose();
+      onClose();
+    } catch (e) {
+      setNameError(e instanceof Error ? e.message : 'Name already exists');
+    }
   };
 
   return (
@@ -194,7 +206,10 @@ function FolderDialog({
               </>
             )}
             {(state.type === 'new-folder' || state.type === 'rename-folder') && (
-              <Input ref={inputRef} placeholder="Folder name" value={value} onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') confirm(); }} className="text-xs h-8" />
+              <>
+                <Input ref={inputRef} placeholder="Folder name" value={value} onChange={(e) => { setValue(e.target.value); setNameError(''); }} onKeyDown={(e) => { if (e.key === 'Enter') void confirm(); }} className="text-xs h-8" />
+                {nameError && <p className="text-xs text-red-400 mt-0.5">{nameError}</p>}
+              </>
             )}
           </div>
         )}
@@ -202,7 +217,7 @@ function FolderDialog({
           <button className="px-2.5 py-1 rounded text-xs text-white/60 hover:bg-white/10 transition-colors" onClick={onClose}>Cancel</button>
           <button
             className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${isDelete ? 'bg-red-500/80 hover:bg-red-500 text-white' : 'bg-white/15 hover:bg-white/25 text-white'}`}
-            onClick={confirm}
+            onClick={() => void confirm()}
           >
             {isDelete ? 'Delete' : 'Confirm'}
           </button>
@@ -628,9 +643,9 @@ export default function FoldersView() {
       <FolderDialog
         state={dialog}
         onClose={() => setDialog(null)}
-        onCreate={(boardId, name) => { void createTopLevelFolder(boardId, name); }}
-        onCreateSub={(parentId, name, boardId) => { void createSubFolder(parentId, name, boardId); }}
-        onRename={(id, name) => { void renameFolder(id, name); }}
+        onCreate={async (boardId, name) => { await createTopLevelFolder(boardId, name); }}
+        onCreateSub={async (parentId, name, boardId) => { await createSubFolder(parentId, name, boardId); }}
+        onRename={async (id, name) => { await renameFolder(id, name); }}
         onColorFolder={(id, color) => { void updateFolderColor(id, color); }}
         onDelete={(id) => { void deleteFolder(id); }}
         onAddEntry={(categoryId, title, url) => { void addEntry(categoryId, title, url); }}
