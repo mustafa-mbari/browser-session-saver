@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import Image from 'next/image'
+import { headers } from 'next/headers'
+import { createHash } from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 import SharedPromptClient from '../../shared/SharedPromptClient'
 import type { SharedPrompt } from '../../shared/SharedPromptClient'
@@ -40,16 +42,24 @@ export default async function SharedPromptPage({ params }: Props) {
     notFound()
   }
 
-  // Atomically increment view count and use the returned value so the
-  // current viewer sees their own visit counted immediately.
-  let displayViewCount = (prompt as SharedPrompt).view_count + 1
+  // Hash the visitor IP (privacy-safe) and pass to the RPC.
+  // The RPC only increments if the same IP hasn't visited in the last 10 minutes.
+  const headersList = await headers()
+  const rawIp =
+    headersList.get('x-forwarded-for')?.split(',')[0].trim() ??
+    headersList.get('x-real-ip') ??
+    'unknown'
+  const ipHash = createHash('sha256').update(rawIp).digest('hex')
+
+  let displayViewCount = (prompt as SharedPrompt).view_count
   try {
     const { data: newCount } = await supabase.rpc('increment_shared_prompt_views', {
       p_id: (prompt as SharedPrompt).id,
+      p_ip_hash: ipHash,
     })
     if (typeof newCount === 'number') displayViewCount = newCount
   } catch {
-    // Non-critical — display optimistic count
+    // Non-critical — show stored count
   }
 
   const promptWithCount: SharedPrompt = { ...(prompt as SharedPrompt), view_count: displayViewCount }

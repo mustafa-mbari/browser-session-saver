@@ -207,7 +207,10 @@ export async function syncAll(): Promise<SyncResult> {
     synced.todos     = todoCount;
 
     const now = new Date().toISOString();
-    await persistStatus({ lastSyncAt: now, isSyncing: false, usage: synced, error: null });
+    // Fetch actual DB counts so the extension displays the same numbers as the web dashboard.
+    // Falls back to push-time counts if the RPC fails.
+    const actualUsage = await fetchActualUsage(userId).catch(() => null);
+    await persistStatus({ lastSyncAt: now, isSyncing: false, usage: actualUsage ?? synced, error: null });
 
     return { success: true, synced };
   } catch (err) {
