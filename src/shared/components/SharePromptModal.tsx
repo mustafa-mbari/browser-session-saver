@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Copy, Check, ExternalLink, Share2 } from 'lucide-react';
 import type { Prompt } from '@core/types/prompt.types';
-import { getSyncEmail } from '@core/services/sync-auth.service';
+import { getSyncDisplayName } from '@core/services/sync-auth.service';
 
 interface Props {
   prompt: Prompt;
@@ -18,40 +18,44 @@ const SITE_URL = import.meta.env.VITE_SITE_URL ?? 'http://localhost:3000';
 export default function SharePromptModal({ prompt, onClose }: Props) {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [copied, setCopied] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
 
-    getSyncEmail().then((email) =>
-      fetch(`${SITE_URL}/api/prompts/share`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: prompt.title,
-          content: prompt.content,
-          description: prompt.description ?? null,
-          tags: prompt.tags,
-          compatibleModels: prompt.compatibleModels ?? [],
-          creatorName: email ?? null,
-        }),
-        signal: controller.signal,
-      })
-    )
-      .then((res) => {
+    (async () => {
+      try {
+        const displayName = await getSyncDisplayName();
+        const creatorName = prompt.source === 'app' ? 'Browser Hub' : displayName;
+
+        const res = await fetch(`${SITE_URL}/api/prompts/share`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: prompt.title,
+            content: prompt.content,
+            description: prompt.description ?? null,
+            tags: prompt.tags,
+            compatibleModels: prompt.compatibleModels ?? [],
+            sharedByName: displayName ?? null,
+            creatorName: creatorName ?? null,
+            sourcePromptId: prompt.id,
+          }),
+          signal: controller.signal,
+        });
+
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data: { url: string }) => {
+        const data: { url: string } = await res.json();
         setState({ kind: 'success', url: data.url });
-      })
-      .catch((err) => {
+      } catch (err) {
         if ((err as Error).name === 'AbortError') return;
         console.error('[SharePromptModal]', err);
         setState({ kind: 'error', message: 'Could not create share link. Please try again.' });
-      });
+      }
+    })();
 
     return () => controller.abort();
-  }, [prompt]);
+  }, [prompt, retryCount]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -126,7 +130,10 @@ export default function SharePromptModal({ prompt, onClose }: Props) {
           <div className="py-4 text-center">
             <p className="text-sm text-red-500 mb-3">{state.message}</p>
             <button
-              onClick={() => setState({ kind: 'loading' })}
+              onClick={() => {
+                setState({ kind: 'loading' });
+                setRetryCount((c) => c + 1);
+              }}
               className="text-sm text-[#625fff] hover:underline"
             >
               Try again

@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { Copy, Check, ChevronDown, ChevronUp } from 'lucide-react'
 import { useTheme } from '@/lib/theme'
 
-interface SharedPrompt {
+export interface SharedPrompt {
   id: string
   prompt_title: string
   prompt_content: string
@@ -12,6 +12,7 @@ interface SharedPrompt {
   tags: string[]
   compatible_models: string[]
   shared_by_name: string | null
+  creator_name: string | null
   view_count: number
   created_at: string
 }
@@ -30,6 +31,51 @@ function extractVariables(content: string): string[] {
 
 function applyVariables(content: string, values: Record<string, string>): string {
   return content.replace(/\{\{(\w+)\}\}/g, (_, name) => values[name] ?? `{{${name}}}`)
+}
+
+/**
+ * Renders prompt content with {{variable}} tokens highlighted.
+ * Tokenizes against the original template so filled values are also highlighted.
+ */
+function renderHighlighted(
+  originalContent: string,
+  values: Record<string, string>,
+  dark: boolean
+): React.ReactNode[] {
+  const tokenPattern = /(\{\{\w+\}\})/g
+  const parts = originalContent.split(tokenPattern)
+  return parts.map((part, i) => {
+    if (/^\{\{\w+\}\}$/.test(part)) {
+      const varName = part.slice(2, -2)
+      const filled = values[varName]
+      const display = filled || part
+      return (
+        <span
+          key={i}
+          style={{
+            color: '#a78bfa',
+            background: dark ? 'rgba(167,139,250,0.12)' : 'rgba(98,95,255,0.10)',
+            borderRadius: '4px',
+            padding: '1px 4px',
+            fontWeight: filled ? 500 : 600,
+          }}
+        >
+          {display}
+        </span>
+      )
+    }
+    return part
+  })
+}
+
+function getAttribution(creator: string | null, sharer: string | null): string {
+  if (creator === 'Browser Hub') {
+    return `Created by Browser Hub · Shared by ${sharer ?? 'anonymous'}`
+  }
+  if (!creator || !sharer || creator === sharer) {
+    return `Created and Shared by ${creator ?? sharer ?? 'anonymous'}`
+  }
+  return `Created by ${creator} · Shared by ${sharer}`
 }
 
 const PRIMARY = '#625fff'
@@ -102,6 +148,8 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
   const rawToggleColor = rawToggleHovered
     ? (dark ? 'rgba(255,255,255,0.55)' : '#57534e')
     : (dark ? 'rgba(255,255,255,0.28)' : '#c0bbb7')
+
+  const hasAttribution = !!(prompt.creator_name || prompt.shared_by_name)
 
   return (
     <div className="rounded-3xl overflow-hidden" style={cardStyle}>
@@ -231,7 +279,7 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
                 className="rounded-2xl p-4 text-sm whitespace-pre-wrap leading-relaxed min-h-[120px] font-mono"
                 style={codeBlockStyle}
               >
-                {finalContent}
+                {renderHighlighted(prompt.prompt_content, values, dark)}
               </div>
             </div>
           </div>
@@ -256,7 +304,7 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
                   color: dark ? 'rgba(255,255,255,0.4)' : '#a8a29e',
                 }}
               >
-                {prompt.prompt_content}
+                {renderHighlighted(prompt.prompt_content, {}, dark)}
               </div>
             )}
           </div>
@@ -268,7 +316,7 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
             className="rounded-2xl p-4 text-sm whitespace-pre-wrap leading-relaxed font-mono"
             style={codeBlockStyle}
           >
-            {prompt.prompt_content}
+            {renderHighlighted(prompt.prompt_content, {}, dark)}
           </div>
         </div>
       )}
@@ -285,11 +333,11 @@ export default function SharedPromptClient({ prompt }: { prompt: SharedPrompt })
               {prompt.view_count.toLocaleString()} view{prompt.view_count !== 1 ? 's' : ''}
             </span>
           </span>
-          {prompt.shared_by_name && (
+          {hasAttribution && (
             <>
               <span className="opacity-40">·</span>
               <span className="truncate">
-                Shared by <span className="font-medium">{prompt.shared_by_name}</span>
+                {getAttribution(prompt.creator_name, prompt.shared_by_name)}
               </span>
             </>
           )}

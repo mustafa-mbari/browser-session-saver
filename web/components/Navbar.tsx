@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Globe } from 'lucide-react'
+import Image from 'next/image'
 import { useTheme } from '@/lib/theme'
 import { Sun, Moon } from 'lucide-react'
 
@@ -11,9 +11,7 @@ export function Navbar() {
   return (
     <nav className="flex items-center justify-between px-6 h-16 border-b border-stone-200 dark:border-[var(--dark-border)] bg-white dark:bg-[var(--dark-card)]">
       <Link href="/" className="flex items-center gap-2.5">
-        <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-indigo-600">
-          <Globe className="h-4 w-4 text-white" />
-        </div>
+        <Image src="/icons/browser-hub_logo.png" width={32} height={32} alt="Browser Hub" />
         <span className="font-semibold text-stone-900 dark:text-stone-100">Browser Hub</span>
       </Link>
 

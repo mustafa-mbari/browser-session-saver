@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { data } = await supabase
     .from('shared_prompts')
     .select('prompt_title, prompt_description')
-    .eq('id', id)
+    .eq('source_prompt_id', id)
     .single()
 
   if (!data) return { title: 'Shared Prompt — Browser Hub' }
@@ -33,19 +33,19 @@ export default async function SharedPromptPage({ params }: Props) {
   const { data: prompt, error } = await supabase
     .from('shared_prompts')
     .select('id, prompt_title, prompt_content, prompt_description, tags, compatible_models, shared_by_name, creator_name, view_count, created_at')
-    .eq('id', id)
+    .eq('source_prompt_id', id)
     .single()
 
   if (error || !prompt) {
     notFound()
   }
 
-  // Increment view count — fire and forget
+  // Increment view count — fire and forget (uses UUID PK)
   void Promise.resolve(
     supabase
       .from('shared_prompts')
       .update({ view_count: (prompt as SharedPrompt).view_count + 1 })
-      .eq('id', id)
+      .eq('id', (prompt as SharedPrompt).id)
   ).catch(() => {})
 
   return (

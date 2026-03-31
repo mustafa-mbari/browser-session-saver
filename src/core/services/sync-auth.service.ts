@@ -57,3 +57,24 @@ export async function getSyncEmail(): Promise<string | null> {
   const session = await getSyncSession();
   return session?.user?.email ?? null;
 }
+
+/**
+ * Return the current user's display name.
+ * Queries profiles.display_name; falls back to the email prefix (before '@') if not set.
+ * Returns null if not authenticated.
+ */
+export async function getSyncDisplayName(): Promise<string | null> {
+  const session = await getSyncSession();
+  if (!session?.user) return null;
+
+  const { data } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', session.user.id)
+    .single();
+
+  if (data?.display_name) return data.display_name as string;
+
+  const email = session.user.email;
+  return email ? email.split('@')[0] : null;
+}
