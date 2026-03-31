@@ -40,13 +40,19 @@ export default async function SharedPromptPage({ params }: Props) {
     notFound()
   }
 
-  // Increment view count — fire and forget (uses UUID PK)
-  void Promise.resolve(
-    supabase
-      .from('shared_prompts')
-      .update({ view_count: (prompt as SharedPrompt).view_count + 1 })
-      .eq('id', (prompt as SharedPrompt).id)
-  ).catch(() => {})
+  // Atomically increment view count and use the returned value so the
+  // current viewer sees their own visit counted immediately.
+  let displayViewCount = (prompt as SharedPrompt).view_count + 1
+  try {
+    const { data: newCount } = await supabase.rpc('increment_shared_prompt_views', {
+      p_id: (prompt as SharedPrompt).id,
+    })
+    if (typeof newCount === 'number') displayViewCount = newCount
+  } catch {
+    // Non-critical — display optimistic count
+  }
+
+  const promptWithCount: SharedPrompt = { ...(prompt as SharedPrompt), view_count: displayViewCount }
 
   return (
     <div className="min-h-screen bg-stone-50 dark:[background:linear-gradient(135deg,#0f0f1a_0%,#1a1030_50%,#0f0f1a_100%)]">
@@ -82,7 +88,7 @@ export default async function SharedPromptPage({ params }: Props) {
 
       {/* Main content */}
       <div className="px-[5%] py-10">
-        <SharedPromptClient prompt={prompt as SharedPrompt} />
+        <SharedPromptClient prompt={promptWithCount} />
       </div>
 
       {/* Bottom marketing section */}

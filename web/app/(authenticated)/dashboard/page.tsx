@@ -50,8 +50,8 @@ export default async function DashboardPage() {
       iconColor: 'text-emerald-600 dark:text-emerald-400',
     },
     {
-      label: 'Synced Folders',
-      value: usage?.synced_folders?.toString() ?? '0',
+      label: 'Bookmark Folders',
+      value: usage?.synced_bm_folders?.toString() ?? '0',
       limit: quota?.folders_synced_limit,
       icon: FolderOpen,
       iconBg: 'bg-amber-100 dark:bg-amber-900/30',
