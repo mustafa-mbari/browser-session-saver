@@ -102,10 +102,13 @@ export async function seedDefaultData(
 
   // ── Write everything to DB in one batch ───────────────────────────────────
 
+  // Skip creating the default list if the user already has one (e.g. pulled from cloud).
+  const existingLists = await db.getAll<TodoList>('todoLists');
+
   await Promise.all([
     db.put('boards', mainBoard),
     db.put('boards', bookmarksBoard),
-    db.put('todoLists', todoList),
+    ...(existingLists.length === 0 ? [db.put('todoLists', todoList)] : []),
     ...mainCards.map((c) => db.put('bookmarkCategories', c)),
     ...defaultQuickLinks.map((l) => db.put('quickLinks', l)),
   ]);

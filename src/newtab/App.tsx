@@ -129,6 +129,10 @@ export default function App() {
             );
             dataStore.setEntries(allEntries.flat());
           }
+          if (seededLists.length > 0) {
+            const items = await TodoService.getTodoItems(newtabDB, seededLists[0].id);
+            dataStore.setTodoItems(items);
+          }
           return;
         }
 

@@ -1,5 +1,5 @@
 const NEWTAB_DB_NAME = 'newtab-db';
-const NEWTAB_DB_VERSION = 2;
+const NEWTAB_DB_VERSION = 3;
 
 const Stores = {
   quickLinks: 'quickLinks',
@@ -58,6 +58,19 @@ export class NewTabDB {
           const catStore = tx.objectStore(Stores.bookmarkCategories);
           if (!catStore.indexNames.contains('parentCategoryId')) {
             catStore.createIndex('parentCategoryId', 'parentCategoryId', { unique: false });
+          }
+        }
+
+        // v3: defensive creation of todoLists/todoItems for users whose v1 DB
+        // pre-dates the addition of these stores (onupgradeneeded only fires on
+        // version bump, so they were silently missing for upgrade-path users).
+        if (oldVersion < 3) {
+          if (!db.objectStoreNames.contains(Stores.todoLists)) {
+            db.createObjectStore(Stores.todoLists, { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains(Stores.todoItems)) {
+            const itemStore = db.createObjectStore(Stores.todoItems, { keyPath: 'id' });
+            itemStore.createIndex('listId', 'listId', { unique: false });
           }
         }
       };

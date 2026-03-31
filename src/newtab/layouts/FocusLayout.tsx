@@ -147,6 +147,12 @@ export default function FocusLayout() {
     dataStore.setCategories(reordered);
   }, []);
 
+  const handleUpdateNote = useCallback(async (id: string, noteContent: string) => {
+    await BookmarkService.updateCategory(newtabDB, id, { noteContent });
+    triggerCloudSync();
+    dataStore.setCategories(categories.map((c) => (c.id === id ? { ...c, noteContent } : c)));
+  }, [categories]);
+
   const handleRefreshQuote = useCallback(async (id: string, quoteIndex: number, quoteChangedAt: string) => {
     await BookmarkService.updateCategory(newtabDB, id, { quoteIndex, quoteChangedAt });
     dataStore.setCategories(categories.map((c) => (c.id === id ? { ...c, quoteIndex, quoteChangedAt } : c)));
@@ -256,6 +262,7 @@ export default function FocusLayout() {
                 onResize={() => {}}
                 onRenameCard={() => {}}
                 onDuplicateCard={() => {}}
+                onUpdateNote={(id, content) => { void handleUpdateNote(id, content); }}
                 onRefreshQuote={(id, idx, at) => { void handleRefreshQuote(id, idx, at); }}
               />
             )}

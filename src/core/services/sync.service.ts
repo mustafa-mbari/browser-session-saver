@@ -918,23 +918,15 @@ async function pullTodos(userId: string): Promise<number> {
   if (iErr) throw new Error(`Todo item pull failed: ${iErr.message}`);
   if (!listRows && !itemRows) return 0;
 
+  // Upsert all remote rows — IndexedDB put() overwrites existing records so
+  // state changes (completed, text edits, position) are reflected locally.
   const db = new NewTabDB();
-  const [existingLists, existingItems] = await Promise.all([
-    db.getAll<TodoList>('todoLists'),
-    db.getAll<TodoItem>('todoItems'),
-  ]);
-  const existingListIds = new Set(existingLists.map((l) => l.id));
-  const existingItemIds = new Set(existingItems.map((i) => i.id));
-
-  const newLists = (listRows ?? []).filter((r) => !existingListIds.has(r.id as string));
-  const newItems = (itemRows ?? []).filter((r) => !existingItemIds.has(r.id as string));
-
   await Promise.all([
-    ...newLists.map((r) => db.put<TodoList>('todoLists', rowToTodoList(r as Record<string, unknown>))),
-    ...newItems.map((r) => db.put<TodoItem>('todoItems', rowToTodoItem(r as Record<string, unknown>))),
+    ...(listRows ?? []).map((r) => db.put<TodoList>('todoLists', rowToTodoList(r as Record<string, unknown>))),
+    ...(itemRows ?? []).map((r) => db.put<TodoItem>('todoItems', rowToTodoItem(r as Record<string, unknown>))),
   ]);
 
-  return newItems.length;
+  return (itemRows ?? []).length;
 }
 
 // ─── Row mappers (snake_case → camelCase) ────────────────────────────────────
