@@ -396,6 +396,27 @@ export async function getUserQuota(userId: string): Promise<UserQuota> {
   return quota;
 }
 
+/**
+ * Fetch the actual synced counts from the DB via `get_user_usage` RPC.
+ * Maps RPC snake_case fields to the SyncUsage camelCase interface.
+ * Called after syncAll() so the extension shows the same numbers as the web dashboard.
+ */
+async function fetchActualUsage(userId: string): Promise<SyncUsage | null> {
+  const { data, error } = await supabase.rpc('get_user_usage', { p_user_id: userId });
+  if (error || !data) return null;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+  return {
+    sessions:  Number((row as Record<string, unknown>).synced_sessions  ?? 0),
+    prompts:   Number((row as Record<string, unknown>).synced_prompts   ?? 0),
+    subs:      Number((row as Record<string, unknown>).synced_subs      ?? 0),
+    folders:   Number((row as Record<string, unknown>).synced_bm_folders ?? 0),
+    tabs:      Number((row as Record<string, unknown>).synced_tabs      ?? 0),
+    tabGroups: Number((row as Record<string, unknown>).synced_tab_groups ?? 0),
+    todos:     Number((row as Record<string, unknown>).synced_todos     ?? 0),
+  };
+}
+
 // ─── Internal utilities ──────────────────────────────────────────────────────
 
 /** Sort items by `updatedAt` descending and take at most `limit` items. */
