@@ -44,7 +44,8 @@
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
       "Bash(ls -la /e/AntiGravity_Projects/browser-session-saver/browser-session-saver/web/app/\\\\\\(public\\\\\\)/)",
       "Bash(ls /e/AntiGravity_Projects/browser-session-saver/browser-session-saver/web/app/\\\\\\(public\\\\\\)/)",
-      "Bash(ls /e/AntiGravity_Projects/browser-session-saver/browser-session-saver/web/app/\\\\\\(public\\\\\\)/p/[id]/)"
+      "Bash(ls /e/AntiGravity_Projects/browser-session-saver/browser-session-saver/web/app/\\\\\\(public\\\\\\)/p/[id]/)",
+      "Bash(grep -E \"\\\\.\\(sql|ts\\)$\")"
     ],
     "additionalDirectories": [
       "E:\\Work-Timer\\web\\components\\ui",

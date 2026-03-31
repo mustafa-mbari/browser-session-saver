@@ -81,7 +81,7 @@ export default async function SharedPromptPage({ params }: Props) {
       </div>
 
       {/* Main content */}
-      <div className="max-w-5xl mx-auto px-4 py-10">
+      <div className="px-[5%] py-10">
         <SharedPromptClient prompt={prompt as SharedPrompt} />
       </div>
 

@@ -75,6 +75,5 @@ export async function getSyncDisplayName(): Promise<string | null> {
 
   if (data?.display_name) return data.display_name as string;
 
-  const email = session.user.email;
-  return email ? email.split('@')[0] : null;
+  return null;
 }

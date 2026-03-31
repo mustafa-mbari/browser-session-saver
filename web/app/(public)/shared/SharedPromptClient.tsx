@@ -69,13 +69,16 @@ function renderHighlighted(
 }
 
 function getAttribution(creator: string | null, sharer: string | null): string {
+  const creatorLabel = creator ?? '---'
+  const sharerLabel = sharer ?? '---'
   if (creator === 'Browser Hub') {
-    return `Created by Browser Hub · Shared by ${sharer ?? 'anonymous'}`
+    return `Created by Browser Hub · Shared by ${sharerLabel}`
   }
-  if (!creator || !sharer || creator === sharer) {
-    return `Created and Shared by ${creator ?? sharer ?? 'anonymous'}`
+  if (creator === sharer || (!creator && !sharer)) {
+    return `Created and Shared by ${creatorLabel}`
   }
-  return `Created by ${creator} · Shared by ${sharer}`
+  if (!creator) return `Shared by ${sharerLabel}`
+  return `Created by ${creatorLabel} · Shared by ${sharerLabel}`
 }
 
 const PRIMARY = '#625fff'
