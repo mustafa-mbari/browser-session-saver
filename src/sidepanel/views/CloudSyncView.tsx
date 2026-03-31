@@ -290,10 +290,10 @@ export default function CloudSyncView() {
             limit={quota.subs_synced_limit}
           />
           <QuotaBar
-            label="Folders synced"
+            label="Bookmark folders"
             used={usage?.folders ?? 0}
             limit={quota.folders_synced_limit}
-            hint="Includes bookmark folders and dashboard To-Do widget items"
+            hint="Dashboard widget categories (bookmark, note, todo card types)"
           />
           <QuotaBar
             label="Tab groups synced"

@@ -359,7 +359,7 @@ export default function CloudSyncPanel() {
           <QuotaBar label="Sessions synced"       used={usage?.sessions  ?? 0} limit={quota.sessions_synced_limit} />
           <QuotaBar label="Prompts synced"         used={usage?.prompts   ?? 0} limit={quota.prompts_create_limit} />
           <QuotaBar label="Subscriptions synced"   used={usage?.subs      ?? 0} limit={quota.subs_synced_limit} />
-          <QuotaBar label="Folders synced"         used={usage?.folders   ?? 0} limit={quota.folders_synced_limit} />
+          <QuotaBar label="Bookmark folders"        used={usage?.folders   ?? 0} limit={quota.folders_synced_limit} />
           <QuotaBar label="Tab groups synced"      used={usage?.tabGroups ?? 0} limit={quota.tab_groups_synced_limit} />
           {quota.total_tabs_limit != null && quota.total_tabs_limit > 0 && (
             <QuotaBar label="Unique tabs synced"   used={usage?.tabs      ?? 0} limit={quota.total_tabs_limit} />

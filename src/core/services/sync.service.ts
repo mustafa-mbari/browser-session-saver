@@ -672,7 +672,7 @@ async function syncTabGroupTemplates(userId: string, allTemplates: TabGroupTempl
     .eq('user_id', userId)
     .not('key', 'in', `(${localKeys.join(',')})`);
 
-  return allTemplates.length;
+  return toSync.length;
 }
 
 // ─── Row mappers (camelCase → snake_case) ────────────────────────────────────
