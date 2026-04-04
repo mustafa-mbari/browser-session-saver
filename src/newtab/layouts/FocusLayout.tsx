@@ -18,7 +18,7 @@ import type { QuickLink, CardType } from '@core/types/newtab.types';
 import { getDefaultSize } from '@core/config/widget-config';
 
 function triggerCloudSync(): void {
-  void chrome.runtime.sendMessage({ action: 'SYNC_NOW', payload: {} });
+  void chrome.runtime.sendMessage({ action: 'SYNC_PUSH', payload: {} });
 }
 
 export default function FocusLayout() {

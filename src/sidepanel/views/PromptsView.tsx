@@ -20,7 +20,7 @@ import PromptSectionNav from '../components/prompts/PromptSectionNav';
 import SharePromptModal from '@shared/components/SharePromptModal';
 
 function triggerCloudSync(): void {
-  void chrome.runtime.sendMessage({ action: 'SYNC_NOW', payload: {} });
+  void chrome.runtime.sendMessage({ action: 'SYNC_PUSH', payload: {} });
 }
 
 export default function PromptsView() {

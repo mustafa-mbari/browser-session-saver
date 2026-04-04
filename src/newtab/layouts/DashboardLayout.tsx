@@ -25,7 +25,7 @@ import type { QuickLink, CardType, SpanValue, BookmarkCategory } from '@core/typ
 import { getDefaultSize, clampSize } from '@core/config/widget-config';
 
 function triggerCloudSync(): void {
-  void chrome.runtime.sendMessage({ action: 'SYNC_NOW', payload: {} });
+  void chrome.runtime.sendMessage({ action: 'SYNC_PUSH', payload: {} });
 }
 
 export default function DashboardLayout() {

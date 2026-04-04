@@ -10,7 +10,7 @@ import SubscriptionAnalytics from '../components/subscriptions/SubscriptionAnaly
 type SubView = 'list' | 'calendar' | 'analytics';
 
 function triggerCloudSync(): void {
-  void chrome.runtime.sendMessage({ action: 'SYNC_NOW', payload: {} });
+  void chrome.runtime.sendMessage({ action: 'SYNC_PUSH', payload: {} });
 }
 
 export default function SubscriptionsView() {

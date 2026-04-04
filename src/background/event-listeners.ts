@@ -70,6 +70,8 @@ async function handleMessage(message: Message): Promise<MessageResponse> {
       return handleSyncSignOut();
     case 'SYNC_NOW':
       return handleSyncNow();
+    case 'SYNC_PUSH':
+      return handleSyncPush();
     case 'SYNC_DASHBOARD':
       return handleSyncDashboard(message.payload);
     case 'PULL_DASHBOARD':
@@ -613,6 +615,14 @@ async function handleSyncNow(): Promise<MessageResponse> {
   }
   const status = await getSyncStatus();
   return { success: true, data: status };
+}
+
+async function handleSyncPush(): Promise<MessageResponse> {
+  // Push-only: upload local changes without pulling remote data back.
+  // Used by mutation handlers to avoid a full data reload overwriting
+  // the optimistic UI update that was already applied.
+  const syncResult = await syncAll();
+  return { success: syncResult.success, error: syncResult.error };
 }
 
 async function handleSyncDashboard(payload: { config: string }): Promise<MessageResponse<DashboardSyncResponse>> {

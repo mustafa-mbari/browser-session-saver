@@ -57,7 +57,7 @@ async function restoreInCurrentWindow(template: TabGroupTemplate): Promise<void>
 }
 
 function triggerCloudSync(): void {
-  void chrome.runtime.sendMessage({ action: 'SYNC_NOW', payload: {} });
+  void chrome.runtime.sendMessage({ action: 'SYNC_PUSH', payload: {} });
 }
 
 // ── Color Picker ───────────────────────────────────────────────────────────────

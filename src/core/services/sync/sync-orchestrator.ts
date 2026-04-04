@@ -680,9 +680,24 @@ async function pullTodos(userId: string): Promise<number> {
   if (!listRows && !itemRows) return 0;
 
   const db = newtabDB;
+  const remoteListIds = new Set((listRows ?? []).map((r) => r.id as string));
+  const remoteItemIds = new Set((itemRows ?? []).map((r) => r.id as string));
+
+  // Upsert pulled items into IDB
   await Promise.all([
     ...(listRows ?? []).map((r) => db.put<TodoList>('todoLists', todoListMapper.fromRow(r as Record<string, unknown>))),
     ...(itemRows ?? []).map((r) => db.put<TodoItem>('todoItems', todoItemMapper.fromRow(r as Record<string, unknown>))),
+  ]);
+
+  // Reconcile: delete local items/lists that no longer exist on the remote.
+  // This prevents a stale concurrent pull from re-surfacing deleted items.
+  const [localLists, localItems] = await Promise.all([
+    db.getAll<TodoList>('todoLists'),
+    db.getAll<TodoItem>('todoItems'),
+  ]);
+  await Promise.all([
+    ...localItems.filter((i) => !remoteItemIds.has(i.id)).map((i) => db.delete('todoItems', i.id)),
+    ...localLists.filter((l) => !remoteListIds.has(l.id)).map((l) => db.delete('todoLists', l.id)),
   ]);
 
   // For dashboard card todo widgets: write pulled items back into the category's
