@@ -16,7 +16,6 @@ export const tabGroupTemplateMapper: RowMapper<TabGroupTemplate & { id: string; 
       tabs: t.tabs,
       saved_at: t.savedAt,
       updated_at: t.updatedAt,
-      pinned: t.pinned ?? false,
     };
   },
 
@@ -29,7 +28,6 @@ export const tabGroupTemplateMapper: RowMapper<TabGroupTemplate & { id: string; 
       tabs: (r.tabs ?? []) as TabGroupTemplate['tabs'],
       savedAt: r.saved_at as string,
       updatedAt: r.updated_at as string,
-      pinned: (r.pinned ?? false) as boolean | undefined,
       createdAt: r.saved_at as string, // Map savedAt to createdAt for Syncable
     };
   },
@@ -50,7 +48,6 @@ export const tabGroupTemplateRawMapper = {
       tabs: t.tabs,
       saved_at: t.savedAt,
       updated_at: t.updatedAt,
-      pinned: t.pinned ?? false,
     };
   },
 
@@ -62,7 +59,6 @@ export const tabGroupTemplateRawMapper = {
       tabs: (r.tabs ?? []) as TabGroupTemplate['tabs'],
       savedAt: r.saved_at as string,
       updatedAt: r.updated_at as string,
-      pinned: (r.pinned ?? false) as boolean | undefined,
     };
   },
 };
