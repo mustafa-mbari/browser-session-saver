@@ -4,7 +4,7 @@ import type { Settings } from '@core/types/settings.types';
 import { CURRENT_SCHEMA_VERSION } from '@core/types/storage.types';
 import { generateId } from '@core/utils/uuid';
 import { nowISO, formatTimestamp } from '@core/utils/date';
-import { getSessionStorage, getSettingsStorage } from '@core/storage/storage-factory';
+import { getSessionRepository, getSettingsStorage } from '@core/storage/storage-factory';
 import { STORAGE_KEYS } from '@core/types/storage.types';
 import type { StorageMetadata } from '@core/types/storage.types';
 
@@ -31,7 +31,7 @@ export async function saveSession(
   tabGroups: TabGroup[],
   options: SaveSessionOptions = {},
 ): Promise<Session> {
-  const storage = getSessionStorage();
+  const repo = getSessionRepository();
   const id = generateId();
   const now = nowISO();
   const isAutoSave = options.isAutoSave ?? false;
@@ -56,7 +56,7 @@ export async function saveSession(
     version: CURRENT_SCHEMA_VERSION,
   };
 
-  await storage.set(id, session);
+  await repo.save(session);
 
   if (isAutoSave) {
     const settingsStorage = getSettingsStorage();
@@ -94,14 +94,12 @@ export async function upsertAutoSaveSession(
   options: SaveSessionOptions = {},
   mergeWithExisting = false,
 ): Promise<Session> {
-  const storage = getSessionStorage();
+  const repo = getSessionRepository();
   const trigger = options.autoSaveTrigger ?? 'timer';
   const now = nowISO();
 
   // Always find THE single auto-save entry (newest first, any trigger type)
-  const autoSaves = storage.getByIndex
-    ? await storage.getByIndex<Session>('isAutoSave', true)
-    : Object.values(await storage.getAll()).filter((s) => (s as Session).isAutoSave) as Session[];
+  const autoSaves = await repo.getByIndex('isAutoSave', true);
   autoSaves.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const existing = autoSaves[0] ?? null;
 
@@ -142,7 +140,7 @@ export async function upsertAutoSaveSession(
       autoSaveTrigger: trigger,
       windowId: options.windowId ?? existing.windowId,
     };
-    await storage.set(existing.id, updated);
+    await repo.save(updated);
 
     const settingsStorage = getSettingsStorage();
     const metadata = (await settingsStorage.get<StorageMetadata>(STORAGE_KEYS.METADATA)) ?? {
@@ -167,8 +165,8 @@ export async function upsertAutoSaveSession(
 }
 
 export async function getSession(id: string): Promise<Session | null> {
-  const storage = getSessionStorage();
-  return storage.get<Session>(id);
+  const repo = getSessionRepository();
+  return repo.getById(id);
 }
 
 export async function getAllSessions(
@@ -176,9 +174,8 @@ export async function getAllSessions(
   sort?: SessionSort,
   _limit?: number,
 ): Promise<Session[]> {
-  const storage = getSessionStorage();
-  const all = await storage.getAll();
-  let sessions = Object.values(all) as Session[];
+  const repo = getSessionRepository();
+  let sessions = await repo.getAll();
 
   if (filter) {
     sessions = applyFilter(sessions, filter);
@@ -198,16 +195,16 @@ export async function getAllSessions(
 }
 
 export async function countSessions(): Promise<number> {
-  const storage = getSessionStorage();
-  return storage.count();
+  const repo = getSessionRepository();
+  return repo.count();
 }
 
 export async function updateSession(
   id: string,
   updates: Partial<Session>,
 ): Promise<Session | null> {
-  const storage = getSessionStorage();
-  const session = await storage.get<Session>(id);
+  const repo = getSessionRepository();
+  const session = await repo.getById(id);
   if (!session) return null;
 
   const updated: Session = {
@@ -217,17 +214,17 @@ export async function updateSession(
     updatedAt: nowISO(),
   };
 
-  await storage.set(id, updated);
+  await repo.save(updated);
   return updated;
 }
 
 export async function deleteSession(id: string): Promise<boolean> {
-  const storage = getSessionStorage();
-  const session = await storage.get<Session>(id);
+  const repo = getSessionRepository();
+  const session = await repo.getById(id);
   if (!session) return false;
   if (session.isLocked) return false;
 
-  await storage.remove(id);
+  await repo.delete(id);
   return true;
 }
 
@@ -254,17 +251,15 @@ export async function checkDuplicate(tabUrls: string[]): Promise<boolean> {
 }
 
 async function enforceAutoSaveLimit(maxAutoSaves: number): Promise<void> {
-  const storage = getSessionStorage();
-  const allAutoSaves = storage.getByIndex
-    ? await storage.getByIndex<Session>('isAutoSave', true)
-    : Object.values(await storage.getAll()).filter((s) => (s as Session).isAutoSave) as Session[];
+  const repo = getSessionRepository();
+  const allAutoSaves = await repo.getByIndex('isAutoSave', true);
   const deletable = allAutoSaves
     .filter((s) => !s.isLocked)
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   while (deletable.length > maxAutoSaves) {
     const oldest = deletable.shift()!;
-    await storage.remove(oldest.id);
+    await repo.delete(oldest.id);
   }
 }
 

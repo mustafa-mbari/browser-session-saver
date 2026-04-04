@@ -14,12 +14,13 @@
 import { supabase } from '@core/supabase/client';
 import { getSyncUserId, getSyncEmail } from '@core/services/sync-auth.service';
 import { getAllSessions } from '@core/services/session.service';
-import { getSessionStorage } from '@core/storage/storage-factory';
+import { getSessionRepository } from '@core/storage/storage-factory';
 import { PromptStorage } from '@core/storage/prompt-storage';
 import { SubscriptionStorage } from '@core/storage/subscription-storage';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
 import { NewTabDB } from '@core/storage/newtab-storage';
 import { SyncAdapter } from '@core/services/sync/sync-adapter';
+import { sessionMapper } from '@core/services/sync/row-mappers/session.mapper';
 import { subscriptionMapper } from '@core/services/sync/row-mappers/subscription.mapper';
 import { tabGroupTemplateRawMapper } from '@core/services/sync/row-mappers/tab-group.mapper';
 import { enforceQuota } from '@core/services/sync/quota';
@@ -234,10 +235,11 @@ export async function pushSession(session: Session, userId: string): Promise<voi
   if (session.isAutoSave) return;
   const quota = await getUserQuota(userId).catch(() => null);
   if (quota && !quota.sync_enabled) return;
-  const { error } = await supabase
-    .from('sessions')
-    .upsert(sessionToRow(session, userId), { onConflict: 'id' });
-  if (error) console.warn('[sync] pushSession error:', error.message);
+  try {
+    await _sessionSyncAdapter.pushOne(session, userId);
+  } catch (e) {
+    console.warn('[sync] pushSession error:', (e as Error).message);
+  }
 }
 
 /**
@@ -246,12 +248,11 @@ export async function pushSession(session: Session, userId: string): Promise<voi
 export async function deleteRemoteSession(sessionId: string): Promise<void> {
   const userId = await getSyncUserId();
   if (!userId) return;
-  const { error } = await supabase
-    .from('sessions')
-    .delete()
-    .eq('id', sessionId)
-    .eq('user_id', userId);
-  if (error) console.warn('[sync] deleteRemoteSession error:', error.message);
+  try {
+    await _sessionSyncAdapter.deleteOne(userId, sessionId);
+  } catch (e) {
+    console.warn('[sync] deleteRemoteSession error:', (e as Error).message);
+  }
 }
 
 /**
@@ -439,24 +440,19 @@ function topByCreatedAt<T extends { createdAt: string }>(items: T[], limit: numb
   return limit != null ? sorted.slice(0, limit) : sorted;
 }
 
+// ─── Session sync via SyncAdapter ───────────────────────────────────────────
+
+const _sessionSyncAdapter = new SyncAdapter<Session>(supabase, sessionMapper, {
+  tableName: 'sessions',
+  quotaSortField: 'updatedAt',
+  preSyncTransform: (s) => ({ ...s, tabs: s.tabs.filter((t) => !isExcludedUrl(t.url)) }),
+});
+
 // ─── Internal sync helpers ───────────────────────────────────────────────────
 
 async function syncSessions(userId: string, quota: UserQuota, allSessions: Session[]): Promise<number> {
-  const limit = quota.sessions_synced_limit ?? Infinity;
-
-  // Take the most recently updated sessions up to the quota limit
-  const toSync = topByUpdatedAt(allSessions, limit === Infinity ? null : limit);
-
-  if (toSync.length === 0) return 0;
-
-  // Strip excluded URLs from tabs before pushing to Supabase
-  const rows = toSync.map((s) =>
-    sessionToRow({ ...s, tabs: s.tabs.filter((t) => !isExcludedUrl(t.url)) }, userId),
-  );
-  const { error } = await supabase.from('sessions').upsert(rows, { onConflict: 'id' });
-  if (error) throw new Error(`Sessions sync failed: ${error.message}`);
-
-  return toSync.length;
+  if (allSessions.length === 0) return 0;
+  return _sessionSyncAdapter.push(allSessions, userId, quota.sessions_synced_limit);
 }
 
 async function syncPrompts(userId: string, quota: UserQuota): Promise<number> {
@@ -726,28 +722,6 @@ async function syncTabGroupTemplates(userId: string, allTemplates: TabGroupTempl
 
 // ─── Row mappers (camelCase → snake_case) ────────────────────────────────────
 
-function sessionToRow(s: Session, userId: string): Record<string, unknown> {
-  return {
-    id: s.id,
-    user_id: userId,
-    name: s.name,
-    created_at: s.createdAt,
-    updated_at: s.updatedAt,
-    tabs: s.tabs,
-    tab_groups: s.tabGroups,
-    window_id: s.windowId,
-    tags: s.tags,
-    is_pinned: s.isPinned,
-    is_starred: s.isStarred,
-    is_locked: s.isLocked,
-    is_auto_save: s.isAutoSave,
-    auto_save_trigger: s.autoSaveTrigger,
-    notes: s.notes,
-    tab_count: s.tabCount,
-    version: s.version,
-  };
-}
-
 function promptToRow(p: Prompt, userId: string): Record<string, unknown> {
   return {
     id: p.id,
@@ -811,15 +785,14 @@ function todoItemToRow(i: TodoItem, userId: string): Record<string, unknown> {
 // ─── Internal pull helpers ───────────────────────────────────────────────────
 
 async function pullSessions(userId: string): Promise<number> {
-  const { data, error } = await supabase.from('sessions').select('*').eq('user_id', userId);
-  if (error) throw new Error(`Session pull failed: ${error.message}`);
-  if (!data || data.length === 0) return 0;
+  const remoteSessions = await _sessionSyncAdapter.pull(userId);
+  if (remoteSessions.length === 0) return 0;
 
-  const storage = getSessionStorage();
-  const existing = await storage.getAll();
-  const existingIds = new Set(Object.keys(existing));
-  const toWrite = (data as Record<string, unknown>[]).filter((r) => !existingIds.has(r.id as string));
-  await Promise.all(toWrite.map((r) => storage.set(r.id as string, rowToSession(r))));
+  const repo = getSessionRepository();
+  const existing = await repo.getAll();
+  const existingIds = new Set(existing.map((s) => s.id));
+  const toWrite = remoteSessions.filter((s) => !existingIds.has(s.id));
+  await Promise.all(toWrite.map((s) => repo.save(s)));
   return toWrite.length;
 }
 
@@ -952,27 +925,6 @@ async function pullTodos(userId: string): Promise<number> {
 }
 
 // ─── Row mappers (snake_case → camelCase) ────────────────────────────────────
-
-function rowToSession(r: Record<string, unknown>): Session {
-  return {
-    id: r.id as string,
-    name: r.name as string,
-    createdAt: r.created_at as string,
-    updatedAt: r.updated_at as string,
-    tabs: (r.tabs ?? []) as Session['tabs'],
-    tabGroups: (r.tab_groups ?? []) as Session['tabGroups'],
-    windowId: (r.window_id ?? 0) as number,
-    tags: (r.tags ?? []) as string[],
-    isPinned: (r.is_pinned ?? false) as boolean,
-    isStarred: (r.is_starred ?? false) as boolean,
-    isLocked: (r.is_locked ?? false) as boolean,
-    isAutoSave: (r.is_auto_save ?? false) as boolean,
-    autoSaveTrigger: (r.auto_save_trigger ?? 'manual') as Session['autoSaveTrigger'],
-    notes: (r.notes ?? '') as string,
-    tabCount: (r.tab_count ?? 0) as number,
-    version: (r.version ?? '1') as string,
-  };
-}
 
 function rowToPrompt(r: Record<string, unknown>): Prompt {
   return {

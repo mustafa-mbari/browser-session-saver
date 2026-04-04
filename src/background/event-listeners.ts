@@ -5,7 +5,7 @@ import { STORAGE_KEYS } from '@core/types/storage.types';
 import type { StorageMetadata } from '@core/types/storage.types';
 import * as SessionService from '@core/services/session.service';
 import { captureTabGroups } from '@core/services/tab-group.service';
-import { getSettingsStorage, getSessionStorage } from '@core/storage/storage-factory';
+import { getSettingsStorage, getSessionRepository } from '@core/storage/storage-factory';
 import { DEFAULT_SETTINGS } from '@core/types/settings.types';
 import { exportAsJSON, exportAsHTML, exportAsMarkdown, exportAsCSV, exportAsText } from '@core/services/export.service';
 import { importFromJSON, importFromHTML, importFromURLList } from '@core/services/import.service';
@@ -374,8 +374,8 @@ async function handleImportSessions(payload: {
     result.errors.push(`${invalidCount} session(s) failed schema validation and were skipped`);
   }
 
-  const storage = getSessionStorage();
-  await Promise.all(validSessions.map(s => storage.set(s.id, s)));
+  const repo = getSessionRepository();
+  await Promise.all(validSessions.map(s => repo.save(s)));
 
   return {
     success: validSessions.length > 0,
@@ -390,8 +390,8 @@ async function handleUndeleteSession(payload: {
   if (!isValidSession(payload.session)) {
     return { success: false, error: 'Invalid session data' };
   }
-  const storage = getSessionStorage();
-  await storage.set(payload.session.id, payload.session);
+  const repo = getSessionRepository();
+  await repo.save(payload.session);
   return { success: true, data: payload.session };
 }
 

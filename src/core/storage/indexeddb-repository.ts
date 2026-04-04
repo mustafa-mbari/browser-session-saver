@@ -14,6 +14,16 @@ export interface IndexedDBRepositoryConfig {
   dbVersion: number;
   storeName: string;
   onUpgrade: (db: IDBDatabase, oldVersion: number, tx: IDBTransaction) => void;
+  /**
+   * When true, the object store uses out-of-line keys (no keyPath).
+   * The entity's `id` property is passed as a separate key argument
+   * to `store.put(value, key)`. This is required for the `browser-hub`
+   * sessions store which was created without a keyPath.
+   *
+   * When false (default), the store uses inline keys via keyPath
+   * and `store.put(entity)` is sufficient.
+   */
+  outOfLineKeys?: boolean;
 }
 
 export class IndexedDBRepository<T extends BaseEntity>
@@ -70,7 +80,9 @@ export class IndexedDBRepository<T extends BaseEntity>
     return new Promise((resolve, reject) => {
       const tx = db.transaction(this.config.storeName, 'readwrite');
       const store = tx.objectStore(this.config.storeName);
-      const req = store.put(entity);
+      const req = this.config.outOfLineKeys
+        ? store.put(entity, entity.id)
+        : store.put(entity);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
@@ -144,7 +156,11 @@ export class IndexedDBRepository<T extends BaseEntity>
       const tx = db.transaction(this.config.storeName, 'readwrite');
       const store = tx.objectStore(this.config.storeName);
       for (const entity of entities) {
-        store.put(entity);
+        if (this.config.outOfLineKeys) {
+          store.put(entity, entity.id);
+        } else {
+          store.put(entity);
+        }
       }
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
@@ -158,7 +174,11 @@ export class IndexedDBRepository<T extends BaseEntity>
       const store = tx.objectStore(this.config.storeName);
       store.clear();
       for (const entity of entities) {
-        store.put(entity);
+        if (this.config.outOfLineKeys) {
+          store.put(entity, entity.id);
+        } else {
+          store.put(entity);
+        }
       }
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);

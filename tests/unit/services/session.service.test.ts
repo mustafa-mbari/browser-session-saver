@@ -19,21 +19,38 @@ const { store, settingsStore } = vi.hoisted(() => ({
 }));
 
 vi.mock('@core/storage/storage-factory', () => {
-  const mockStorage = {
-    get: vi.fn((key: string) => Promise.resolve(store[key] ?? null)),
-    set: vi.fn((key: string, val: unknown) => {
-      store[key] = val;
+  const mockRepo = {
+    getById: vi.fn((id: string) => Promise.resolve(store[id] ?? null)),
+    save: vi.fn((entity: { id: string }) => {
+      store[entity.id] = entity;
       return Promise.resolve(undefined);
     }),
-    remove: vi.fn((key: string) => {
-      delete store[key];
-      return Promise.resolve(undefined);
+    delete: vi.fn((id: string) => {
+      const existed = id in store;
+      delete store[id];
+      return Promise.resolve(existed);
     }),
-    getAll: vi.fn(() => Promise.resolve({ ...store })),
+    getAll: vi.fn(() => Promise.resolve(Object.values(store))),
     count: vi.fn(() => Promise.resolve(Object.keys(store).length)),
-    getUsedBytes: vi.fn(() => Promise.resolve(0)),
-    clear: vi.fn(() => {
+    update: vi.fn((id: string, updates: Record<string, unknown>) => {
+      if (!store[id]) return Promise.resolve(null);
+      store[id] = { ...(store[id] as object), ...updates };
+      return Promise.resolve(store[id]);
+    }),
+    getByIndex: vi.fn((indexName: string, value: unknown) => {
+      return Promise.resolve(
+        Object.values(store).filter(
+          (item) => (item as Record<string, unknown>)[indexName] === value,
+        ),
+      );
+    }),
+    importMany: vi.fn((entities: { id: string }[]) => {
+      for (const e of entities) store[e.id] = e;
+      return Promise.resolve(undefined);
+    }),
+    replaceAll: vi.fn((entities: { id: string }[]) => {
       for (const k of Object.keys(store)) delete store[k];
+      for (const e of entities) store[e.id] = e;
       return Promise.resolve(undefined);
     }),
   };
@@ -45,7 +62,7 @@ vi.mock('@core/storage/storage-factory', () => {
     }),
   };
   return {
-    getSessionStorage: vi.fn(() => mockStorage),
+    getSessionRepository: vi.fn(() => mockRepo),
     getSettingsStorage: vi.fn(() => mockSettingsStorage),
   };
 });

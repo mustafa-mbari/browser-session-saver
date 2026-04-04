@@ -3,17 +3,19 @@ import { countSessions } from '@core/services/session.service';
 
 // Mock storage-factory so countSessions never touches real IndexedDB
 vi.mock('@core/storage/storage-factory', () => {
-  const mockStorage = {
-    get: vi.fn().mockResolvedValue(null),
-    set: vi.fn().mockResolvedValue(undefined),
-    remove: vi.fn().mockResolvedValue(undefined),
-    getAll: vi.fn().mockResolvedValue({}),
-    clear: vi.fn().mockResolvedValue(undefined),
-    getUsedBytes: vi.fn().mockResolvedValue(0),
+  const mockRepo = {
+    getById: vi.fn().mockResolvedValue(null),
+    save: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(false),
+    getAll: vi.fn().mockResolvedValue([]),
     count: vi.fn().mockResolvedValue(42),
+    getByIndex: vi.fn().mockResolvedValue([]),
+    update: vi.fn().mockResolvedValue(null),
+    importMany: vi.fn().mockResolvedValue(undefined),
+    replaceAll: vi.fn().mockResolvedValue(undefined),
   };
   return {
-    getSessionStorage: vi.fn(() => mockStorage),
+    getSessionRepository: vi.fn(() => mockRepo),
     getSettingsStorage: vi.fn(() => ({
       get: vi.fn().mockResolvedValue(null),
       set: vi.fn().mockResolvedValue(undefined),
@@ -22,16 +24,16 @@ vi.mock('@core/storage/storage-factory', () => {
 });
 
 describe('countSessions', () => {
-  it('delegates to storage.count() and returns the result', async () => {
+  it('delegates to repo.count() and returns the result', async () => {
     const count = await countSessions();
     expect(count).toBe(42);
   });
 
-  it('calls getSessionStorage once per invocation', async () => {
-    const { getSessionStorage } = await import('@core/storage/storage-factory');
-    vi.mocked(getSessionStorage).mockClear();
+  it('calls getSessionRepository once per invocation', async () => {
+    const { getSessionRepository } = await import('@core/storage/storage-factory');
+    vi.mocked(getSessionRepository).mockClear();
 
     await countSessions();
-    expect(getSessionStorage).toHaveBeenCalledTimes(1);
+    expect(getSessionRepository).toHaveBeenCalledTimes(1);
   });
 });

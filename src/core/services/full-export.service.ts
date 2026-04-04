@@ -1,4 +1,4 @@
-import { getSessionStorage, getSettingsStorage } from '@core/storage/storage-factory';
+import { getSessionRepository, getSettingsStorage } from '@core/storage/storage-factory';
 import { PromptStorage } from '@core/storage/prompt-storage';
 import { SubscriptionStorage } from '@core/storage/subscription-storage';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
@@ -25,8 +25,7 @@ import { FULL_BACKUP_VERSION } from '@core/types/import-export.types';
 // ── Data readers ──────────────────────────────────────────────────────────────
 
 async function readSessions(): Promise<Session[]> {
-  const all = await getSessionStorage().getAll();
-  return Object.values(all) as Session[];
+  return getSessionRepository().getAll();
 }
 
 async function readSettings(): Promise<Settings> {

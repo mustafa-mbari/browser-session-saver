@@ -37,13 +37,20 @@ vi.mock('@core/storage/storage-factory', () => {
       return Promise.resolve(undefined);
     }),
   };
-  const mockSessionStorage = {
-    get: vi.fn().mockResolvedValue(null),
-    set: vi.fn().mockResolvedValue(undefined),
+  const mockSessionRepo = {
+    getById: vi.fn().mockResolvedValue(null),
+    save: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(false),
+    getAll: vi.fn().mockResolvedValue([]),
+    count: vi.fn().mockResolvedValue(0),
+    getByIndex: vi.fn().mockResolvedValue([]),
+    update: vi.fn().mockResolvedValue(null),
+    importMany: vi.fn().mockResolvedValue(undefined),
+    replaceAll: vi.fn().mockResolvedValue(undefined),
   };
   return {
     getSettingsStorage: vi.fn(() => mockSettingsStorage),
-    getSessionStorage: vi.fn(() => mockSessionStorage),
+    getSessionRepository: vi.fn(() => mockSessionRepo),
   };
 });
 

@@ -1,4 +1,4 @@
-import { getSessionStorage, getSettingsStorage } from '@core/storage/storage-factory';
+import { getSessionRepository, getSettingsStorage } from '@core/storage/storage-factory';
 import { PromptStorage } from '@core/storage/prompt-storage';
 import { SubscriptionStorage } from '@core/storage/subscription-storage';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
@@ -303,13 +303,12 @@ async function runModuleImport(
 }
 
 async function importSessions(sessions: Session[], mode: ImportMode): Promise<number> {
-  const storage = getSessionStorage();
+  const repo = getSessionRepository();
   if (mode === 'replace') {
-    // Clear all existing sessions
-    const existing = await storage.getAll();
-    await Promise.all(Object.keys(existing).map((id) => storage.remove(id)));
+    await repo.replaceAll(sessions);
+  } else {
+    await repo.importMany(sessions);
   }
-  await Promise.all(sessions.map((s) => storage.set(s.id, s)));
   return sessions.length;
 }
 

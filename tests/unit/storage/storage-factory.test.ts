@@ -7,10 +7,10 @@ describe('storage-factory singletons', () => {
     vi.resetModules();
   });
 
-  it('getSessionStorage returns the same instance on repeated calls', async () => {
-    const { getSessionStorage } = await import('@core/storage/storage-factory');
-    const a = getSessionStorage();
-    const b = getSessionStorage();
+  it('getSessionRepository returns the same instance on repeated calls', async () => {
+    const { getSessionRepository } = await import('@core/storage/storage-factory');
+    const a = getSessionRepository();
+    const b = getSessionRepository();
     expect(a).toBe(b);
   });
 
@@ -21,15 +21,15 @@ describe('storage-factory singletons', () => {
     expect(a).toBe(b);
   });
 
-  it('getSessionStorage and getSettingsStorage return different instances', async () => {
-    const { getSessionStorage, getSettingsStorage } = await import('@core/storage/storage-factory');
-    expect(getSessionStorage()).not.toBe(getSettingsStorage());
+  it('getSessionRepository and getSettingsStorage return different instances', async () => {
+    const { getSessionRepository, getSettingsStorage } = await import('@core/storage/storage-factory');
+    expect(getSessionRepository()).not.toBe(getSettingsStorage());
   });
 
-  it('getSessionStorage returns an IndexedDBAdapter (has getByIndex method)', async () => {
-    const { getSessionStorage } = await import('@core/storage/storage-factory');
-    const storage = getSessionStorage();
-    expect(typeof (storage as Record<string, unknown>).getByIndex).toBe('function');
+  it('getSessionRepository returns an IndexedDBRepository (has getByIndex method)', async () => {
+    const { getSessionRepository } = await import('@core/storage/storage-factory');
+    const repo = getSessionRepository();
+    expect(typeof (repo as Record<string, unknown>).getByIndex).toBe('function');
   });
 
   it('getSettingsStorage returns a ChromeStorageAdapter (has getUsedBytes method)', async () => {
@@ -43,6 +43,14 @@ describe('storage-factory singletons', () => {
     vi.resetModules();
     const mod2 = await import('@core/storage/storage-factory');
     // Each fresh module has its own singleton state — instances are not shared
-    expect(mod1.getSessionStorage()).not.toBe(mod2.getSessionStorage());
+    expect(mod1.getSessionRepository()).not.toBe(mod2.getSessionRepository());
+  });
+
+  // Legacy: getSessionStorage still exists (for backward compatibility during transition)
+  it('getSessionStorage still exists and returns an IStorage instance', async () => {
+    const { getSessionStorage } = await import('@core/storage/storage-factory');
+    const storage = getSessionStorage();
+    expect(typeof (storage as Record<string, unknown>).get).toBe('function');
+    expect(typeof (storage as Record<string, unknown>).set).toBe('function');
   });
 });
