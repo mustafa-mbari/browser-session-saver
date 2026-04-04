@@ -46,11 +46,4 @@ describe('storage-factory singletons', () => {
     expect(mod1.getSessionRepository()).not.toBe(mod2.getSessionRepository());
   });
 
-  // Legacy: getSessionStorage still exists (for backward compatibility during transition)
-  it('getSessionStorage still exists and returns an IStorage instance', async () => {
-    const { getSessionStorage } = await import('@core/storage/storage-factory');
-    const storage = getSessionStorage();
-    expect(typeof (storage as Record<string, unknown>).get).toBe('function');
-    expect(typeof (storage as Record<string, unknown>).set).toBe('function');
-  });
 });

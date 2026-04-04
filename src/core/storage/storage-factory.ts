@@ -2,11 +2,9 @@ import type { IStorage } from './storage.interface';
 import type { Session } from '@core/types/session.types';
 import type { IIndexedRepository, IBulkRepository } from './repository';
 import { ChromeStorageAdapter } from './chrome-storage';
-import { IndexedDBAdapter } from './indexeddb';
 import { IndexedDBRepository } from './indexeddb-repository';
 
 let _settingsStorage: IStorage | null = null;
-let _sessionStorage: IStorage | null = null;
 let _sessionRepository: (IIndexedRepository<Session> & IBulkRepository<Session>) | null = null;
 
 export function getSettingsStorage(): IStorage {
@@ -14,13 +12,6 @@ export function getSettingsStorage(): IStorage {
     _settingsStorage = new ChromeStorageAdapter();
   }
   return _settingsStorage;
-}
-
-export function getSessionStorage(): IStorage {
-  if (!_sessionStorage) {
-    _sessionStorage = new IndexedDBAdapter();
-  }
-  return _sessionStorage;
 }
 
 export function getSessionRepository(): IIndexedRepository<Session> & IBulkRepository<Session> {

@@ -42,15 +42,42 @@ cd admin && npm run build               # Production build
 - **UI surfaces** — Side Panel (`src/sidepanel/`), Popup (`src/popup/`), Start-Tab (`src/newtab/`); each has its own `index.html` entry point bundled by `@crxjs/vite-plugin` from `manifest.json`
 - **Shared** (`src/shared/`) — reusable components, hooks, styles, i18n utilities used by all UI surfaces
 
+### Storage Layer
+
+```
+Services (business logic)
+  │
+  ├── IRepository<T> / IIndexedRepository<T> / IBulkRepository<T>
+  │     └── IndexedDBRepository<T>    (sessions)
+  │
+  ├── ChromeLocalKeyAdapter<T>        (subscriptions, tab-group templates)
+  │
+  └── NewTabDB singleton (newtabDB)   (bookmarks, todos, quick links, wallpapers)
+  │
+  ▼
+Sync Layer (src/core/services/sync/)
+  ├── sync-orchestrator.ts   (push/pull/status coordination)
+  ├── sync-adapter.ts        (generic SyncAdapter<T> for Supabase push/pull)
+  ├── types.ts               (UserQuota, SyncStatus, SyncResult, etc.)
+  ├── quota.ts               (shared enforceQuota utility)
+  ├── url-filter.ts          (isExcludedUrl, collectAllSyncableUrls)
+  └── row-mappers/           (per-entity camelCase↔snake_case mappers)
+```
+
+- **`IRepository<T>`** (`src/core/storage/repository.ts`) — unified CRUD interface for persistable entities; extended by `IIndexedRepository<T>` (secondary index queries) and `IBulkRepository<T>` (importMany/replaceAll)
+- **`IndexedDBRepository<T>`** (`src/core/storage/indexeddb-repository.ts`) — implements `IIndexedRepository` + `IBulkRepository`; used for sessions via `getSessionRepository()` in `storage-factory.ts`
+- **Bookmark/todo/quicklinks services** import `newtabDB` singleton directly — no `db` parameter on public functions
+- **`sync.service.ts`** is a thin barrel re-export; all logic lives in `src/core/services/sync/`
+
 ## Key Conventions
 
 - **Path aliases**: `@core/*`, `@shared/*`, `@background/*`, `@sidepanel/*`, `@popup/*`, `@newtab/*`
 - **State management**: Zustand stores per UI surface (sidepanel.store.ts; newtab split into newtab-ui.store.ts + newtab-data.store.ts with facade re-export from newtab.store.ts)
-- **Storage**: chrome.storage.local for settings, IndexedDB (`browser-hub` v2 with `isAutoSave`/`createdAt` indexes) for sessions — abstracted via `IStorage` interface (with optional `getByIndex` for indexed queries); start-tab uses a separate `newtab-db` (NewTabDB class in `src/core/storage/newtab-storage.ts`) for bookmarks/todos/wallpapers
+- **Storage**: chrome.storage.local for settings (via `IStorage` / `ChromeStorageAdapter`), IndexedDB (`browser-hub` v2 with `isAutoSave`/`createdAt` indexes) for sessions (via `IRepository` / `IndexedDBRepository`); start-tab uses a separate `newtab-db` (`newtabDB` singleton from `src/core/storage/newtab-storage.ts`) for bookmarks/todos/wallpapers; subscriptions and tab-group templates use flat `chrome.storage.local` keys via `ChromeLocalKeyAdapter<T>`
 - **Messaging**: Typed discriminated union `Message` type between service worker and UI via `chrome.runtime.sendMessage`; 19 action types defined in `messages.types.ts`
 - **Styling**: Tailwind CSS with CSS custom properties for theme tokens, dark mode via `class` strategy. Glassmorphism utilities (`.glass`, `.glass-panel`, `.glass-dark`, `.glass-hover`, `.vignette`) defined in `@layer utilities` in `globals.css`
 - **Components**: All shared components support dark mode and include ARIA attributes
-- **Tests**: Vitest with jsdom, Chrome API mocked in `tests/setup.ts`; 256 tests across 21 files in `tests/unit/`
+- **Tests**: Vitest with jsdom, Chrome API mocked in `tests/setup.ts`; 665 tests across 65 files in `tests/unit/`
 - **i18n**: `_locales/en/messages.json` (~282 keys), `_locales/ar/messages.json`, `_locales/de/messages.json`; `t()` wrapper at `src/shared/utils/i18n.ts`
 - **Virtual scrolling**: `@tanstack/react-virtual` v3 used in `SessionsPanel` (3-column `lanes` grid) and `AutoSavesPanel` (flat list with headers); threshold ≤30 items uses plain DOM, >30 uses virtualizer
 - **Error boundaries**: `src/shared/components/ErrorBoundary.tsx` wraps all major UI sections; reports via `errorBoundaryTitle/Desc/Reload` i18n keys
@@ -73,11 +100,19 @@ cd admin && npm run build               # Production build
 - `src/core/types/prompt.types.ts` — Prompt, PromptFolder, PromptCategory, PromptTag, PromptSectionKey, PromptFilterOptions, PromptSortField
 - `src/core/supabase/client.ts` — Singleton Supabase client using `chrome.storage.local` as auth storage adapter
 - `src/core/services/sync-auth.service.ts` — Supabase auth wrapper: `syncSignIn`, `syncSignOut`, `getSyncSession`, `getSyncUserId`, `isSyncAuthenticated`
-- `src/core/services/sync.service.ts` — Cloud sync orchestrator: `syncAll`, `pushSession`, `deleteRemoteSession`, `getSyncStatus`, `getUserQuota`, `syncTabGroupTemplates`, `syncBookmarkFolders`; camelCase↔snake_case mappers; quota-aware (sessions/prompts/subs/tab-groups/bookmark-folders); status persisted to `cloud_sync_status` key; `SyncUsage` type tracks synced counts per entity
+- `src/core/services/sync.service.ts` — Barrel re-export for the sync layer; all consumers import from this path
+- `src/core/services/sync/sync-orchestrator.ts` — Cloud sync orchestrator: `syncAll`, `pushSession`, `deleteRemoteSession`, `getSyncStatus`, `getUserQuota`, `syncDashboard`, `pullDashboard`, `pullAll`; coordinates `SyncAdapter` instances and direct Supabase calls; quota-aware (sessions/prompts/subs/tab-groups/bookmarks/todos); status persisted to `cloud_sync_status` key
+- `src/core/services/sync/types.ts` — `UserQuota`, `SyncUsage`, `SyncStatus`, `SyncResult`, `PullResult`, `DashboardSyncResult`, `SyncAdapterConfig`
+- `src/core/services/sync/sync-adapter.ts` — Generic `SyncAdapter<T>` for Supabase push/pull per entity type
+- `src/core/services/sync/row-mappers/` — Per-entity camelCase↔snake_case mappers (session, prompt, subscription, tab-group, bookmark, todo)
+- `src/core/services/sync/quota.ts` — `enforceQuota()` shared sort-slice utility
+- `src/core/services/sync/url-filter.ts` — `isExcludedUrl()`, `collectAllSyncableUrls()` for URL dedup
 - `src/core/types/subscription.types.ts` — Subscription, SubscriptionTemplate, BillingCycle, DueUrgency, SUPPORTED_CURRENCIES, SUBSCRIPTION_TEMPLATES (22 presets)
 - `src/core/types/tab-group.types.ts` — TabGroupTemplate, TabGroupTemplateTab
 - `src/core/config/widget-config.ts` — Widget sizing configuration registry: `WidgetSizeConfig` interface, `WIDGET_CONFIG` (per-CardType min/max/default), `getDefaultSize()`, `clampSize()`
-- `src/core/storage/indexeddb.ts` — IndexedDB adapter (`browser-hub` v2); native `getAll()`/`getAllKeys()`, secondary indexes (`isAutoSave`, `createdAt`), `getByIndex()` for filtered queries
+- `src/core/storage/repository.ts` — `IRepository<T>`, `IIndexedRepository<T>`, `IBulkRepository<T>` interfaces — unified CRUD contract for persistable entities
+- `src/core/storage/indexeddb-repository.ts` — `IndexedDBRepository<T>` implementing `IIndexedRepository` + `IBulkRepository`; used for sessions via `getSessionRepository()`
+- `src/core/storage/indexeddb.ts` — Legacy `IndexedDBAdapter` implementing `IStorage` (`browser-hub` v2); secondary indexes (`isAutoSave`, `createdAt`), `getByIndex()` for filtered queries
 - `src/core/storage/newtab-storage.ts` — Multi-store IndexedDB adapter (newtab-db v1); stores: quickLinks, boards, bookmarkCategories, bookmarkEntries, todoLists, todoItems, wallpaperImages
 - `src/core/storage/chrome-local-key-adapter.ts` — Generic `ChromeLocalKeyAdapter<T>` for storing arrays under a single key; used by subscription and tab-group-template storage
 - `src/core/storage/subscription-storage.ts` — Flat chrome.storage.local adapter; keys: `subscriptions` (Subscription[]), `subscription_categories` (CustomCategory[])
@@ -171,7 +206,7 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - Triggers: 15-minute `chrome.alarms` alarm (`cloud-sync`) + fire-and-forget after each session save/update/delete
 - Alarm registered synchronously in `src/background/index.ts` (MV3 requirement — before any `await`)
 - Tables: `sessions`, `prompts`, `prompt_folders`, `tracked_subscriptions`, `tab_group_templates`, `bookmark_folders`, `bookmark_entries`; two RPCs: `get_user_quota(p_user_id)` = plan limits (cached 5 min), `get_user_usage(p_user_id)` = current synced counts (used by web dashboard)
-- `SyncStatus`, `UserQuota` (includes `tab_groups_synced_limit`, `total_tabs_limit`), and `SyncUsage` (includes `tabGroups`, `tabs`, `folders`) types in `src/core/services/sync.service.ts`
+- `SyncStatus`, `UserQuota` (includes `tab_groups_synced_limit`, `total_tabs_limit`), and `SyncUsage` (includes `tabGroups`, `tabs`, `folders`) types in `src/core/services/sync/types.ts` (re-exported from `sync.service.ts`)
 - Status persisted to `cloud_sync_status` key in `chrome.storage.local`
 - Sidepanel view: `'cloud-sync'` in `SidePanelView` union — Cloud icon button in Header
 - Test mocking: `vi.mock('@core/services/sync-auth.service', ...)` and `vi.mock('@core/services/sync.service', ...)` added to `event-listeners.test.ts` to prevent real API calls
@@ -197,15 +232,18 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 ## Testing
 
 - Chrome APIs are mocked globally in `tests/setup.ts`
-- Unit tests in `tests/unit/` organized by module (utils, services, storage, contexts, config)
-  - `tests/unit/utils/` — uuid, date, validators, debounce
-  - `tests/unit/services/` — search, export, import, session-count, session.service, subscription.service, prompt.service
-  - `tests/unit/storage/` — chrome-local-key-adapter, newtab-storage, prompt-storage
+- Unit tests in `tests/unit/` organized by module (utils, services, storage, contexts, config, components, hooks, stores, background)
+  - `tests/unit/utils/` — uuid, date, validators, debounce, favicon, safe-open
+  - `tests/unit/services/` — search, export, import, session-count, session.service, subscription.service, prompt.service, bookmark.service, todo.service, quicklinks.service, seed.service, sync.service, newtab-export.service, weather.service, tab-group.service, migration.service, newtab-settings.service, sync-auth.service
+  - `tests/unit/services/sync/` — quota, url-filter, row-mappers
+  - `tests/unit/storage/` — chrome-local-key-adapter, chrome-local-array-repository, newtab-storage, prompt-storage, subscription-storage, tab-group-template-storage, indexeddb, chrome-storage, storage-factory
   - `tests/unit/contexts/` — bookmark-board-context
-  - `tests/unit/components/` — ErrorBoundary, Modal
-  - `tests/unit/background/` — auto-save-engine, event-listeners
+  - `tests/unit/components/` — ErrorBoundary, Modal, Button, Badge, Toast, ContextMenu, EmptyState
+  - `tests/unit/hooks/` — useSession, useAutoSave, useBookmarkDnd, useBookmarkFolderData, useClock, useKeyboard, useKeyboardShortcuts, useMessaging, useNewTabSettings, useSearch, useTheme, useWallpaper
+  - `tests/unit/stores/` — sidepanel.store, newtab-ui.store, newtab-data.store
+  - `tests/unit/background/` — auto-save-engine, event-listeners, alarms, tab-group-restore
   - `tests/unit/config/` — widget-config
-- 256 tests across 21 test files
+- 664 tests across 65 test files
 - Run `npm test` before committing
 - Sync services must be mocked in `event-listeners.test.ts` to prevent real Supabase calls: `vi.mock('@core/services/sync-auth.service', ...)` + `vi.mock('@core/services/sync.service', ...)`
 
