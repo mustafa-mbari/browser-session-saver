@@ -21,6 +21,7 @@ import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storag
 import { NewTabDB } from '@core/storage/newtab-storage';
 import { SyncAdapter } from '@core/services/sync/sync-adapter';
 import { sessionMapper } from '@core/services/sync/row-mappers/session.mapper';
+import { promptMapper, promptFolderMapper } from '@core/services/sync/row-mappers/prompt.mapper';
 import { subscriptionMapper } from '@core/services/sync/row-mappers/subscription.mapper';
 import { tabGroupTemplateRawMapper } from '@core/services/sync/row-mappers/tab-group.mapper';
 import { enforceQuota } from '@core/services/sync/quota';
@@ -424,14 +425,6 @@ async function fetchActualUsage(userId: string): Promise<SyncUsage | null> {
 
 // ─── Internal utilities ──────────────────────────────────────────────────────
 
-/** Sort items by `updatedAt` descending and take at most `limit` items. */
-function topByUpdatedAt<T extends { updatedAt: string }>(items: T[], limit: number | null): T[] {
-  const sorted = [...items].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-  );
-  return limit != null ? sorted.slice(0, limit) : sorted;
-}
-
 /** Sort items by `createdAt` descending and take at most `limit` items. */
 function topByCreatedAt<T extends { createdAt: string }>(items: T[], limit: number | null): T[] {
   const sorted = [...items].sort(
@@ -455,33 +448,33 @@ async function syncSessions(userId: string, quota: UserQuota, allSessions: Sessi
   return _sessionSyncAdapter.push(allSessions, userId, quota.sessions_synced_limit);
 }
 
+// ─── Prompt sync via SyncAdapter ────────────────────────────────────────────
+
+const _promptSyncAdapter = new SyncAdapter<Prompt>(supabase, promptMapper, {
+  tableName: 'prompts',
+  quotaSortField: 'updatedAt',
+});
+
+const _promptFolderSyncAdapter = new SyncAdapter<PromptFolder>(supabase, promptFolderMapper, {
+  tableName: 'prompt_folders',
+  quotaSortField: 'createdAt',
+});
+
 async function syncPrompts(userId: string, quota: UserQuota): Promise<number> {
   const [allPrompts, allFolders] = await Promise.all([
     PromptStorage.getAll(),
     PromptStorage.getFolders(),
   ]);
 
-  const localPrompts = allPrompts.filter((p) => p.source === 'local');
-  const limit = quota.prompts_create_limit ?? Infinity;
-  const toSync = topByUpdatedAt(localPrompts, limit === Infinity ? null : limit);
-
   // Sync local folders first (so FK constraints are satisfied)
   const localFolders = allFolders.filter((f) => f.source === 'local');
   if (localFolders.length > 0) {
-    const { error } = await supabase
-      .from('prompt_folders')
-      .upsert(localFolders.map((f) => promptFolderToRow(f, userId)), { onConflict: 'id' });
-    if (error) throw new Error(`Prompt folders sync failed: ${error.message}`);
+    await _promptFolderSyncAdapter.push(localFolders, userId, null);
   }
 
-  if (toSync.length > 0) {
-    const { error } = await supabase
-      .from('prompts')
-      .upsert(toSync.map((p) => promptToRow(p, userId)), { onConflict: 'id' });
-    if (error) throw new Error(`Prompts sync failed: ${error.message}`);
-  }
-
-  return toSync.length;
+  const localPrompts = allPrompts.filter((p) => p.source === 'local');
+  if (localPrompts.length === 0) return 0;
+  return _promptSyncAdapter.push(localPrompts, userId, quota.prompts_create_limit);
 }
 
 // ─── Subscription sync via SyncAdapter ──────────────────────────────────────
@@ -722,40 +715,6 @@ async function syncTabGroupTemplates(userId: string, allTemplates: TabGroupTempl
 
 // ─── Row mappers (camelCase → snake_case) ────────────────────────────────────
 
-function promptToRow(p: Prompt, userId: string): Record<string, unknown> {
-  return {
-    id: p.id,
-    user_id: userId,
-    title: p.title,
-    content: p.content,
-    description: p.description ?? null,
-    category_id: p.categoryId ?? null,
-    folder_id: p.folderId ?? null,
-    source: p.source,
-    tags: p.tags,
-    is_favorite: p.isFavorite,
-    is_pinned: p.isPinned,
-    usage_count: p.usageCount,
-    last_used_at: p.lastUsedAt ?? null,
-    created_at: p.createdAt,
-    updated_at: p.updatedAt,
-  };
-}
-
-function promptFolderToRow(f: PromptFolder, userId: string): Record<string, unknown> {
-  return {
-    id: f.id,
-    user_id: userId,
-    name: f.name,
-    icon: f.icon ?? null,
-    color: f.color ?? null,
-    source: f.source,
-    parent_id: f.parentId ?? null,
-    position: f.position,
-    created_at: f.createdAt,
-  };
-}
-
 function todoListToRow(l: TodoList, userId: string): Record<string, unknown> {
   return {
     id: l.id,
@@ -797,12 +756,10 @@ async function pullSessions(userId: string): Promise<number> {
 }
 
 async function pullPrompts(userId: string): Promise<number> {
-  const [{ data: promptRows, error: pErr }, { data: folderRows, error: fErr }] = await Promise.all([
-    supabase.from('prompts').select('*').eq('user_id', userId),
-    supabase.from('prompt_folders').select('*').eq('user_id', userId),
+  const [remoteFolders, remotePrompts] = await Promise.all([
+    _promptFolderSyncAdapter.pull(userId),
+    _promptSyncAdapter.pull(userId),
   ]);
-  if (pErr) throw new Error(`Prompt pull failed: ${pErr.message}`);
-  if (fErr) throw new Error(`Prompt folder pull failed: ${fErr.message}`);
 
   const [existingPrompts, existingFolders] = await Promise.all([
     PromptStorage.getAll(),
@@ -811,12 +768,12 @@ async function pullPrompts(userId: string): Promise<number> {
   const existingPromptIds = new Set(existingPrompts.map((p) => p.id));
   const existingFolderIds = new Set(existingFolders.map((f) => f.id));
 
-  const newFolders = (folderRows ?? []).filter((r) => !existingFolderIds.has(r.id as string));
-  const newPrompts = (promptRows ?? []).filter((r) => !existingPromptIds.has(r.id as string));
+  const newFolders = remoteFolders.filter((f) => !existingFolderIds.has(f.id));
+  const newPrompts = remotePrompts.filter((p) => !existingPromptIds.has(p.id));
 
   await Promise.all([
-    ...newFolders.map((r) => PromptStorage.saveFolder(rowToPromptFolder(r as Record<string, unknown>))),
-    ...newPrompts.map((r) => PromptStorage.save(rowToPrompt(r as Record<string, unknown>))),
+    ...newFolders.map((f) => PromptStorage.saveFolder(f)),
+    ...newPrompts.map((p) => PromptStorage.save(p)),
   ]);
 
   return newPrompts.length;
@@ -925,38 +882,6 @@ async function pullTodos(userId: string): Promise<number> {
 }
 
 // ─── Row mappers (snake_case → camelCase) ────────────────────────────────────
-
-function rowToPrompt(r: Record<string, unknown>): Prompt {
-  return {
-    id: r.id as string,
-    title: r.title as string,
-    content: r.content as string,
-    description: (r.description ?? undefined) as string | undefined,
-    categoryId: (r.category_id ?? undefined) as string | undefined,
-    folderId: (r.folder_id ?? undefined) as string | undefined,
-    source: (r.source ?? 'local') as Prompt['source'],
-    tags: (r.tags ?? []) as string[],
-    isFavorite: (r.is_favorite ?? false) as boolean,
-    isPinned: (r.is_pinned ?? false) as boolean,
-    usageCount: (r.usage_count ?? 0) as number,
-    lastUsedAt: (r.last_used_at ?? undefined) as string | undefined,
-    createdAt: r.created_at as string,
-    updatedAt: r.updated_at as string,
-  };
-}
-
-function rowToPromptFolder(r: Record<string, unknown>): PromptFolder {
-  return {
-    id: r.id as string,
-    name: r.name as string,
-    icon: (r.icon ?? undefined) as string | undefined,
-    color: (r.color ?? undefined) as string | undefined,
-    source: (r.source ?? 'local') as PromptFolder['source'],
-    parentId: (r.parent_id ?? undefined) as string | undefined,
-    position: (r.position ?? 0) as number,
-    createdAt: r.created_at as string,
-  };
-}
 
 function rowToBookmarkCategory(r: Record<string, unknown>, bookmarkIds: string[], fallbackDate: string): BookmarkCategory {
   return {

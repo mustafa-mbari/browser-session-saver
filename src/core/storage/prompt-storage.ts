@@ -1,10 +1,15 @@
 import type { Prompt, PromptCategory, PromptFolder, PromptTag } from '@core/types/prompt.types';
 import { ChromeLocalKeyAdapter } from './chrome-local-key-adapter';
+import { ChromeLocalArrayRepository } from './chrome-local-array-repository';
 
-const promptsAdapter = new ChromeLocalKeyAdapter<Prompt>('prompts');
+const promptsRepo = new ChromeLocalArrayRepository<Prompt>('prompts');
+const foldersRepo = new ChromeLocalArrayRepository<PromptFolder>('prompt_folders');
 const categoriesAdapter = new ChromeLocalKeyAdapter<PromptCategory>('prompt_categories');
 const tagsAdapter = new ChromeLocalKeyAdapter<PromptTag>('prompt_tags');
-const foldersAdapter = new ChromeLocalKeyAdapter<PromptFolder>('prompt_folders');
+
+/** Expose repositories for direct access (e.g. sync layer). */
+export function getPromptRepository() { return promptsRepo; }
+export function getPromptFolderRepository() { return foldersRepo; }
 
 /** Migrate prompts that pre-date the `source` field by defaulting to 'local'. */
 function migratePrompts(prompts: Prompt[]): Prompt[] {
@@ -17,57 +22,42 @@ export const PromptStorage = {
   // ── Prompts ────────────────────────────────────────────────────────────
 
   async getAll(): Promise<Prompt[]> {
-    const raw = await promptsAdapter.getAll();
+    const raw = await promptsRepo.getAll();
     return migratePrompts(raw);
   },
 
   async save(prompt: Prompt): Promise<void> {
-    const all = await promptsAdapter.getAll();
-    const idx = all.findIndex((p) => p.id === prompt.id);
-    if (idx >= 0) {
-      all[idx] = prompt;
-    } else {
-      all.push(prompt);
-    }
-    await promptsAdapter.setAll(all);
+    await promptsRepo.save(prompt);
   },
 
   async update(id: string, updates: Partial<Prompt>): Promise<void> {
-    const all = await promptsAdapter.getAll();
-    const idx = all.findIndex((p) => p.id === id);
-    if (idx >= 0) {
-      all[idx] = { ...all[idx], ...updates, updatedAt: new Date().toISOString() };
-      await promptsAdapter.setAll(all);
-    }
+    await promptsRepo.update(id, { ...updates, updatedAt: new Date().toISOString() } as Partial<Prompt>);
   },
 
   async delete(id: string): Promise<void> {
-    const all = await promptsAdapter.getAll();
-    await promptsAdapter.setAll(all.filter((p) => p.id !== id));
+    await promptsRepo.delete(id);
   },
 
   async deleteAll(): Promise<void> {
-    await promptsAdapter.setAll([]);
+    await promptsRepo.replaceAll([]);
   },
 
   async trackUsage(id: string): Promise<void> {
-    const all = await promptsAdapter.getAll();
-    const idx = all.findIndex((p) => p.id === id);
-    if (idx >= 0) {
-      all[idx] = {
-        ...all[idx],
-        usageCount: all[idx].usageCount + 1,
+    const existing = await promptsRepo.getById(id);
+    if (existing) {
+      await promptsRepo.save({
+        ...existing,
+        usageCount: existing.usageCount + 1,
         lastUsedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      };
-      await promptsAdapter.setAll(all);
+      });
     }
   },
 
   // ── Folders ────────────────────────────────────────────────────────────
 
   async getFolders(): Promise<PromptFolder[]> {
-    const all = await foldersAdapter.getAll();
+    const all = await foldersRepo.getAll();
     // Migration: add source field based on id prefix (af-* → app, others → local)
     return all.map((f) =>
       f.source ? f : { ...f, source: f.id.startsWith('af-') ? 'app' as const : 'local' as const },
@@ -75,21 +65,14 @@ export const PromptStorage = {
   },
 
   async saveFolder(folder: PromptFolder): Promise<void> {
-    const all = await foldersAdapter.getAll();
-    const idx = all.findIndex((f) => f.id === folder.id);
-    if (idx >= 0) {
-      all[idx] = folder;
-    } else {
-      all.push(folder);
-    }
-    await foldersAdapter.setAll(all);
+    await foldersRepo.save(folder);
   },
 
   async deleteFolder(id: string): Promise<void> {
     // Delete folder and move its child prompts to parent (or root)
     const [folders, prompts] = await Promise.all([
-      foldersAdapter.getAll(),
-      promptsAdapter.getAll(),
+      foldersRepo.getAll(),
+      promptsRepo.getAll(),
     ]);
     const folder = folders.find((f) => f.id === id);
     // Re-parent child folders to the deleted folder's parent
@@ -105,8 +88,8 @@ export const PromptStorage = {
       p.folderId === id ? { ...p, folderId: undefined } : p,
     );
     await Promise.all([
-      foldersAdapter.setAll(updatedFolders),
-      promptsAdapter.setAll(updatedPrompts),
+      foldersRepo.replaceAll(updatedFolders),
+      promptsRepo.replaceAll(updatedPrompts),
     ]);
   },
 
@@ -156,15 +139,12 @@ export const PromptStorage = {
 
   // ── Bulk helpers (used by import service) ─────────────────────────────
 
-  setFolders: (folders: PromptFolder[]): Promise<void> => foldersAdapter.setAll(folders),
+  setFolders: (folders: PromptFolder[]): Promise<void> => foldersRepo.replaceAll(folders),
   setCategories: (categories: PromptCategory[]): Promise<void> => categoriesAdapter.setAll(categories),
   setTags: (tags: PromptTag[]): Promise<void> => tagsAdapter.setAll(tags),
 
   async mergeFolders(incoming: PromptFolder[]): Promise<void> {
-    const existing = await foldersAdapter.getAll();
-    const map = new Map(existing.map((f) => [f.id, f]));
-    incoming.forEach((f) => map.set(f.id, f));
-    await foldersAdapter.setAll(Array.from(map.values()));
+    await foldersRepo.importMany(incoming);
   },
 
   async mergeCategories(incoming: PromptCategory[]): Promise<void> {
@@ -470,11 +450,11 @@ export const PromptStorage = {
     ];
 
     // Only insert folders that don't already exist
-    const existing = await foldersAdapter.getAll();
+    const existing = await foldersRepo.getAll();
     const existingIds = new Set(existing.map((folder) => folder.id));
     const toAdd = folders.filter((folder) => !existingIds.has(folder.id));
     if (toAdd.length > 0) {
-      await foldersAdapter.setAll([...existing, ...toAdd]);
+      await foldersRepo.importMany(toAdd);
     }
   },
 
@@ -604,21 +584,16 @@ export const PromptStorage = {
     ];
 
     // Merge with existing data (skip IDs that already exist)
-    const [existingPrompts, existingCats, existingTags] = await Promise.all([
-      promptsAdapter.getAll(),
+    const [existingCats, existingTags] = await Promise.all([
       categoriesAdapter.getAll(),
       tagsAdapter.getAll(),
     ]);
 
-    const existingPromptIds = new Set(existingPrompts.map((p) => p.id));
     const existingCatIds = new Set(existingCats.map((c) => c.id));
     const existingTagIds = new Set(existingTags.map((t) => t.id));
 
     await Promise.all([
-      promptsAdapter.setAll([
-        ...existingPrompts,
-        ...prompts.filter((p) => !existingPromptIds.has(p.id)),
-      ]),
+      promptsRepo.importMany(prompts),
       categoriesAdapter.setAll([
         ...existingCats,
         ...cats.filter((c) => !existingCatIds.has(c.id)),
