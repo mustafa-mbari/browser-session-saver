@@ -83,7 +83,7 @@ async function importSyncService() {
     TabGroupTemplateStorage: mockTabGroupTemplateStorage,
   }));
   vi.doMock('@core/storage/newtab-storage', () => ({
-    NewTabDB: vi.fn(() => mockNewTabDB),
+    newtabDB: mockNewTabDB,
   }));
   return await import('@core/services/sync.service');
 }

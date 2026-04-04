@@ -1,8 +1,10 @@
-import type { NewTabDB } from '@core/storage/newtab-storage';
+import { newtabDB } from '@core/storage/newtab-storage';
 import type { Board, BookmarkCategory, BookmarkEntry } from '@core/types/newtab.types';
 import { generateId } from '@core/utils/uuid';
 import { nowISO } from '@core/utils/date';
 import { getFaviconUrl } from '@core/utils/favicon';
+
+const db = newtabDB;
 
 const BOARDS = 'boards';
 const CATEGORIES = 'bookmarkCategories';
@@ -10,13 +12,12 @@ const ENTRIES = 'bookmarkEntries';
 
 // ─── Boards ───────────────────────────────────────────────────────────────────
 
-export async function getBoards(db: NewTabDB): Promise<Board[]> {
+export async function getBoards(): Promise<Board[]> {
   const boards = await db.getAll<Board>(BOARDS);
   return boards.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 export async function saveBoard(
-  db: NewTabDB,
   data: Omit<Board, 'id' | 'createdAt' | 'updatedAt'>,
 ): Promise<Board> {
   const now = nowISO();
@@ -26,7 +27,6 @@ export async function saveBoard(
 }
 
 export async function updateBoard(
-  db: NewTabDB,
   id: string,
   updates: Partial<Omit<Board, 'id' | 'createdAt'>>,
 ): Promise<void> {
@@ -35,7 +35,7 @@ export async function updateBoard(
   await db.put(BOARDS, { ...existing, ...updates, updatedAt: nowISO() });
 }
 
-export async function deleteBoard(db: NewTabDB, id: string): Promise<void> {
+export async function deleteBoard(id: string): Promise<void> {
   const categories = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'boardId', id);
   await Promise.all(
     categories.map(async (cat) => {
@@ -49,7 +49,7 @@ export async function deleteBoard(db: NewTabDB, id: string): Promise<void> {
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 
-export async function getCategories(db: NewTabDB, boardId: string): Promise<BookmarkCategory[]> {
+export async function getCategories(boardId: string): Promise<BookmarkCategory[]> {
   const cats = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'boardId', boardId);
   const board = await db.get<Board>(BOARDS, boardId);
   if (board && board.categoryIds.length > 0) {
@@ -60,7 +60,6 @@ export async function getCategories(db: NewTabDB, boardId: string): Promise<Book
 }
 
 export async function saveCategory(
-  db: NewTabDB,
   data: Omit<BookmarkCategory, 'id' | 'createdAt'>,
 ): Promise<BookmarkCategory> {
   const cat: BookmarkCategory = { colSpan: 1, rowSpan: 1, ...data, id: generateId(), createdAt: nowISO() };
@@ -78,19 +77,18 @@ export async function saveCategory(
 }
 
 export async function updateCategory(
-  db: NewTabDB,
   id: string,
   updates: Partial<Omit<BookmarkCategory, 'id' | 'createdAt'>>,
 ): Promise<void> {
   const existing = await db.get<BookmarkCategory>(CATEGORIES, id);
   if (!existing) return;
   if ('name' in updates && updates.name) {
-    await assertNoDuplicateName(db, updates.name, existing.boardId, existing.parentCategoryId, id);
+    await assertNoDuplicateName(updates.name, existing.boardId, existing.parentCategoryId, id);
   }
   await db.put(CATEGORIES, { ...existing, ...updates });
 }
 
-export async function deleteCategory(db: NewTabDB, id: string): Promise<void> {
+export async function deleteCategory(id: string): Promise<void> {
   const entries = await db.getAllByIndex<BookmarkEntry>(ENTRIES, 'categoryId', id);
   await Promise.all(entries.map((e) => db.delete(ENTRIES, e.id)));
 
@@ -110,7 +108,7 @@ export async function deleteCategory(db: NewTabDB, id: string): Promise<void> {
 
 // ─── Entries ──────────────────────────────────────────────────────────────────
 
-export async function getEntries(db: NewTabDB, categoryId: string): Promise<BookmarkEntry[]> {
+export async function getEntries(categoryId: string): Promise<BookmarkEntry[]> {
   const entries = await db.getAllByIndex<BookmarkEntry>(ENTRIES, 'categoryId', categoryId);
   const cat = await db.get<BookmarkCategory>(CATEGORIES, categoryId);
   if (cat && cat.bookmarkIds.length > 0) {
@@ -121,7 +119,6 @@ export async function getEntries(db: NewTabDB, categoryId: string): Promise<Book
 }
 
 export async function saveEntry(
-  db: NewTabDB,
   data: Omit<BookmarkEntry, 'id' | 'addedAt'>,
 ): Promise<BookmarkEntry> {
   const entry: BookmarkEntry = { ...data, id: generateId(), addedAt: nowISO() };
@@ -135,7 +132,6 @@ export async function saveEntry(
 }
 
 export async function updateEntry(
-  db: NewTabDB,
   id: string,
   updates: Partial<Omit<BookmarkEntry, 'id' | 'addedAt'>>,
 ): Promise<void> {
@@ -144,7 +140,7 @@ export async function updateEntry(
   await db.put(ENTRIES, { ...existing, ...updates });
 }
 
-export async function deleteEntry(db: NewTabDB, id: string): Promise<void> {
+export async function deleteEntry(id: string): Promise<void> {
   const entry = await db.get<BookmarkEntry>(ENTRIES, id);
   if (entry) {
     const cat = await db.get<BookmarkCategory>(CATEGORIES, entry.categoryId);
@@ -160,7 +156,6 @@ export async function deleteEntry(db: NewTabDB, id: string): Promise<void> {
 
 /** Throws if a sibling folder at the same level already uses the same name (case-insensitive). */
 async function assertNoDuplicateName(
-  db: NewTabDB,
   name: string,
   boardId: string,
   parentCategoryId: string | undefined,
@@ -184,11 +179,10 @@ async function assertNoDuplicateName(
  * dashboard widget until explicitly linked via addExistingFolderAsWidget().
  */
 export async function createTopLevelFolder(
-  db: NewTabDB,
   boardId: string,
   name: string,
 ): Promise<BookmarkCategory> {
-  await assertNoDuplicateName(db, name, boardId, undefined);
+  await assertNoDuplicateName(name, boardId, undefined);
   const cat: BookmarkCategory = {
     id: generateId(),
     boardId,
@@ -209,7 +203,7 @@ export async function createTopLevelFolder(
  * dashboard) WITHOUT deleting the category record or its entries.
  * The folder remains accessible from the Folders explorer.
  */
-export async function removeWidgetFromBoard(db: NewTabDB, categoryId: string): Promise<void> {
+export async function removeWidgetFromBoard(categoryId: string): Promise<void> {
   const cat = await db.get<BookmarkCategory>(CATEGORIES, categoryId);
   if (!cat) return;
   const board = await db.get<Board>(BOARDS, cat.boardId);
@@ -229,7 +223,6 @@ export async function removeWidgetFromBoard(db: NewTabDB, categoryId: string): P
  * Idempotent — no-op if already in the list.
  */
 export async function addExistingFolderAsWidget(
-  db: NewTabDB,
   categoryId: string,
   targetBoardId: string,
 ): Promise<void> {
@@ -261,14 +254,14 @@ export interface FolderNode {
  * Returns all BookmarkCategories across all boards (used by the explorer to
  * load all folders in a single query).
  */
-export async function getAllCategories(db: NewTabDB): Promise<BookmarkCategory[]> {
+export async function getAllCategories(): Promise<BookmarkCategory[]> {
   return db.getAll<BookmarkCategory>(CATEGORIES);
 }
 
 /**
  * Returns all BookmarkEntries across all categories (used by the explorer).
  */
-export async function getAllEntries(db: NewTabDB): Promise<BookmarkEntry[]> {
+export async function getAllEntries(): Promise<BookmarkEntry[]> {
   return db.getAll<BookmarkEntry>(ENTRIES);
 }
 
@@ -276,7 +269,6 @@ export async function getAllEntries(db: NewTabDB): Promise<BookmarkEntry[]> {
  * Returns the direct child folders of the given parent category.
  */
 export async function getSubFolders(
-  db: NewTabDB,
   parentCategoryId: string,
 ): Promise<BookmarkCategory[]> {
   return db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'parentCategoryId', parentCategoryId);
@@ -286,10 +278,9 @@ export async function getSubFolders(
  * Returns the top-level categories for a board (those with no parentCategoryId).
  */
 export async function getTopLevelCategories(
-  db: NewTabDB,
   boardId: string,
 ): Promise<BookmarkCategory[]> {
-  const all = await getCategories(db, boardId);
+  const all = await getCategories(boardId);
   return all.filter((c) => !c.parentCategoryId);
 }
 
@@ -297,7 +288,7 @@ export async function getTopLevelCategories(
  * Recursively builds a FolderNode tree for the given board.
  * Top-level nodes are categories without a parentCategoryId.
  */
-export async function getFolderTree(db: NewTabDB, boardId: string): Promise<FolderNode[]> {
+export async function getFolderTree(boardId: string): Promise<FolderNode[]> {
   const all = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'boardId', boardId);
   const byParent = new Map<string, BookmarkCategory[]>();
   for (const cat of all) {
@@ -318,7 +309,7 @@ export async function getFolderTree(db: NewTabDB, boardId: string): Promise<Fold
  * Returns the breadcrumb path from the root to the given folder
  * (inclusive). Returns [] if the folder doesn't exist.
  */
-export async function getFolderPath(db: NewTabDB, folderId: string): Promise<BookmarkCategory[]> {
+export async function getFolderPath(folderId: string): Promise<BookmarkCategory[]> {
   const path: BookmarkCategory[] = [];
   let current = await db.get<BookmarkCategory>(CATEGORIES, folderId);
   while (current) {
@@ -335,12 +326,11 @@ export async function getFolderPath(db: NewTabDB, folderId: string): Promise<Boo
  * widget grid) and have no colSpan / rowSpan.
  */
 export async function createSubFolder(
-  db: NewTabDB,
   parentCategoryId: string,
   name: string,
   boardId: string,
 ): Promise<BookmarkCategory> {
-  await assertNoDuplicateName(db, name, boardId, parentCategoryId);
+  await assertNoDuplicateName(name, boardId, parentCategoryId);
   const cat: BookmarkCategory = {
     id: generateId(),
     boardId,
@@ -361,14 +351,14 @@ export async function createSubFolder(
  * Recursively deletes a folder and all its sub-folders and entries.
  * Also removes the folder from the parent board's categoryIds if applicable.
  */
-export async function deleteFolderRecursive(db: NewTabDB, id: string): Promise<void> {
+export async function deleteFolderRecursive(id: string): Promise<void> {
   // Delete all entries in this category
   const entries = await db.getAllByIndex<BookmarkEntry>(ENTRIES, 'categoryId', id);
   await Promise.all(entries.map((e) => db.delete(ENTRIES, e.id)));
 
   // Recursively delete sub-folders
   const subFolders = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'parentCategoryId', id);
-  await Promise.all(subFolders.map((sf) => deleteFolderRecursive(db, sf.id)));
+  await Promise.all(subFolders.map((sf) => deleteFolderRecursive(sf.id)));
 
   // Remove from board's categoryIds if it was a top-level category
   const cat = await db.get<BookmarkCategory>(CATEGORIES, id);
@@ -390,7 +380,6 @@ export async function deleteFolderRecursive(db: NewTabDB, id: string): Promise<v
 function flattenBookmarkTree(
   node: chrome.bookmarks.BookmarkTreeNode,
   boardId: string,
-  db: NewTabDB,
   promises: Promise<void>[],
 ): void {
   const children = node.children ?? [];
@@ -424,18 +413,17 @@ function flattenBookmarkTree(
         };
         promises.push(db.put(ENTRIES, entry));
       } else {
-        flattenBookmarkTree(child, boardId, db, promises);
+        flattenBookmarkTree(child, boardId, promises);
       }
     }
   } else {
     for (const child of children) {
-      flattenBookmarkTree(child, boardId, db, promises);
+      flattenBookmarkTree(child, boardId, promises);
     }
   }
 }
 
 export async function importNativeBookmarks(
-  db: NewTabDB,
   boardId: string,
 ): Promise<{ imported: number }> {
   const tree = await new Promise<chrome.bookmarks.BookmarkTreeNode[]>((resolve) => {
@@ -444,7 +432,7 @@ export async function importNativeBookmarks(
 
   const promises: Promise<void>[] = [];
   for (const root of tree) {
-    flattenBookmarkTree(root, boardId, db, promises);
+    flattenBookmarkTree(root, boardId, promises);
   }
   await Promise.all(promises);
   return { imported: promises.length };

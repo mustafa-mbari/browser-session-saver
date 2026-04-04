@@ -18,12 +18,14 @@ import { getSessionRepository } from '@core/storage/storage-factory';
 import { PromptStorage } from '@core/storage/prompt-storage';
 import { SubscriptionStorage } from '@core/storage/subscription-storage';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
-import { NewTabDB } from '@core/storage/newtab-storage';
+import { newtabDB } from '@core/storage/newtab-storage';
 import { SyncAdapter } from '@core/services/sync/sync-adapter';
 import { sessionMapper } from '@core/services/sync/row-mappers/session.mapper';
 import { promptMapper, promptFolderMapper } from '@core/services/sync/row-mappers/prompt.mapper';
 import { subscriptionMapper } from '@core/services/sync/row-mappers/subscription.mapper';
 import { tabGroupTemplateRawMapper } from '@core/services/sync/row-mappers/tab-group.mapper';
+import { bookmarkCategoryMapper, bookmarkEntryMapper, bookmarkCategoryFromRowWithContext, bookmarkEntryFromRowWithContext } from '@core/services/sync/row-mappers/bookmark.mapper';
+import { todoListMapper, todoItemMapper } from '@core/services/sync/row-mappers/todo.mapper';
 import { enforceQuota } from '@core/services/sync/quota';
 import type { Session } from '@core/types/session.types';
 import type { Prompt, PromptFolder } from '@core/types/prompt.types';
@@ -180,7 +182,7 @@ export async function syncAll(): Promise<SyncResult> {
       getAllSessions({ isAutoSave: false }),
       TabGroupTemplateStorage.getAll(),
     ]);
-    const db = new NewTabDB();
+    const db = newtabDB;
     const allBmEntries = await db.getAll<BookmarkEntry>('bookmarkEntries');
 
     // Enforce global unique-URL limit
@@ -524,7 +526,7 @@ async function syncBookmarkFolders(
   quota: UserQuota,
   allEntries: BookmarkEntry[],
 ): Promise<number> {
-  const db = new NewTabDB();
+  const db = newtabDB;
   const categories = await db.getAll<BookmarkCategory>('bookmarkCategories');
   if (categories.length === 0) return 0;
 
@@ -537,20 +539,7 @@ async function syncBookmarkFolders(
   const folderIds = new Set(toSyncFolders.map((c) => c.id));
 
   // Upsert folders first (FK constraint for entries)
-  const folderRows = toSyncFolders.map((c) => ({
-    id: c.id,
-    user_id: userId,
-    board_id: c.boardId,
-    name: c.name,
-    icon: c.icon ?? null,
-    color: c.color ?? null,
-    card_type: c.cardType ?? 'bookmark',
-    note_content: c.noteContent ?? null,
-    col_span: c.colSpan ?? 3,
-    row_span: c.rowSpan ?? 3,
-    position: 0,
-    parent_folder_id: c.parentCategoryId ?? null,
-  }));
+  const folderRows = toSyncFolders.map((c) => bookmarkCategoryMapper.toRow(c, userId));
   const { error: fErr } = await supabase.from('bookmark_folders').upsert(folderRows, { onConflict: 'id' });
   if (fErr) throw new Error(`Bookmark folders sync failed: ${fErr.message}`);
 
@@ -569,19 +558,7 @@ async function syncBookmarkFolders(
   }
 
   if (limitedEntries.length > 0) {
-    const entryRows = limitedEntries.map((e, i) => ({
-      id: e.id,
-      user_id: userId,
-      folder_id: e.categoryId,
-      title: e.title,
-      url: e.url,
-      fav_icon_url: e.favIconUrl ?? null,
-      description: e.description ?? null,
-      category: e.category ?? null,
-      is_native: e.isNative ?? false,
-      native_id: e.nativeId ?? null,
-      position: i,
-    }));
+    const entryRows = limitedEntries.map((e, i) => ({ ...bookmarkEntryMapper.toRow(e, userId), position: i }));
     const { error: eErr } = await supabase.from('bookmark_entries').upsert(entryRows, { onConflict: 'id' });
     if (eErr) throw new Error(`Bookmark entries sync failed: ${eErr.message}`);
   }
@@ -604,7 +581,7 @@ async function syncTodos(userId: string, quota: UserQuota): Promise<number> {
   const limit = quota.todos_synced_limit ?? Infinity;
   if (limit === 0) return 0;
 
-  const db = new NewTabDB();
+  const db = newtabDB;
   const [allLists, allItems, allCategories] = await Promise.all([
     db.getAll<TodoList>('todoLists'),
     db.getAll<TodoItem>('todoItems'),
@@ -640,7 +617,7 @@ async function syncTodos(userId: string, quota: UserQuota): Promise<number> {
 
   // Sync all lists first (FK parent for items)
   if (allLists.length > 0) {
-    const listRows = allLists.map((l) => todoListToRow(l, userId));
+    const listRows = allLists.map((l) => todoListMapper.toRow(l, userId));
     const { error } = await supabase.from('todo_lists').upsert(listRows, { onConflict: 'id,user_id' });
     if (error) throw new Error(`Todo lists sync failed: ${error.message}`);
   }
@@ -649,7 +626,7 @@ async function syncTodos(userId: string, quota: UserQuota): Promise<number> {
   const toSync = topByCreatedAt(allItems, limit === Infinity ? null : limit);
 
   if (toSync.length > 0) {
-    const itemRows = toSync.map((i) => todoItemToRow(i, userId));
+    const itemRows = toSync.map((i) => todoItemMapper.toRow(i, userId));
     const { error } = await supabase.from('todo_items').upsert(itemRows, { onConflict: 'id,user_id' });
     if (error) throw new Error(`Todo items sync failed: ${error.message}`);
   }
@@ -711,34 +688,6 @@ async function syncTabGroupTemplates(userId: string, allTemplates: TabGroupTempl
   }
 
   return count;
-}
-
-// ─── Row mappers (camelCase → snake_case) ────────────────────────────────────
-
-function todoListToRow(l: TodoList, userId: string): Record<string, unknown> {
-  return {
-    id: l.id,
-    user_id: userId,
-    name: l.name,
-    icon: l.icon ?? null,
-    position: l.position,
-    created_at: l.createdAt,
-  };
-}
-
-function todoItemToRow(i: TodoItem, userId: string): Record<string, unknown> {
-  return {
-    id: i.id,
-    user_id: userId,
-    list_id: i.listId,
-    text: i.text,
-    completed: i.completed,
-    priority: i.priority,
-    due_date: i.dueDate ?? null,
-    position: i.position,
-    created_at: i.createdAt,
-    completed_at: i.completedAt ?? null,
-  };
 }
 
 // ─── Internal pull helpers ───────────────────────────────────────────────────
@@ -807,7 +756,7 @@ async function pullBookmarkFolders(userId: string): Promise<number> {
   if (eErr) throw new Error(`Bookmark entry pull failed: ${eErr.message}`);
   if (!folderRows || folderRows.length === 0) return 0;
 
-  const db = new NewTabDB();
+  const db = newtabDB;
   const [existingFolders, existingEntries] = await Promise.all([
     db.getAll<BookmarkCategory>('bookmarkCategories'),
     db.getAll<BookmarkEntry>('bookmarkEntries'),
@@ -829,10 +778,10 @@ async function pullBookmarkFolders(userId: string): Promise<number> {
   const now = new Date().toISOString();
   await Promise.all([
     ...newFolders.map((r) =>
-      db.put<BookmarkCategory>('bookmarkCategories', rowToBookmarkCategory(r, entryIdsByFolder[r.id as string] ?? [], now)),
+      db.put<BookmarkCategory>('bookmarkCategories', bookmarkCategoryFromRowWithContext(r, entryIdsByFolder[r.id as string] ?? [], now)),
     ),
     ...newEntries.map((r) =>
-      db.put<BookmarkEntry>('bookmarkEntries', rowToBookmarkEntry(r, now)),
+      db.put<BookmarkEntry>('bookmarkEntries', bookmarkEntryFromRowWithContext(r, now)),
     ),
   ]);
 
@@ -850,10 +799,10 @@ async function pullTodos(userId: string): Promise<number> {
 
   // Upsert all remote rows — IndexedDB put() overwrites existing records so
   // state changes (completed, text edits, position) are reflected locally.
-  const db = new NewTabDB();
+  const db = newtabDB;
   await Promise.all([
-    ...(listRows ?? []).map((r) => db.put<TodoList>('todoLists', rowToTodoList(r as Record<string, unknown>))),
-    ...(itemRows ?? []).map((r) => db.put<TodoItem>('todoItems', rowToTodoItem(r as Record<string, unknown>))),
+    ...(listRows ?? []).map((r) => db.put<TodoList>('todoLists', todoListMapper.fromRow(r as Record<string, unknown>))),
+    ...(itemRows ?? []).map((r) => db.put<TodoItem>('todoItems', todoItemMapper.fromRow(r as Record<string, unknown>))),
   ]);
 
   // For dashboard card todo widgets: write pulled items back into the category's
@@ -879,65 +828,6 @@ async function pullTodos(userId: string): Promise<number> {
   }
 
   return (itemRows ?? []).length;
-}
-
-// ─── Row mappers (snake_case → camelCase) ────────────────────────────────────
-
-function rowToBookmarkCategory(r: Record<string, unknown>, bookmarkIds: string[], fallbackDate: string): BookmarkCategory {
-  return {
-    id: r.id as string,
-    boardId: (r.board_id ?? '') as string,
-    name: r.name as string,
-    icon: (r.icon ?? '') as string,
-    color: (r.color ?? '') as string,
-    bookmarkIds,
-    collapsed: false,
-    colSpan: (r.col_span ?? 3) as BookmarkCategory['colSpan'],
-    rowSpan: (r.row_span ?? 3) as BookmarkCategory['rowSpan'],
-    cardType: (r.card_type ?? 'bookmark') as BookmarkCategory['cardType'],
-    noteContent: (r.note_content ?? undefined) as string | undefined,
-    parentCategoryId: (r.parent_folder_id ?? undefined) as string | undefined,
-    createdAt: fallbackDate,
-  };
-}
-
-function rowToBookmarkEntry(r: Record<string, unknown>, fallbackDate: string): BookmarkEntry {
-  return {
-    id: r.id as string,
-    categoryId: r.folder_id as string,
-    title: r.title as string,
-    url: r.url as string,
-    favIconUrl: (r.fav_icon_url ?? '') as string,
-    addedAt: fallbackDate,
-    isNative: (r.is_native ?? false) as boolean,
-    nativeId: (r.native_id ?? undefined) as string | undefined,
-    category: (r.category ?? undefined) as string | undefined,
-    description: (r.description ?? undefined) as string | undefined,
-  };
-}
-
-function rowToTodoList(r: Record<string, unknown>): TodoList {
-  return {
-    id: r.id as string,
-    name: r.name as string,
-    icon: (r.icon ?? '') as string,
-    position: (r.position ?? 0) as number,
-    createdAt: r.created_at as string,
-  };
-}
-
-function rowToTodoItem(r: Record<string, unknown>): TodoItem {
-  return {
-    id: r.id as string,
-    listId: r.list_id as string,
-    text: r.text as string,
-    completed: (r.completed ?? false) as boolean,
-    priority: (r.priority ?? 'none') as TodoItem['priority'],
-    dueDate: (r.due_date ?? undefined) as string | undefined,
-    position: (r.position ?? 0) as number,
-    createdAt: r.created_at as string,
-    completedAt: (r.completed_at ?? undefined) as string | undefined,
-  };
 }
 
 // ─── Persistence helpers ─────────────────────────────────────────────────────

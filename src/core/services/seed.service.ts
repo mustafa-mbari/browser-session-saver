@@ -1,4 +1,4 @@
-import type { NewTabDB } from '@core/storage/newtab-storage';
+import { newtabDB } from '@core/storage/newtab-storage';
 import type { Board, BookmarkCategory, TodoList, QuickLink } from '@core/types/newtab.types';
 import { generateId } from '@core/utils/uuid';
 
@@ -21,9 +21,9 @@ interface SeedResult {
  * should not be created.
  */
 export async function seedDefaultData(
-  db: NewTabDB,
   options?: { skipSampleCards?: boolean },
 ): Promise<SeedResult> {
+  const db = newtabDB;
   const base = Date.now();
 
   // ── Main board cards ──────────────────────────────────────────────────────

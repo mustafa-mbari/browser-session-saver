@@ -92,9 +92,9 @@ export default function App() {
       try {
         setLoading(true);
         const [boards, links, lists] = await Promise.all([
-          BookmarkService.getBoards(newtabDB),
-          QuickLinksService.getQuickLinks(newtabDB),
-          TodoService.getTodoLists(newtabDB),
+          BookmarkService.getBoards(),
+          QuickLinksService.getQuickLinks(),
+          TodoService.getTodoLists(),
         ]);
 
         // First launch: seed default boards, quick links, and a default todo list.
@@ -107,11 +107,11 @@ export default function App() {
           if (isAuth) {
             try { await pullAll(); } catch { /* ignore network errors — seeding still proceeds */ }
           }
-          const seeded = await seedDefaultData(newtabDB, { skipSampleCards: isAuth });
+          const seeded = await seedDefaultData({ skipSampleCards: isAuth });
           const [seededBoards, seededLinks, seededLists] = await Promise.all([
-            BookmarkService.getBoards(newtabDB),
-            QuickLinksService.getQuickLinks(newtabDB),
-            TodoService.getTodoLists(newtabDB),
+            BookmarkService.getBoards(),
+            QuickLinksService.getQuickLinks(),
+            TodoService.getTodoLists(),
           ]);
           setBoards(seededBoards);
           setQuickLinks(seededLinks);
@@ -119,18 +119,18 @@ export default function App() {
           uiStore.updateSettings({ activeBoardId: seeded.mainBoard.id });
 
           const allCats = await Promise.all(
-            seededBoards.map((b) => BookmarkService.getCategories(newtabDB, b.id)),
+            seededBoards.map((b) => BookmarkService.getCategories(b.id)),
           );
           const cats = allCats.flat();
           dataStore.setCategories(cats);
           if (cats.length > 0) {
             const allEntries = await Promise.all(
-              cats.map((c) => BookmarkService.getEntries(newtabDB, c.id)),
+              cats.map((c) => BookmarkService.getEntries(c.id)),
             );
             dataStore.setEntries(allEntries.flat());
           }
           if (seededLists.length > 0) {
-            const items = await TodoService.getTodoItems(newtabDB, seededLists[0].id);
+            const items = await TodoService.getTodoItems(seededLists[0].id);
             dataStore.setTodoItems(items);
           }
           return;
@@ -149,7 +149,7 @@ export default function App() {
           }
 
           const activeBoard = boards.find((b) => b.id === activeBoardId) ?? boards[0];
-          let cats = await BookmarkService.getCategories(newtabDB, activeBoard.id);
+          let cats = await BookmarkService.getCategories(activeBoard.id);
 
           // One-time migration: upgrade pre-9-column cards (rowSpan unset)
           // Old scale was 1-3; new scale is 1-9, so multiply colSpan × 3
@@ -158,7 +158,7 @@ export default function App() {
             await Promise.all(
               legacyCats.map((c) => {
                 const newCol = Math.min((c.colSpan ?? 1) * 3, 9) as SpanValue;
-                return BookmarkService.updateCategory(newtabDB, c.id, { colSpan: newCol, rowSpan: 3 });
+                return BookmarkService.updateCategory(c.id, { colSpan: newCol, rowSpan: 3 });
               }),
             );
             cats = cats.map((c) =>
@@ -172,7 +172,7 @@ export default function App() {
 
           if (cats.length > 0) {
             const allEntries = await Promise.all(
-              cats.map((c) => BookmarkService.getEntries(newtabDB, c.id)),
+              cats.map((c) => BookmarkService.getEntries(c.id)),
             );
             dataStore.setEntries(allEntries.flat());
           }
@@ -180,7 +180,7 @@ export default function App() {
 
         // Load todo items for first list
         if (lists.length > 0) {
-          const items = await TodoService.getTodoItems(newtabDB, lists[0].id);
+          const items = await TodoService.getTodoItems(lists[0].id);
           dataStore.setTodoItems(items);
         }
       } finally {
