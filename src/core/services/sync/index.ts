@@ -1,5 +1,6 @@
 // Sync layer barrel export
 export { SyncAdapter } from './sync-adapter';
+export type { SyncRowMapper } from './sync-adapter';
 export { enforceQuota } from './quota';
 export type { QuotaConfig } from './quota';
 export { isExcludedUrl, collectAllSyncableUrls } from './url-filter';

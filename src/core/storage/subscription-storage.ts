@@ -1,11 +1,12 @@
 import type { Subscription, CustomCategory } from '@core/types/subscription.types';
+import { ChromeLocalArrayRepository } from './chrome-local-array-repository';
 import { ChromeLocalKeyAdapter } from './chrome-local-key-adapter';
 
-const subsAdapter = new ChromeLocalKeyAdapter<Subscription>('subscriptions');
+const subsRepo = new ChromeLocalArrayRepository<Subscription>('subscriptions');
 const catsAdapter = new ChromeLocalKeyAdapter<CustomCategory>('subscription_categories');
 
 export const SubscriptionStorage = {
-  getAll: () => subsAdapter.getAll(),
+  getAll: () => subsRepo.getAll(),
   getCustomCategories: () => catsAdapter.getAll(),
 
   async addCustomCategory(cat: CustomCategory): Promise<void> {
@@ -20,43 +21,21 @@ export const SubscriptionStorage = {
     await catsAdapter.setAll(all.filter((c) => c.value !== value));
   },
 
-  async save(sub: Subscription): Promise<void> {
-    const all = await subsAdapter.getAll();
-    const idx = all.findIndex((s) => s.id === sub.id);
-    if (idx >= 0) {
-      all[idx] = sub;
-    } else {
-      all.push(sub);
-    }
-    await subsAdapter.setAll(all);
-  },
+  save: (sub: Subscription) => subsRepo.save(sub),
 
   async update(id: string, updates: Partial<Subscription>): Promise<void> {
-    const all = await subsAdapter.getAll();
-    const idx = all.findIndex((s) => s.id === id);
-    if (idx >= 0) {
-      all[idx] = { ...all[idx], ...updates };
-      await subsAdapter.setAll(all);
-    }
+    await subsRepo.update(id, updates);
   },
 
   async delete(id: string): Promise<void> {
-    const all = await subsAdapter.getAll();
-    await subsAdapter.setAll(all.filter((s) => s.id !== id));
+    await subsRepo.delete(id);
   },
 
   async deleteAll(): Promise<void> {
-    await subsAdapter.setAll([]);
+    await subsRepo.replaceAll([]);
   },
 
-  async importMany(subs: Subscription[]): Promise<void> {
-    const all = await subsAdapter.getAll();
-    const map = new Map(all.map((s) => [s.id, s]));
-    for (const sub of subs) {
-      map.set(sub.id, sub);
-    }
-    await subsAdapter.setAll(Array.from(map.values()));
-  },
+  importMany: (subs: Subscription[]) => subsRepo.importMany(subs),
 
   replaceCustomCategories(cats: CustomCategory[]): Promise<void> {
     return catsAdapter.setAll(cats);
@@ -69,3 +48,8 @@ export const SubscriptionStorage = {
     await catsAdapter.setAll(Array.from(map.values()));
   },
 };
+
+/** Expose the underlying repository for direct IRepository<Subscription> usage. */
+export function getSubscriptionRepository() {
+  return subsRepo;
+}

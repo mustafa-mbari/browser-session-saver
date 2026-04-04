@@ -19,6 +19,10 @@ import { PromptStorage } from '@core/storage/prompt-storage';
 import { SubscriptionStorage } from '@core/storage/subscription-storage';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
 import { NewTabDB } from '@core/storage/newtab-storage';
+import { SyncAdapter } from '@core/services/sync/sync-adapter';
+import { subscriptionMapper } from '@core/services/sync/row-mappers/subscription.mapper';
+import { tabGroupTemplateRawMapper } from '@core/services/sync/row-mappers/tab-group.mapper';
+import { enforceQuota } from '@core/services/sync/quota';
 import type { Session } from '@core/types/session.types';
 import type { Prompt, PromptFolder } from '@core/types/prompt.types';
 import type { Subscription } from '@core/types/subscription.types';
@@ -484,22 +488,18 @@ async function syncPrompts(userId: string, quota: UserQuota): Promise<number> {
   return toSync.length;
 }
 
+// ─── Subscription sync via SyncAdapter ──────────────────────────────────────
+
+const _subscriptionSyncAdapter = new SyncAdapter<Subscription>(supabase, subscriptionMapper, {
+  tableName: 'tracked_subscriptions',
+  quotaSortField: 'createdAt',
+});
+
 async function syncSubscriptions(userId: string, quota: UserQuota): Promise<number> {
   const allSubs = await SubscriptionStorage.getAll();
   if (allSubs.length === 0) return 0;
 
-  const limit = quota.subs_synced_limit ?? Infinity;
-  const toSync = topByCreatedAt(allSubs, limit === Infinity ? null : limit);
-
-  if (toSync.length === 0) return 0;
-
-  const rows = toSync.map((s) => subscriptionToRow(s, userId));
-  const { error } = await supabase
-    .from('tracked_subscriptions')
-    .upsert(rows, { onConflict: 'id' });
-  if (error) throw new Error(`Subscriptions sync failed: ${error.message}`);
-
-  return toSync.length;
+  return _subscriptionSyncAdapter.push(allSubs, userId, quota.subs_synced_limit);
 }
 
 // ─── URL filtering & deduplication ──────────────────────────────────────────
@@ -688,41 +688,40 @@ async function syncTodos(userId: string, quota: UserQuota): Promise<number> {
   return toSync.length;
 }
 
+// ─── Tab Group Template sync via SyncAdapter ───────────────────────────────
+
+const _tabGroupSyncAdapter = new SyncAdapter<TabGroupTemplate>(
+  supabase,
+  tabGroupTemplateRawMapper,
+  {
+    tableName: 'tab_group_templates',
+    conflictColumn: 'user_id,key',
+    quotaSortField: 'updatedAt',
+    preSyncTransform: (tg) => ({
+      ...tg,
+      tabs: tg.tabs.filter((t) => !isExcludedUrl(t.url)),
+    }),
+  },
+);
+
 async function syncTabGroupTemplates(userId: string, allTemplates: TabGroupTemplate[], quota: UserQuota): Promise<number> {
-  const limit = quota.tab_groups_synced_limit ?? Infinity;
+  if (allTemplates.length === 0) return 0;
 
-  // Take most-recently-updated templates up to quota limit
-  const toSync = topByUpdatedAt(allTemplates, limit === Infinity ? null : limit);
-
-  if (toSync.length === 0) {
-    // Nothing local — skip reconcile to avoid wiping cloud data on a fresh device
-    return 0;
-  }
-
-  const rows = toSync.map((tg) => ({
-    key: tg.key,
-    user_id: userId,
-    title: tg.title,
-    color: tg.color,
-    tabs: tg.tabs.filter((t) => !isExcludedUrl(t.url)),
-    saved_at: tg.savedAt,
-    updated_at: tg.updatedAt,
-  }));
-
-  const { error } = await supabase
-    .from('tab_group_templates')
-    .upsert(rows, { onConflict: 'user_id,key' });
-  if (error) throw new Error(`Tab group templates sync failed: ${error.message}`);
+  const count = await _tabGroupSyncAdapter.push(allTemplates, userId, quota.tab_groups_synced_limit);
 
   // Reconcile: remove remote templates whose key is no longer in the synced set
+  const limit = quota.tab_groups_synced_limit ?? Infinity;
+  const toSync = enforceQuota(allTemplates, { limit, sortField: 'updatedAt' });
   const localKeys = toSync.map((t) => t.key);
-  await supabase
-    .from('tab_group_templates')
-    .delete()
-    .eq('user_id', userId)
-    .not('key', 'in', `(${localKeys.join(',')})`);
+  if (localKeys.length > 0) {
+    await supabase
+      .from('tab_group_templates')
+      .delete()
+      .eq('user_id', userId)
+      .not('key', 'in', `(${localKeys.join(',')})`);
+  }
 
-  return toSync.length;
+  return count;
 }
 
 // ─── Row mappers (camelCase → snake_case) ────────────────────────────────────
@@ -780,28 +779,6 @@ function promptFolderToRow(f: PromptFolder, userId: string): Record<string, unkn
     parent_id: f.parentId ?? null,
     position: f.position,
     created_at: f.createdAt,
-  };
-}
-
-function subscriptionToRow(s: Subscription, userId: string): Record<string, unknown> {
-  return {
-    id: s.id,
-    user_id: userId,
-    name: s.name,
-    logo: s.logo ?? null,
-    url: s.url ?? null,
-    email: s.email ?? null,
-    category: s.category,
-    price: s.price,
-    currency: s.currency,
-    billing_cycle: s.billingCycle,
-    next_billing_date: s.nextBillingDate,
-    payment_method: s.paymentMethod ?? null,
-    status: s.status,
-    reminder: s.reminder,
-    notes: s.notes ?? null,
-    tags: s.tags ?? [],
-    created_at: s.createdAt,
   };
 }
 
@@ -873,24 +850,21 @@ async function pullPrompts(userId: string): Promise<number> {
 }
 
 async function pullSubscriptions(userId: string): Promise<number> {
-  const { data, error } = await supabase.from('tracked_subscriptions').select('*').eq('user_id', userId);
-  if (error) throw new Error(`Subscription pull failed: ${error.message}`);
-  if (!data || data.length === 0) return 0;
+  const remoteSubs = await _subscriptionSyncAdapter.pull(userId);
+  if (remoteSubs.length === 0) return 0;
 
-  const subs = (data as Record<string, unknown>[]).map(rowToSubscription);
-  await SubscriptionStorage.importMany(subs);
-  return subs.length;
+  await SubscriptionStorage.importMany(remoteSubs);
+  return remoteSubs.length;
 }
 
 async function pullTabGroupTemplates(userId: string): Promise<number> {
-  const { data, error } = await supabase.from('tab_group_templates').select('*').eq('user_id', userId);
-  if (error) throw new Error(`Tab group pull failed: ${error.message}`);
-  if (!data || data.length === 0) return 0;
+  const remoteTemplates = await _tabGroupSyncAdapter.pull(userId);
+  if (remoteTemplates.length === 0) return 0;
 
   const existing = await TabGroupTemplateStorage.getAll();
   const existingKeys = new Set(existing.map((t) => t.key));
-  const toWrite = (data as Record<string, unknown>[]).filter((r) => !existingKeys.has(r.key as string));
-  await Promise.all(toWrite.map((r) => TabGroupTemplateStorage.upsert(rowToTabGroupTemplate(r))));
+  const toWrite = remoteTemplates.filter((t) => !existingKeys.has(t.key));
+  await Promise.all(toWrite.map((t) => TabGroupTemplateStorage.upsert(t)));
   return toWrite.length;
 }
 
@@ -1029,38 +1003,6 @@ function rowToPromptFolder(r: Record<string, unknown>): PromptFolder {
     parentId: (r.parent_id ?? undefined) as string | undefined,
     position: (r.position ?? 0) as number,
     createdAt: r.created_at as string,
-  };
-}
-
-function rowToSubscription(r: Record<string, unknown>): Subscription {
-  return {
-    id: r.id as string,
-    name: r.name as string,
-    logo: (r.logo ?? undefined) as string | undefined,
-    url: (r.url ?? undefined) as string | undefined,
-    email: (r.email ?? undefined) as string | undefined,
-    category: r.category as string,
-    price: r.price as number,
-    currency: r.currency as string,
-    billingCycle: r.billing_cycle as Subscription['billingCycle'],
-    nextBillingDate: r.next_billing_date as string,
-    paymentMethod: (r.payment_method ?? undefined) as string | undefined,
-    status: r.status as Subscription['status'],
-    reminder: r.reminder as number,
-    notes: (r.notes ?? undefined) as string | undefined,
-    tags: (r.tags ?? []) as string[],
-    createdAt: r.created_at as string,
-  };
-}
-
-function rowToTabGroupTemplate(r: Record<string, unknown>): TabGroupTemplate {
-  return {
-    key: r.key as string,
-    title: r.title as string,
-    color: r.color as TabGroupTemplate['color'],
-    tabs: (r.tabs ?? []) as TabGroupTemplate['tabs'],
-    savedAt: r.saved_at as string,
-    updatedAt: r.updated_at as string,
   };
 }
 

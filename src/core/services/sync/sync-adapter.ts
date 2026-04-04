@@ -8,15 +8,30 @@
  * RowMapper, and optional quota/transform settings.
  */
 
-import type { Syncable, RowMapper } from '@core/types/base.types';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SyncAdapterConfig } from './types';
 import { enforceQuota } from './quota';
 
-export class SyncAdapter<T extends Syncable> {
+/**
+ * Bidirectional mapper between a local entity and a Supabase row.
+ * Identical to RowMapper in base.types.ts but without the Syncable constraint,
+ * allowing entities like TabGroupTemplate (which uses `key` instead of `id`)
+ * to be synced via the adapter.
+ */
+export interface SyncRowMapper<T> {
+  toRow(entity: T, userId: string): Record<string, unknown>;
+  fromRow(row: Record<string, unknown>): T;
+}
+
+/**
+ * Generic entity sync adapter. Works with any entity type — entities
+ * conforming to Syncable (id + createdAt) or non-standard shapes
+ * like TabGroupTemplate (key + savedAt).
+ */
+export class SyncAdapter<T> {
   constructor(
     private readonly supabase: SupabaseClient,
-    private readonly mapper: RowMapper<T>,
+    private readonly mapper: SyncRowMapper<T>,
     private readonly config: SyncAdapterConfig<T>,
   ) {}
 
