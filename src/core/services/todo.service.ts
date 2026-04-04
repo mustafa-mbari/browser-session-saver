@@ -1,5 +1,5 @@
 import { newtabDB } from '@core/storage/newtab-storage';
-import type { TodoItem, TodoList } from '@core/types/newtab.types';
+import type { TodoItem, TodoList, BookmarkCategory } from '@core/types/newtab.types';
 import { generateId } from '@core/utils/uuid';
 import { nowISO } from '@core/utils/date';
 
@@ -34,7 +34,10 @@ export async function updateTodoList(
 
 export async function deleteTodoList(id: string): Promise<void> {
   const items = await db.getAllByIndex<TodoItem>(ITEMS, 'listId', id);
-  await Promise.all(items.map((item) => db.delete(ITEMS, item.id)));
+  await Promise.all([
+    ...items.map((item) => db.delete(ITEMS, item.id)),
+    ...items.map((item) => removeTodoFromCardNoteContent(item.id)),
+  ]);
   await db.delete(LISTS, id);
 }
 
@@ -64,6 +67,9 @@ export async function updateTodoItem(
 
 export async function deleteTodoItem(id: string): Promise<void> {
   await db.delete(ITEMS, id);
+  // Also remove from any dashboard card's noteContent so the sync
+  // harvester doesn't re-create the deleted item from stale JSON.
+  await removeTodoFromCardNoteContent(id);
 }
 
 export async function reorderTodoItems(
@@ -79,4 +85,22 @@ export async function reorderTodoItems(
       return Promise.resolve();
     }),
   );
+}
+
+// ─── Internal helpers ─────────────────────────────────────────────────────────
+
+async function removeTodoFromCardNoteContent(itemId: string): Promise<void> {
+  const allCats = await db.getAll<BookmarkCategory>('bookmarkCategories');
+  for (const cat of allCats) {
+    if (cat.cardType !== 'todo' || !cat.noteContent) continue;
+    let items: { id: string; text: string; done: boolean }[];
+    try { items = JSON.parse(cat.noteContent); } catch { continue; }
+    const filtered = items.filter((i) => i.id !== itemId);
+    if (filtered.length !== items.length) {
+      await db.put<BookmarkCategory>('bookmarkCategories', {
+        ...cat,
+        noteContent: JSON.stringify(filtered),
+      });
+    }
+  }
 }
