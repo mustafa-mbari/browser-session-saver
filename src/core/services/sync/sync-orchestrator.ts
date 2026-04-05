@@ -517,19 +517,34 @@ async function syncTodos(userId: string, quota: UserQuota): Promise<number> {
     db.getAll<BookmarkCategory>('bookmarkCategories'),
   ]);
 
-  // Harvest todos from dashboard card widgets (stored as JSON in noteContent)
+  // Harvest todos from dashboard card widgets (stored as JSON in noteContent).
+  // noteContent is authoritative for each card: items present in IDB with that listId
+  // but absent from noteContent were deleted via the widget and must be purged.
   const now = new Date().toISOString();
   const existingListIds = new Set(allLists.map((l) => l.id));
   const existingItemIds = new Set(allItems.map((i) => i.id));
+  const widgetDeletedIds = new Set<string>(); // IDB items removed only in noteContent
+
   for (const cat of allCategories) {
     if (cat.cardType !== 'todo' || !cat.noteContent) continue;
     let cardItems: { id: string; text: string; done: boolean }[];
     try { cardItems = JSON.parse(cat.noteContent); } catch { continue; }
-    if (!cardItems.length) continue;
+
+    // Ensure the todo list row exists for this card
     if (!existingListIds.has(cat.id)) {
       allLists.push({ id: cat.id, name: cat.name, icon: cat.icon ?? '✅', position: 0, createdAt: cat.createdAt ?? now });
       existingListIds.add(cat.id);
     }
+
+    // Mark IDB items for this card that are absent from noteContent as widget-deleted
+    const cardItemIdSet = new Set(cardItems.map((i) => i.id));
+    for (const item of allItems) {
+      if (item.listId === cat.id && !cardItemIdSet.has(item.id)) {
+        widgetDeletedIds.add(item.id);
+      }
+    }
+
+    // Add/update items from noteContent
     cardItems.forEach((item, idx) => {
       if (!existingItemIds.has(item.id)) {
         allItems.push({ id: item.id, listId: cat.id, text: item.text, completed: item.done, priority: 'none', position: idx, createdAt: now });
@@ -539,6 +554,14 @@ async function syncTodos(userId: string, quota: UserQuota): Promise<number> {
         if (existing) { existing.completed = item.done; existing.text = item.text; existing.position = idx; }
       }
     });
+  }
+
+  // Purge widget-deleted items from IDB and exclude them from the sync payload
+  if (widgetDeletedIds.size > 0) {
+    await Promise.all([...widgetDeletedIds].map((id) => db.delete('todoItems', id)));
+    for (let i = allItems.length - 1; i >= 0; i--) {
+      if (widgetDeletedIds.has(allItems[i].id)) allItems.splice(i, 1);
+    }
   }
 
   // Push local lists and items (upsert only if there's something to write)
