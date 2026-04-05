@@ -470,13 +470,15 @@ async function syncBookmarkFolders(
     if (eErr) throw new Error(`Bookmark entries sync failed: ${eErr.message}`);
   }
 
-  const localIds = toSyncFolders.map((c) => c.id);
-  if (localIds.length > 0) {
-    await supabase
-      .from('bookmark_folders')
-      .delete()
-      .eq('user_id', userId)
-      .not('id', 'in', `(${localIds.join(',')})`);
+  // Reliable orphan-delete: fetch remote IDs, diff against local, delete by ID.
+  const { data: remoteFolderIdRows } = await supabase
+    .from('bookmark_folders').select('id').eq('user_id', userId);
+  const localFolderIdSet = new Set(toSyncFolders.map((c) => c.id));
+  const orphanFolderIds = (remoteFolderIdRows ?? [])
+    .map((r) => r.id as string)
+    .filter((id) => !localFolderIdSet.has(id));
+  if (orphanFolderIds.length > 0) {
+    await supabase.from('bookmark_folders').delete().eq('user_id', userId).in('id', orphanFolderIds);
   }
 
   return toSyncFolders.length;
@@ -489,13 +491,16 @@ async function syncTabGroupTemplates(userId: string, allTemplates: TabGroupTempl
 
   const limit = quota.tab_groups_synced_limit ?? Infinity;
   const toSync = enforceQuota(allTemplates, { limit, sortField: 'updatedAt' });
-  const localKeys = toSync.map((t) => t.key);
-  if (localKeys.length > 0) {
-    await supabase
-      .from('tab_group_templates')
-      .delete()
-      .eq('user_id', userId)
-      .not('key', 'in', `(${localKeys.join(',')})`);
+
+  // Reliable orphan-delete: fetch remote keys, diff against local, delete by key.
+  const { data: remoteKeyRows } = await supabase
+    .from('tab_group_templates').select('key').eq('user_id', userId);
+  const localKeySet = new Set(toSync.map((t) => t.key));
+  const orphanKeys = (remoteKeyRows ?? [])
+    .map((r) => r.key as string)
+    .filter((k) => !localKeySet.has(k));
+  if (orphanKeys.length > 0) {
+    await supabase.from('tab_group_templates').delete().eq('user_id', userId).in('key', orphanKeys);
   }
 
   return count;
@@ -536,8 +541,7 @@ async function syncTodos(userId: string, quota: UserQuota): Promise<number> {
     });
   }
 
-  if (allLists.length === 0 && allItems.length === 0) return 0;
-
+  // Push local lists and items (upsert only if there's something to write)
   if (allLists.length > 0) {
     const listRows = allLists.map((l) => todoListMapper.toRow(l, userId));
     const { error } = await supabase.from('todo_lists').upsert(listRows, { onConflict: 'id,user_id' });
@@ -552,22 +556,28 @@ async function syncTodos(userId: string, quota: UserQuota): Promise<number> {
     if (error) throw new Error(`Todo items sync failed: ${error.message}`);
   }
 
-  const localItemIds = allItems.map((i) => i.id);
-  if (localItemIds.length > 0) {
-    await supabase
-      .from('todo_items')
-      .delete()
-      .eq('user_id', userId)
-      .not('id', 'in', `(${localItemIds.join(',')})`);
-  }
+  // Reliable orphan-delete: fetch current remote IDs, diff against local, delete by ID.
+  // This avoids the unreliable .not('id','in','(...)') PostgREST filter and correctly
+  // handles the "deleted all items" case without a separate code path.
+  const [{ data: remoteItemIdRows, error: riErr }, { data: remoteListIdRows, error: rlErr }] = await Promise.all([
+    supabase.from('todo_items').select('id').eq('user_id', userId),
+    supabase.from('todo_lists').select('id').eq('user_id', userId),
+  ]);
+  if (riErr) throw new Error(`Todo items remote-fetch failed: ${riErr.message}`);
+  if (rlErr) throw new Error(`Todo lists remote-fetch failed: ${rlErr.message}`);
 
-  const localListIds = allLists.map((l) => l.id);
-  if (localListIds.length > 0) {
-    await supabase
-      .from('todo_lists')
-      .delete()
-      .eq('user_id', userId)
-      .not('id', 'in', `(${localListIds.join(',')})`);
+  const localItemIdSet = new Set(allItems.map((i) => i.id));
+  const localListIdSet = new Set(allLists.map((l) => l.id));
+  const orphanItemIds = (remoteItemIdRows ?? []).map((r) => r.id as string).filter((id) => !localItemIdSet.has(id));
+  const orphanListIds = (remoteListIdRows ?? []).map((r) => r.id as string).filter((id) => !localListIdSet.has(id));
+
+  if (orphanItemIds.length > 0) {
+    const { error } = await supabase.from('todo_items').delete().eq('user_id', userId).in('id', orphanItemIds);
+    if (error) throw new Error(`Todo items orphan-delete failed: ${error.message}`);
+  }
+  if (orphanListIds.length > 0) {
+    const { error } = await supabase.from('todo_lists').delete().eq('user_id', userId).in('id', orphanListIds);
+    if (error) throw new Error(`Todo lists orphan-delete failed: ${error.message}`);
   }
 
   return toSync.length;

@@ -81,17 +81,29 @@ export class SyncAdapter<T> {
 
   /**
    * Delete remote entities that are no longer present in the local set.
-   * Skips reconciliation if localKeys is empty (fresh device safety).
+   * Uses select-then-delete to avoid the unreliable .not('col','in','(...)') filter.
+   * When localKeys is empty, all remote rows for this user are deleted.
    */
   async reconcile(userId: string, localKeys: string[]): Promise<void> {
-    if (localKeys.length === 0) return;
-
     const keyCol = this.config.conflictColumn ?? 'id';
-    await this.supabase
+
+    const { data: remoteRows } = await this.supabase
       .from(this.config.tableName)
-      .delete()
-      .eq('user_id', userId)
-      .not(keyCol, 'in', `(${localKeys.join(',')})`);
+      .select(keyCol)
+      .eq('user_id', userId);
+
+    const localKeySet = new Set(localKeys);
+    const orphans = (remoteRows ?? [])
+      .map((r) => (r as unknown as Record<string, unknown>)[keyCol] as string)
+      .filter((k) => !localKeySet.has(k));
+
+    if (orphans.length > 0) {
+      await this.supabase
+        .from(this.config.tableName)
+        .delete()
+        .eq('user_id', userId)
+        .in(keyCol, orphans);
+    }
   }
 
   /** Push a single entity (used for fire-and-forget after mutations). */

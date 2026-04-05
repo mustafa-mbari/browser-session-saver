@@ -646,11 +646,16 @@ async function handlePullDashboard(): Promise<MessageResponse<DashboardSyncRespo
 async function handlePullAll(): Promise<MessageResponse> {
   const userId = await getSyncUserId();
   if (!userId) return { success: false, error: 'Not authenticated' };
+  // Pull first so that deletions made on other devices are applied locally before
+  // we push. This prevents a stale device from reviving remotely-deleted items.
+  // SYNC_PUSH (fired on every mutation) ensures our own deletions are already on
+  // Supabase by the time the user triggers a manual Restore.
   const result = await pullAll();
   if (result.success) {
-    // Signal all open pages to reload their data from storage
     try { await chrome.storage.local.set({ cloud_last_pull_at: Date.now() }); } catch {}
   }
+  // Push after pull so any new local items/changes reach Supabase.
+  await syncAll();
   return { success: result.success, data: result, error: result.error };
 }
 

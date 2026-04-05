@@ -151,12 +151,20 @@ describe('sync.service', () => {
     mockSupabase.rpc.mockResolvedValue({ data: quota, error: null });
     mockGetAllSessions.mockResolvedValue([makeSession()]);
 
-    // Supabase from() mock: supports upsert and delete chains
+    // Supabase from() mock: supports upsert, delete, and select chains.
+    // select('id').eq(...) is used for orphan-delete (fetch remote IDs before diff).
     const mockUpsert = vi.fn().mockResolvedValue({ error: null });
-    const mockDeleteChain = { eq: vi.fn().mockReturnThis(), not: vi.fn().mockResolvedValue({ error: null }) };
+    const mockDeleteChain = {
+      eq: vi.fn().mockReturnThis(),
+      in: vi.fn().mockResolvedValue({ error: null }),
+    };
+    const mockSelectChain = {
+      eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+    };
     mockSupabase.from.mockReturnValue({
       upsert: mockUpsert,
       delete: vi.fn().mockReturnValue(mockDeleteChain),
+      select: vi.fn().mockReturnValue(mockSelectChain),
     });
 
     const { syncAll } = await importSyncService();
