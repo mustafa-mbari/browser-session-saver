@@ -590,14 +590,55 @@ async function handleSyncSignIn(payload: {
   password: string;
 }): Promise<MessageResponse<SyncSignInResponse>> {
   const result = await syncSignIn(payload.email, payload.password);
-  if (result.success) {
-    // Auto-pull on sign-in so a second device gets cloud data immediately.
-    // Fire-and-forget: write the reload signal when pull finishes so open pages refresh.
-    pullAll()
-      .then(() => chrome.storage.local.set({ cloud_last_pull_at: Date.now() }))
-      .catch(() => {});
+
+  if (!result.success) {
+    return { success: false, data: result, error: result.error };
   }
-  return { success: result.success, data: result, error: result.error };
+
+  const userId = await getSyncUserId();
+
+  if (!userId) {
+    // Session not yet readable — degrade gracefully (skip pulls).
+    await chrome.storage.local.set({ cloud_last_pull_at: Date.now() });
+    return { success: true, data: { success: true, email: result.email } };
+  }
+
+  // Run entity pull and dashboard config fetch in parallel.
+  const [pullOutcome, dashOutcome] = await Promise.allSettled([
+    pullAll(),
+    pullDashboard(userId),
+  ]);
+
+  const pull =
+    pullOutcome.status === 'fulfilled' && pullOutcome.value.success
+      ? pullOutcome.value.pulled
+      : null;
+
+  const dashValue = dashOutcome.status === 'fulfilled' ? dashOutcome.value : null;
+  const hasConfig = dashValue?.success === true && typeof dashValue.config === 'string';
+
+  if (hasConfig && dashValue?.config) {
+    try {
+      JSON.parse(dashValue.config); // validate before storing
+      await chrome.storage.local.set({ pending_dashboard_restore: dashValue.config });
+    } catch {
+      // malformed JSON — skip
+    }
+  }
+
+  // Signal newtab pages to reload. Written AFTER pending_dashboard_restore so the
+  // key is already in storage when the onChanged listener fires on open pages.
+  await chrome.storage.local.set({ cloud_last_pull_at: Date.now() });
+
+  return {
+    success: true,
+    data: {
+      success: true,
+      email: result.email,
+      pulled: pull ?? { sessions: 0, prompts: 0, subs: 0, tabGroups: 0, folders: 0, todos: 0 },
+      hasDashboardConfig: hasConfig,
+    },
+  };
 }
 
 async function handleSyncSignOut(): Promise<MessageResponse> {

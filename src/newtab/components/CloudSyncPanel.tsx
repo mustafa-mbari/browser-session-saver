@@ -11,9 +11,20 @@ import {
 } from 'lucide-react';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import type { SyncStatus } from '@core/services/sync.service';
+import type { SyncSignInResponse } from '@core/types/messages.types';
 import { QUOTA_WARNING_PCT } from '@core/constants/limits';
 
-type SignInResponse = { success: boolean; email?: string; error?: string };
+function formatRestoreSummary(pulled: NonNullable<SyncSignInResponse['pulled']>): string {
+  const parts: string[] = [];
+  if (pulled.sessions > 0)  parts.push(`${pulled.sessions} session${pulled.sessions !== 1 ? 's' : ''}`);
+  if (pulled.prompts > 0)   parts.push(`${pulled.prompts} prompt${pulled.prompts !== 1 ? 's' : ''}`);
+  if (pulled.folders > 0)   parts.push(`${pulled.folders} folder${pulled.folders !== 1 ? 's' : ''}`);
+  if (pulled.todos > 0)     parts.push(`${pulled.todos} todo${pulled.todos !== 1 ? 's' : ''}`);
+  if (pulled.subs > 0)      parts.push(`${pulled.subs} subscription${pulled.subs !== 1 ? 's' : ''}`);
+  if (pulled.tabGroups > 0) parts.push(`${pulled.tabGroups} tab group${pulled.tabGroups !== 1 ? 's' : ''}`);
+  if (parts.length === 0)   return 'No new items found in the cloud.';
+  return `Restored ${parts.join(', ')}.`;
+}
 
 export default function CloudSyncPanel() {
   const { sendMessage } = useMessaging();
@@ -25,6 +36,7 @@ export default function CloudSyncPanel() {
   const [pulling, setPulling] = useState(false);
   const [pullResult, setPullResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [signInError, setSignInError] = useState<string | null>(null);
+  const [signInRestoreResult, setSignInRestoreResult] = useState<SyncSignInResponse | null>(null);
 
   const loadStatus = useCallback(async () => {
     const res = await sendMessage<SyncStatus>({ action: 'SYNC_GET_STATUS', payload: {} });
@@ -39,13 +51,15 @@ export default function CloudSyncPanel() {
     e.preventDefault();
     setSigningIn(true);
     setSignInError(null);
-    const res = await sendMessage<SignInResponse>({
+    setSignInRestoreResult(null);
+    const res = await sendMessage<SyncSignInResponse>({
       action: 'SYNC_SIGN_IN',
       payload: { email: email.trim(), password },
     });
     setSigningIn(false);
     if (res.success && res.data?.success) {
       setPassword('');
+      setSignInRestoreResult(res.data);
       await loadStatus();
     } else {
       setSignInError(res.data?.error ?? res.error ?? 'Sign in failed');
@@ -208,6 +222,29 @@ export default function CloudSyncPanel() {
 
   return (
     <div className="flex-1 overflow-auto p-6 space-y-5">
+      {/* Restoration summary — shown once after sign-in */}
+      {signInRestoreResult && (
+        <div
+          className="p-4 rounded-2xl flex flex-col gap-1.5 text-xs"
+          style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)', color: '#4ade80' }}
+        >
+          <div className="flex items-center gap-2 font-semibold">
+            <CheckCircle2 size={13} className="shrink-0" />
+            Cloud data restored
+          </div>
+          <span style={{ color: 'rgba(74,222,128,0.8)' }}>
+            {formatRestoreSummary(
+              signInRestoreResult.pulled ?? { sessions: 0, prompts: 0, subs: 0, tabGroups: 0, folders: 0, todos: 0 }
+            )}
+          </span>
+          {signInRestoreResult.hasDashboardConfig && (
+            <span style={{ color: 'rgba(74,222,128,0.65)' }}>
+              A cloud dashboard layout is available — scroll down to apply it.
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Account header */}
       <div
         className="flex items-center justify-between p-4 rounded-2xl"

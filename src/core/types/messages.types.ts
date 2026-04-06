@@ -92,6 +92,15 @@ export interface SyncSignInResponse {
   success: boolean;
   email?: string;
   error?: string;
+  pulled?: {
+    sessions: number;
+    prompts: number;
+    subs: number;
+    tabGroups: number;
+    folders: number;
+    todos: number;
+  };
+  hasDashboardConfig?: boolean;
 }
 
 export interface DashboardSyncResponse {

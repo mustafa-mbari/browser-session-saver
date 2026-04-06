@@ -2,9 +2,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { Cloud, CloudOff, RefreshCw, LogOut, CheckCircle2, AlertCircle, Loader2, CloudDownload } from 'lucide-react';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import type { SyncStatus } from '@core/services/sync.service';
+import type { SyncSignInResponse } from '@core/types/messages.types';
 import { QUOTA_WARNING_PCT } from '@core/constants/limits';
 
-type SignInResponse = { success: boolean; email?: string; error?: string };
+function formatRestoreSummary(pulled: NonNullable<SyncSignInResponse['pulled']>): string {
+  const parts: string[] = [];
+  if (pulled.sessions > 0)  parts.push(`${pulled.sessions} session${pulled.sessions !== 1 ? 's' : ''}`);
+  if (pulled.prompts > 0)   parts.push(`${pulled.prompts} prompt${pulled.prompts !== 1 ? 's' : ''}`);
+  if (pulled.folders > 0)   parts.push(`${pulled.folders} folder${pulled.folders !== 1 ? 's' : ''}`);
+  if (pulled.todos > 0)     parts.push(`${pulled.todos} todo${pulled.todos !== 1 ? 's' : ''}`);
+  if (pulled.subs > 0)      parts.push(`${pulled.subs} subscription${pulled.subs !== 1 ? 's' : ''}`);
+  if (pulled.tabGroups > 0) parts.push(`${pulled.tabGroups} tab group${pulled.tabGroups !== 1 ? 's' : ''}`);
+  if (parts.length === 0)   return 'No new items found in the cloud.';
+  return `Restored ${parts.join(', ')}.`;
+}
 
 export default function CloudSyncView() {
   const { sendMessage } = useMessaging();
@@ -16,6 +27,7 @@ export default function CloudSyncView() {
   const [pulling, setPulling] = useState(false);
   const [pullResult, setPullResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [signInError, setSignInError] = useState<string | null>(null);
+  const [signInRestoreResult, setSignInRestoreResult] = useState<SyncSignInResponse | null>(null);
 
   const loadStatus = useCallback(async () => {
     const res = await sendMessage<SyncStatus>({ action: 'SYNC_GET_STATUS', payload: {} });
@@ -30,13 +42,15 @@ export default function CloudSyncView() {
     e.preventDefault();
     setSigningIn(true);
     setSignInError(null);
-    const res = await sendMessage<SignInResponse>({
+    setSignInRestoreResult(null);
+    const res = await sendMessage<SyncSignInResponse>({
       action: 'SYNC_SIGN_IN',
       payload: { email: email.trim(), password },
     });
     setSigningIn(false);
     if (res.success && res.data?.success) {
       setPassword('');
+      setSignInRestoreResult(res.data);
       await loadStatus();
     } else {
       setSignInError(res.data?.error ?? res.error ?? 'Sign in failed');
@@ -175,6 +189,26 @@ export default function CloudSyncView() {
 
   return (
     <div className="flex-1 overflow-auto p-4 space-y-5">
+      {/* Restoration summary — shown once after sign-in */}
+      {signInRestoreResult && (
+        <div className="flex flex-col gap-1.5 p-3 rounded-xl border border-green-200 dark:border-green-800/50 bg-green-50 dark:bg-green-900/10 text-xs text-green-700 dark:text-green-400">
+          <div className="flex items-center gap-1.5">
+            <CheckCircle2 size={13} className="shrink-0" />
+            <span className="font-medium">Cloud data restored</span>
+          </div>
+          <span>
+            {formatRestoreSummary(
+              signInRestoreResult.pulled ?? { sessions: 0, prompts: 0, subs: 0, tabGroups: 0, folders: 0, todos: 0 }
+            )}
+          </span>
+          {signInRestoreResult.hasDashboardConfig && (
+            <span className="opacity-80 mt-0.5">
+              A cloud dashboard layout is available — open a new tab to apply it.
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Account header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">

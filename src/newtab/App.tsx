@@ -7,7 +7,7 @@ import { useNewTabDataStore } from '@newtab/stores/newtab-data.store';
 import { useKeyboardShortcuts } from '@newtab/hooks/useKeyboardShortcuts';
 import { newtabDB } from '@core/storage/newtab-storage';
 import { updateNewTabSettings, getNewTabSettings } from '@core/services/newtab-settings.service';
-import { DEFAULT_NEWTAB_SETTINGS, type SpanValue } from '@core/types/newtab.types';
+import { DEFAULT_NEWTAB_SETTINGS, type SpanValue, type Board } from '@core/types/newtab.types';
 import * as BookmarkService from '@core/services/bookmark.service';
 import * as QuickLinksService from '@core/services/quicklinks.service';
 import * as TodoService from '@core/services/todo.service';
@@ -22,6 +22,7 @@ import SubscriptionReminder from '@newtab/components/SubscriptionReminder';
 import SessionRestoreReminder from '@newtab/components/SessionRestoreReminder';
 
 // Heavy overlays — loaded only when opened
+const DashboardRestoreModal = lazy(() => import('@newtab/components/DashboardRestoreModal'));
 const SettingsPanel = lazy(() => import('@newtab/components/SettingsPanel'));
 const WallpaperPicker = lazy(() => import('@newtab/components/WallpaperPicker'));
 const KeyboardHelpModal = lazy(() => import('@newtab/components/KeyboardHelpModal'));
@@ -32,12 +33,27 @@ export default function App() {
 
   // Incremented whenever the background SW completes a pull, triggering a data reload.
   const [dataVersion, setDataVersion] = useState(0);
+  const [pendingDashboardConfig, setPendingDashboardConfig] = useState<string | null>(null);
+  const [isApplyingDashboard, setIsApplyingDashboard] = useState(false);
+
   useEffect(() => {
     const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
       if (changes.cloud_last_pull_at) setDataVersion((v) => v + 1);
+      if (changes.pending_dashboard_restore) {
+        const newVal = changes.pending_dashboard_restore.newValue as string | undefined;
+        if (newVal) setPendingDashboardConfig(newVal);
+      }
     };
     chrome.storage.onChanged.addListener(listener);
     return () => chrome.storage.onChanged.removeListener(listener);
+  }, []);
+
+  // Check for a pending dashboard restore config written by handleSyncSignIn on mount.
+  useEffect(() => {
+    chrome.storage.local.get('pending_dashboard_restore', (result) => {
+      const config = result['pending_dashboard_restore'] as string | undefined;
+      if (config) setPendingDashboardConfig(config);
+    });
   }, []);
 
   const uiStore = useNewTabUIStore();
@@ -191,6 +207,29 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataVersion]);
 
+  const handleApplyDashboard = async (boards: Board[]) => {
+    setIsApplyingDashboard(true);
+    try {
+      const existingBoards = await BookmarkService.getBoards();
+      const existingIds = new Set(existingBoards.map((b) => b.id));
+      const toAdd = boards.filter((b) => !existingIds.has(b.id));
+      await Promise.all(toAdd.map((b) => newtabDB.put<Board>('boards', b)));
+      await chrome.storage.local.remove('pending_dashboard_restore');
+      setPendingDashboardConfig(null);
+      setDataVersion((v) => v + 1);
+    } catch {
+      setPendingDashboardConfig(null);
+      await chrome.storage.local.remove('pending_dashboard_restore');
+    } finally {
+      setIsApplyingDashboard(false);
+    }
+  };
+
+  const handleDismissDashboard = () => {
+    setPendingDashboardConfig(null);
+    void chrome.storage.local.remove('pending_dashboard_restore');
+  };
+
   if (isLoading) {
     return (
       <div
@@ -253,6 +292,16 @@ export default function App() {
       )}
       <SubscriptionReminder />
       <SessionRestoreReminder />
+      {pendingDashboardConfig && (
+        <Suspense fallback={null}>
+          <DashboardRestoreModal
+            configJson={pendingDashboardConfig}
+            onApply={handleApplyDashboard}
+            onDismiss={handleDismissDashboard}
+            isApplying={isApplyingDashboard}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
