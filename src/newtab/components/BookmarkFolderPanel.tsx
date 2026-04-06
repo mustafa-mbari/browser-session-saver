@@ -30,6 +30,8 @@ import {
   GripVertical,
   Star,
   BookMarked,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -81,6 +83,7 @@ type DialogState =
   | { type: 'add-entry'; categoryId: string }
   | { type: 'edit-entry'; entry: BookmarkEntry }
   | { type: 'delete-entry'; entry: BookmarkEntry }
+  | { type: 'icon-folder'; folder: BookmarkCategory }
   | null;
 
 type SortKey = 'title' | 'category' | 'addedAt';
@@ -334,8 +337,12 @@ function BookmarkRow({ entry, colWidths, allCategories, onEdit, onDelete, onUpda
       </td>
 
       {/* Title + URL */}
-      <td className="py-2.5 pr-3 align-middle" style={{ width: colWidths.title, maxWidth: colWidths.title, overflow: 'hidden' }}>
-        <p className="text-sm text-white/90 font-medium truncate leading-tight">{entry.title || getDomain(entry.url)}</p>
+      <td
+        className="py-2.5 pr-3 align-middle cursor-pointer"
+        style={{ width: colWidths.title, maxWidth: colWidths.title, overflow: 'hidden' }}
+        onClick={() => window.open(entry.url, '_blank', 'noopener')}
+      >
+        <p className="text-sm text-white/90 font-medium truncate leading-tight hover:text-indigo-300 transition-colors">{entry.title || getDomain(entry.url)}</p>
         <p className="text-[11px] text-white/35 truncate leading-tight mt-0.5">{getDomain(entry.url)}</p>
       </td>
 
@@ -373,7 +380,10 @@ function SortableQuickItem({ folder, isSelected, onSelect, onRemove, count }: {
       <span className="opacity-0 group-hover:opacity-40 cursor-grab active:cursor-grabbing shrink-0 touch-none" {...attributes} {...listeners} onClick={(e) => e.stopPropagation()}>
         <GripVertical size={10} />
       </span>
-      <span className="shrink-0" style={{ color: col }}><Folder size={13} /></span>
+      {folder.icon?.startsWith('data:')
+        ? <img src={folder.icon} className="w-4 h-4 rounded object-cover shrink-0" alt="" />
+        : <span className="shrink-0" style={{ color: col }}><Folder size={13} /></span>
+      }
       <span className="truncate flex-1 text-sm">{folder.name}</span>
       <span className="text-[10px] text-white/30 shrink-0">{count}</span>
       <button
@@ -460,7 +470,10 @@ function DraggableTreeItem({ node, depth, selectedId, onSelect, onOpenDialog, en
               {hasChildren ? (expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />) : <span className="w-3" />}
             </span>
             <span className="shrink-0" style={{ color: col }}>
-              {isSelected || expanded ? <FolderOpen size={13} /> : <Folder size={13} />}
+              {node.folder.icon?.startsWith('data:')
+                ? <img src={node.folder.icon} className="w-4 h-4 rounded object-cover" alt="" />
+                : (isSelected || expanded ? <FolderOpen size={13} /> : <Folder size={13} />)
+              }
             </span>
             <span className="truncate flex-1 text-[13px] pl-1">{node.folder.name}</span>
             {isPinned && <Star size={8} className="text-yellow-400 fill-yellow-400 opacity-60 shrink-0" />}
@@ -492,6 +505,9 @@ function DraggableTreeItem({ node, depth, selectedId, onSelect, onOpenDialog, en
           </ContextMenuItem>
           <ContextMenuItem onClick={() => onOpenDialog({ type: 'color-folder', folder: node.folder })}>
             <Palette size={13} className="mr-2" /> Change Color
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onOpenDialog({ type: 'icon-folder', folder: node.folder })}>
+            <ImageIcon size={13} className="mr-2" /> Change Icon
           </ContextMenuItem>
           <ContextMenuItem destructive onClick={() => onOpenDialog({ type: 'delete-folder', folder: node.folder })}>
             <Trash2 size={13} className="mr-2" /> Delete
@@ -644,12 +660,13 @@ function BrowserBookmarksSection() {
 // ─── Folder Dialog ────────────────────────────────────────────────────────────
 
 function FolderDialog({
-  state, onClose, onCreate, onRename, onColorFolder, onDelete, onAddEntry, onEditEntry, onMoveEntry, onDeleteEntry, categories,
+  state, onClose, onCreate, onRename, onColorFolder, onIconFolder, onDelete, onAddEntry, onEditEntry, onMoveEntry, onDeleteEntry, categories,
 }: {
   state: DialogState; onClose: () => void;
   onCreate: (boardId: string, name: string, parentId?: string) => void;
   onRename: (id: string, name: string) => void;
   onColorFolder: (id: string, color: string) => void;
+  onIconFolder: (id: string, icon: string) => void;
   onDelete: (id: string) => void;
   onAddEntry: (categoryId: string, title: string, url: string, category?: string, description?: string) => void;
   onEditEntry: (id: string, title: string, url: string, category?: string, description?: string) => void;
@@ -701,6 +718,63 @@ function FolderDialog({
                 onClick={() => { onColorFolder(state.folder.id, color); onClose(); }}
               />
             ))}
+          </div>
+          <DialogFooter>
+            <button className="px-3 py-1.5 rounded-md text-sm text-white/60 hover:bg-white/10 transition-colors" onClick={onClose}>Cancel</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (state.type === 'icon-folder') {
+    const hasCustomIcon = state.folder.icon?.startsWith('data:');
+    return (
+      <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader><DialogTitle>Change Icon — {state.folder.name}</DialogTitle></DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-2">
+            <div className="w-16 h-16 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${state.folder.color || '#6366f1'}22` }}>
+              {hasCustomIcon
+                ? <img src={state.folder.icon} className="w-10 h-10 rounded-lg object-cover" alt="" />
+                : <FolderOpen size={32} style={{ color: state.folder.color || '#6366f1' }} />
+              }
+            </div>
+            <label className="cursor-pointer px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm text-white/80 transition-colors flex items-center gap-2">
+              <Upload size={14} />
+              Choose Image
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (ev) => {
+                    const src = ev.target?.result as string;
+                    const img = new window.Image();
+                    img.onload = () => {
+                      const canvas = document.createElement('canvas');
+                      canvas.width = 48; canvas.height = 48;
+                      canvas.getContext('2d')!.drawImage(img, 0, 0, 48, 48);
+                      onIconFolder(state.folder.id, canvas.toDataURL('image/png'));
+                      onClose();
+                    };
+                    img.src = src;
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </label>
+            {hasCustomIcon && (
+              <button
+                className="text-xs text-white/40 hover:text-white/70 underline"
+                onClick={() => { onIconFolder(state.folder.id, '📁'); onClose(); }}
+              >
+                Reset to default
+              </button>
+            )}
           </div>
           <DialogFooter>
             <button className="px-3 py-1.5 rounded-md text-sm text-white/60 hover:bg-white/10 transition-colors" onClick={onClose}>Cancel</button>
@@ -1064,15 +1138,18 @@ export default function BookmarkFolderPanel() {
                 {currentSubFolders.length > 0 && (
                   <div className="mb-5">
                     <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-white/30">Folders</p>
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(182px,1fr))] gap-2">
                       {currentSubFolders.map((sub) => {
                         const subColor = sub.color || '#f59e0b';
                         return (
                           <ContextMenu key={sub.id}>
                             <ContextMenuTrigger asChild>
-                              <button className="flex flex-col items-start gap-2 p-3 rounded-xl glass hover:bg-white/10 transition-all text-left" onClick={() => setSelectedFolderId(sub.id)}>
-                                <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${subColor}22` }}>
-                                  <FolderOpen size={22} style={{ color: subColor }} />
+                              <button className="flex flex-col items-start gap-3 p-4 rounded-xl glass hover:bg-white/10 transition-all text-left" onClick={() => setSelectedFolderId(sub.id)}>
+                                <div className="w-[60px] h-[60px] rounded-xl flex items-center justify-center overflow-hidden" style={{ backgroundColor: sub.icon?.startsWith('data:') ? 'transparent' : `${subColor}22` }}>
+                                  {sub.icon?.startsWith('data:')
+                                    ? <img src={sub.icon} className="w-full h-full object-cover rounded-xl" alt={sub.name} />
+                                    : <FolderOpen size={33} style={{ color: subColor }} />
+                                  }
                                 </div>
                                 <span className="truncate text-sm text-white/85 w-full font-medium">{sub.name}</span>
                                 <span className="text-[10px] text-white/30">{entryCount(sub.id)} item{entryCount(sub.id) !== 1 ? 's' : ''}</span>
@@ -1082,8 +1159,21 @@ export default function BookmarkFolderPanel() {
                               <ContextMenuItem onClick={() => setSelectedFolderId(sub.id)}><FolderOpen size={13} className="mr-2" /> Open</ContextMenuItem>
                               <ContextMenuItem onClick={() => setDialogState({ type: 'new-folder', boardId: sub.boardId, parentId: sub.id })}><FolderPlus size={13} className="mr-2" /> New Sub-Folder</ContextMenuItem>
                               <ContextMenuSeparator />
+                              {quickAccessIds.includes(sub.id) ? (
+                                <ContextMenuItem onClick={() => toggleQuickAccess(sub.id)}>
+                                  <Star size={13} className="mr-2 text-yellow-400" /> Remove from Quick Access
+                                </ContextMenuItem>
+                              ) : (
+                                <ContextMenuItem onClick={() => toggleQuickAccess(sub.id)}>
+                                  <Star size={13} className="mr-2" /> Add to Quick Access
+                                </ContextMenuItem>
+                              )}
+                              <ContextMenuSeparator />
                               <ContextMenuItem onClick={() => setDialogState({ type: 'rename-folder', folder: sub })}><Pencil size={13} className="mr-2" /> Rename</ContextMenuItem>
                               <ContextMenuItem onClick={() => setDialogState({ type: 'color-folder', folder: sub })}><Palette size={13} className="mr-2" /> Change Color</ContextMenuItem>
+                              <ContextMenuItem onClick={() => setDialogState({ type: 'icon-folder', folder: sub })}>
+                                <ImageIcon size={13} className="mr-2" /> Change Icon
+                              </ContextMenuItem>
                               <ContextMenuItem destructive onClick={() => setDialogState({ type: 'delete-folder', folder: sub })}><Trash2 size={13} className="mr-2" /> Delete</ContextMenuItem>
                             </ContextMenuContent>
                           </ContextMenu>
@@ -1171,6 +1261,7 @@ export default function BookmarkFolderPanel() {
         onCreate={handleCreate}
         onRename={async (id, name) => { await data.renameFolder(id, name); }}
         onColorFolder={async (id, color) => { await data.updateFolderColor(id, color); }}
+        onIconFolder={async (id, icon) => { await data.updateFolderIcon(id, icon); }}
         onDelete={handleDelete}
         onAddEntry={async (categoryId, title, url, category, description) => { await data.addEntry(categoryId, title, url, category, description); }}
         onEditEntry={async (id, title, url, category, description) => { await data.renameEntry(id, title, url, category, description); }}

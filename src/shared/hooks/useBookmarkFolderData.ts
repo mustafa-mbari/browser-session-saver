@@ -20,6 +20,7 @@ export interface BookmarkFolderActions {
   createSubFolder: (parentCategoryId: string, name: string, boardId: string) => Promise<BookmarkCategory>;
   renameFolder: (id: string, name: string) => Promise<void>;
   updateFolderColor: (id: string, color: string) => Promise<void>;
+  updateFolderIcon: (id: string, icon: string) => Promise<void>;
   deleteFolder: (id: string) => Promise<void>;
   addEntry: (categoryId: string, title: string, url: string, category?: string, description?: string) => Promise<BookmarkEntry>;
   renameEntry: (id: string, title: string, url: string, category?: string, description?: string) => Promise<void>;
@@ -187,6 +188,11 @@ export function useBookmarkFolderData(): BookmarkFolderState & BookmarkFolderAct
     setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, color } : c)));
   }, []);
 
+  const updateFolderIcon = useCallback(async (id: string, icon: string): Promise<void> => {
+    await BookmarkService.updateCategory(id, { icon });
+    setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, icon } : c)));
+  }, []);
+
   const deleteFolder = useCallback(async (id: string): Promise<void> => {
     // Collect all descendant IDs to remove from local state
     const toDelete = new Set<string>();
@@ -289,6 +295,7 @@ export function useBookmarkFolderData(): BookmarkFolderState & BookmarkFolderAct
     moveEntry,
     renameFolder,
     updateFolderColor,
+    updateFolderIcon,
     deleteFolder,
     addEntry,
     renameEntry,
