@@ -285,6 +285,8 @@ function FolderRow({
   quickAccessIds,
   onToggleQuickAccess,
   onSaveCurrentTab,
+  selectedFolderId,
+  onSelect,
 }: {
   folder: BookmarkCategory;
   allCategories: BookmarkCategory[];
@@ -294,8 +296,11 @@ function FolderRow({
   quickAccessIds: string[];
   onToggleQuickAccess: (id: string) => void;
   onSaveCurrentTab: (categoryId: string) => void;
+  selectedFolderId: string | null;
+  onSelect: (id: string) => void;
 }) {
   const isPinned = quickAccessIds.includes(folder.id);
+  const isSelected = selectedFolderId === folder.id;
   const [expanded, setExpanded] = useState(false);
   const folderEntries = getEntriesForCategory(folder.id);
   const childFolders = allCategories.filter(
@@ -308,13 +313,13 @@ function FolderRow({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <button
-            className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-[var(--color-bg-hover)] transition-colors text-left"
+            className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors text-left ${isSelected ? 'bg-primary/10' : 'hover:bg-[var(--color-bg-hover)]'}`}
             style={{ paddingLeft: `${8 + depth * 16}px` }}
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => { setExpanded(true); onSelect(folder.id); }}
           >
             {expanded ? <ChevronDown size={12} className="shrink-0 opacity-50" /> : <ChevronRight size={12} className="shrink-0 opacity-50" />}
             <Icon size={14} className="shrink-0" style={{ color: folder.color || '#6366f1' }} />
-            <span className="flex-1 truncate text-xs font-medium" style={{ color: 'var(--color-text)' }}>{folder.name}</span>
+            <span className={`flex-1 truncate text-xs font-medium ${isSelected ? 'text-primary' : ''}`} style={isSelected ? undefined : { color: 'var(--color-text)' }}>{folder.name}</span>
             <span className="text-[10px] opacity-40 shrink-0">{folderEntries.length}</span>
           </button>
         </ContextMenuTrigger>
@@ -359,6 +364,8 @@ function FolderRow({
               quickAccessIds={quickAccessIds}
               onToggleQuickAccess={onToggleQuickAccess}
               onSaveCurrentTab={onSaveCurrentTab}
+              selectedFolderId={selectedFolderId}
+              onSelect={onSelect}
             />
           ))}
           {folderEntries.map((entry) => (
@@ -384,11 +391,15 @@ function QuickAccessSection({
   categories,
   getEntriesForCategory,
   onRemove,
+  selectedId,
+  onSelect,
 }: {
   quickIds: string[];
   categories: BookmarkCategory[];
   getEntriesForCategory: (id: string) => BookmarkEntry[];
   onRemove: (id: string) => void;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const items = quickIds.map((id) => categories.find((c) => c.id === id)).filter((c): c is BookmarkCategory => !!c);
@@ -408,16 +419,18 @@ function QuickAccessSection({
         <div className="mt-0.5">
           {items.map((folder) => {
             const count = getEntriesForCategory(folder.id).length;
+            const isSelected = selectedId === folder.id;
             return (
               <div
                 key={folder.id}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded hover:bg-[var(--color-bg-hover)] transition-colors group"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors group cursor-pointer ${isSelected ? 'bg-primary/10' : 'hover:bg-[var(--color-bg-hover)]'}`}
+                onClick={() => onSelect(folder.id)}
               >
                 <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: folder.color || '#6366f1' }} />
-                <span className="flex-1 truncate text-xs" style={{ color: 'var(--color-text)' }}>{folder.name}</span>
+                <span className={`flex-1 truncate text-xs ${isSelected ? 'text-primary font-medium' : ''}`} style={isSelected ? undefined : { color: 'var(--color-text)' }}>{folder.name}</span>
                 <span className="text-[10px] opacity-40 shrink-0">{count}</span>
                 <button
-                  onClick={() => onRemove(folder.id)}
+                  onClick={(e) => { e.stopPropagation(); onRemove(folder.id); }}
                   className="p-0.5 rounded opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity"
                   aria-label="Remove from Quick Access"
                 >
@@ -538,8 +551,18 @@ export default function FoldersView() {
     deleteEntry,
     saveCurrentTab,
     getEntriesForCategory,
+    getFolderPath,
   } = useBookmarkFolderData();
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  const handleSaveTab = async () => {
+    if (!selectedFolderId) return;
+    const entry = await saveCurrentTab(selectedFolderId);
+    setSaveMsg(entry ? '✓ Saved' : 'Failed');
+    setTimeout(() => setSaveMsg(null), 2000);
+  };
 
   // Quick Access state
   const [quickAccessIds, setQuickAccessIds] = useState<string[]>([]);
@@ -574,14 +597,42 @@ export default function FoldersView() {
     );
   }
 
+  const folderPath = selectedFolderId ? getFolderPath(selectedFolderId) : [];
+  const fullPathLabel = folderPath.map((f) => f.name).join(' / ');
+  const pathLabel = folderPath.length === 0
+    ? null
+    : folderPath.length <= 2
+      ? fullPathLabel
+      : `.. / ${folderPath.slice(-2).map((f) => f.name).join(' / ')}`;
+
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
       {/* Header bar */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)]">
-        <span className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>Folders</span>
+      <div className="flex items-center gap-1 px-3 py-2 border-b border-[var(--color-border)]">
+        {pathLabel ? (
+          <span
+            className="flex-1 truncate text-xs font-semibold text-primary min-w-0"
+            title={fullPathLabel}
+            style={{ color: 'var(--color-text)' }}
+          >
+            {pathLabel}
+          </span>
+        ) : (
+          <span className="flex-1 text-xs font-semibold" style={{ color: 'var(--color-text)' }}>Folders</span>
+        )}
+        <button
+          disabled={!selectedFolderId}
+          onClick={() => void handleSaveTab()}
+          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-[var(--color-bg-hover)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          style={{ color: saveMsg === '✓ Saved' ? 'var(--color-success, #22c55e)' : saveMsg === 'Failed' ? '#ef4444' : 'var(--color-text)' }}
+          title={selectedFolderId ? 'Save current browser tab to this folder' : 'Select a folder first'}
+        >
+          <Save size={12} />
+          {saveMsg ?? 'Save Tab'}
+        </button>
         <button
           onClick={() => setDialog({ type: 'new-folder', boardId: defaultBoardId })}
-          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-primary hover:bg-[var(--color-bg-hover)] transition-colors"
+          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-primary hover:bg-[var(--color-bg-hover)] transition-colors shrink-0"
         >
           <FolderPlus size={12} />
           New Folder
@@ -596,6 +647,8 @@ export default function FoldersView() {
           categories={bookmarkCategories}
           getEntriesForCategory={getEntriesForCategory}
           onRemove={toggleQuickAccess}
+          selectedId={selectedFolderId}
+          onSelect={setSelectedFolderId}
         />
 
         {/* My Folders */}
@@ -630,6 +683,8 @@ export default function FoldersView() {
                 quickAccessIds={quickAccessIds}
                 onToggleQuickAccess={toggleQuickAccess}
                 onSaveCurrentTab={(categoryId) => { void saveCurrentTab(categoryId); }}
+                selectedFolderId={selectedFolderId}
+                onSelect={setSelectedFolderId}
               />
             ))
           )}
