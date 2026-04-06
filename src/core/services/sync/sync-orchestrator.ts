@@ -429,8 +429,22 @@ async function syncPrompts(userId: string, quota: UserQuota): Promise<number> {
 
 async function syncSubscriptions(userId: string, quota: UserQuota): Promise<number> {
   const allSubs = await SubscriptionStorage.getAll();
-  if (allSubs.length === 0) return 0;
-  return _subscriptionSyncAdapter.push(allSubs, userId, quota.subs_synced_limit);
+  const count = allSubs.length === 0 ? 0 : await _subscriptionSyncAdapter.push(allSubs, userId, quota.subs_synced_limit);
+
+  // Reliable orphan-delete: fetch remote IDs, diff against local, delete by ID.
+  const { data: remoteIdRows, error: rErr } = await supabase
+    .from('tracked_subscriptions').select('id').eq('user_id', userId);
+  if (rErr) throw new Error(`Subscription remote-fetch failed: ${rErr.message}`);
+
+  const localIdSet = new Set(allSubs.map((s) => s.id));
+  const orphanIds = (remoteIdRows ?? []).map((r) => r.id as string).filter((id) => !localIdSet.has(id));
+  if (orphanIds.length > 0) {
+    const { error } = await supabase
+      .from('tracked_subscriptions').delete().eq('user_id', userId).in('id', orphanIds);
+    if (error) throw new Error(`Subscription orphan-delete failed: ${error.message}`);
+  }
+
+  return count;
 }
 
 async function syncBookmarkFolders(
@@ -646,9 +660,18 @@ async function pullPrompts(userId: string): Promise<number> {
 
 async function pullSubscriptions(userId: string): Promise<number> {
   const remoteSubs = await _subscriptionSyncAdapter.pull(userId);
-  if (remoteSubs.length === 0) return 0;
+  const remoteIds = new Set(remoteSubs.map((s) => s.id));
 
-  await SubscriptionStorage.importMany(remoteSubs);
+  if (remoteSubs.length > 0) {
+    await SubscriptionStorage.importMany(remoteSubs);
+  }
+
+  // Reconcile: delete local subs that no longer exist on remote.
+  // Prevents a deleted sub from being re-surfaced if push ran before pull cleaned up remote.
+  const localSubs = await SubscriptionStorage.getAll();
+  const orphans = localSubs.filter((s) => !remoteIds.has(s.id));
+  await Promise.all(orphans.map((s) => SubscriptionStorage.delete(s.id)));
+
   return remoteSubs.length;
 }
 
