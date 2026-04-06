@@ -14,31 +14,31 @@ function isLocalHost(hostname: string, protocol: string): boolean {
 }
 
 /**
- * Primary favicon source: DuckDuckGo's service.
- * Returns a placeholder instead of 404 for unknown domains (prevents console noise).
- * May be blocked on corporate/enterprise networks — use getFaviconFallbackUrl() as fallback.
+ * Primary favicon source: Google's favicon service.
+ * Widely reachable including on corporate/enterprise networks.
+ * Supports size via the `sz` parameter.
  */
 export function getFaviconUrl(url: string, size = 32): string {
   try {
     const { hostname, protocol } = new URL(url);
     if (isLocalHost(hostname, protocol)) return '';
-    void size;
-    return `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
+    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=${size}`;
   } catch {
     return '';
   }
 }
 
 /**
- * Secondary favicon source: Google's favicon service.
- * More universally reachable on corporate/enterprise networks where DuckDuckGo
- * may be blocked. Used as an automatic fallback when getFaviconUrl() fails.
+ * Secondary favicon source: DuckDuckGo's service.
+ * Returns a placeholder instead of 404 for unknown domains (prevents console noise).
+ * Used as an automatic fallback when getFaviconUrl() fails.
  */
 export function getFaviconFallbackUrl(url: string, size = 32): string {
   try {
     const { hostname, protocol } = new URL(url);
     if (isLocalHost(hostname, protocol)) return '';
-    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=${size}`;
+    void size;
+    return `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
   } catch {
     return '';
   }

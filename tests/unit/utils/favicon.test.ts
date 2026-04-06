@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { getFaviconUrl, getFaviconInitial, resolveFavIcon } from '@core/utils/favicon';
 
 describe('getFaviconUrl', () => {
-  it('returns DuckDuckGo favicon URL for a valid HTTPS domain', () => {
-    expect(getFaviconUrl('https://github.com')).toBe('https://icons.duckduckgo.com/ip3/github.com.ico');
+  it('returns Google favicon URL for a valid HTTPS domain', () => {
+    expect(getFaviconUrl('https://github.com')).toBe('https://www.google.com/s2/favicons?domain=github.com&sz=32');
   });
 
-  it('returns DuckDuckGo favicon URL for HTTP domains', () => {
-    expect(getFaviconUrl('http://example.com/page')).toBe('https://icons.duckduckgo.com/ip3/example.com.ico');
+  it('returns Google favicon URL for HTTP domains', () => {
+    expect(getFaviconUrl('http://example.com/page')).toBe('https://www.google.com/s2/favicons?domain=example.com&sz=32');
   });
 
   it('returns empty string for chrome:// URLs', () => {
@@ -47,9 +47,9 @@ describe('getFaviconUrl', () => {
     expect(getFaviconUrl('')).toBe('');
   });
 
-  it('ignores the size parameter (kept for signature compatibility)', () => {
+  it('respects the size parameter', () => {
     const url = getFaviconUrl('https://github.com', 64);
-    expect(url).toBe('https://icons.duckduckgo.com/ip3/github.com.ico');
+    expect(url).toBe('https://www.google.com/s2/favicons?domain=github.com&sz=64');
   });
 });
 
@@ -77,18 +77,18 @@ describe('resolveFavIcon', () => {
   });
 
   it('falls back to getFaviconUrl when stored is undefined', () => {
-    expect(resolveFavIcon(undefined, 'https://github.com')).toBe('https://icons.duckduckgo.com/ip3/github.com.ico');
+    expect(resolveFavIcon(undefined, 'https://github.com')).toBe('https://www.google.com/s2/favicons?domain=github.com&sz=32');
   });
 
   it('falls back to getFaviconUrl when stored is empty string', () => {
-    expect(resolveFavIcon('', 'https://github.com')).toBe('https://icons.duckduckgo.com/ip3/github.com.ico');
+    expect(resolveFavIcon('', 'https://github.com')).toBe('https://www.google.com/s2/favicons?domain=github.com&sz=32');
   });
 
   it('falls back to getFaviconUrl when stored is chrome:// URL', () => {
-    expect(resolveFavIcon('chrome://favicon/https://example.com', 'https://example.com')).toBe('https://icons.duckduckgo.com/ip3/example.com.ico');
+    expect(resolveFavIcon('chrome://favicon/https://example.com', 'https://example.com')).toBe('https://www.google.com/s2/favicons?domain=example.com&sz=32');
   });
 
   it('falls back to getFaviconUrl when stored is edge:// URL', () => {
-    expect(resolveFavIcon('edge://favicon/https://example.com', 'https://example.com')).toBe('https://icons.duckduckgo.com/ip3/example.com.ico');
+    expect(resolveFavIcon('edge://favicon/https://example.com', 'https://example.com')).toBe('https://www.google.com/s2/favicons?domain=example.com&sz=32');
   });
 });
