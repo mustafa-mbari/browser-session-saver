@@ -15,7 +15,6 @@ import {
   Trash2,
   FolderPlus,
   Palette,
-  X,
   Save,
 } from 'lucide-react';
 import {
@@ -315,9 +314,14 @@ function FolderRow({
           <button
             className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors text-left ${isSelected ? 'bg-primary/10' : 'hover:bg-[var(--color-bg-hover)]'}`}
             style={{ paddingLeft: `${8 + depth * 16}px` }}
-            onClick={() => { setExpanded(true); onSelect(folder.id); }}
+            onClick={() => onSelect(folder.id)}
           >
-            {expanded ? <ChevronDown size={12} className="shrink-0 opacity-50" /> : <ChevronRight size={12} className="shrink-0 opacity-50" />}
+            <span
+              className="shrink-0"
+              onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+            >
+              {expanded ? <ChevronDown size={12} className="opacity-50" /> : <ChevronRight size={12} className="opacity-50" />}
+            </span>
             <Icon size={14} className="shrink-0" style={{ color: folder.color || '#6366f1' }} />
             <span className={`flex-1 truncate text-xs font-medium ${isSelected ? 'text-primary' : ''}`} style={isSelected ? undefined : { color: 'var(--color-text)' }}>{folder.name}</span>
             <span className="text-[10px] opacity-40 shrink-0">{folderEntries.length}</span>
@@ -393,6 +397,8 @@ function QuickAccessSection({
   onRemove,
   selectedId,
   onSelect,
+  onDialog,
+  onSaveCurrentTab,
 }: {
   quickIds: string[];
   categories: BookmarkCategory[];
@@ -400,6 +406,8 @@ function QuickAccessSection({
   onRemove: (id: string) => void;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onDialog: (d: DialogState) => void;
+  onSaveCurrentTab: (categoryId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const items = quickIds.map((id) => categories.find((c) => c.id === id)).filter((c): c is BookmarkCategory => !!c);
@@ -417,28 +425,21 @@ function QuickAccessSection({
       </button>
       {expanded && (
         <div className="mt-0.5">
-          {items.map((folder) => {
-            const count = getEntriesForCategory(folder.id).length;
-            const isSelected = selectedId === folder.id;
-            return (
-              <div
-                key={folder.id}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors group cursor-pointer ${isSelected ? 'bg-primary/10' : 'hover:bg-[var(--color-bg-hover)]'}`}
-                onClick={() => onSelect(folder.id)}
-              >
-                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: folder.color || '#6366f1' }} />
-                <span className={`flex-1 truncate text-xs ${isSelected ? 'text-primary font-medium' : ''}`} style={isSelected ? undefined : { color: 'var(--color-text)' }}>{folder.name}</span>
-                <span className="text-[10px] opacity-40 shrink-0">{count}</span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onRemove(folder.id); }}
-                  className="p-0.5 rounded opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity"
-                  aria-label="Remove from Quick Access"
-                >
-                  <X size={10} style={{ color: 'var(--color-text)' }} />
-                </button>
-              </div>
-            );
-          })}
+          {items.map((folder) => (
+            <FolderRow
+              key={folder.id}
+              folder={folder}
+              allCategories={categories}
+              getEntriesForCategory={getEntriesForCategory}
+              onDialog={onDialog}
+              depth={0}
+              quickAccessIds={quickIds}
+              onToggleQuickAccess={onRemove}
+              onSaveCurrentTab={onSaveCurrentTab}
+              selectedFolderId={selectedId}
+              onSelect={onSelect}
+            />
+          ))}
           {items.length === 0 && (
             <p className="px-4 py-1 text-[11px] opacity-30 italic" style={{ color: 'var(--color-text)' }}>
               Right-click a folder to pin it here
@@ -649,6 +650,8 @@ export default function FoldersView() {
           onRemove={toggleQuickAccess}
           selectedId={selectedFolderId}
           onSelect={setSelectedFolderId}
+          onDialog={setDialog}
+          onSaveCurrentTab={(categoryId) => { void saveCurrentTab(categoryId); }}
         />
 
         {/* My Folders */}
