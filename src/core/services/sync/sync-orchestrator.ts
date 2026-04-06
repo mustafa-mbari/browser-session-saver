@@ -423,8 +423,31 @@ async function syncPrompts(userId: string, quota: UserQuota): Promise<number> {
   }
 
   const localPrompts = allPrompts.filter((p) => p.source === 'local');
-  if (localPrompts.length === 0) return 0;
-  return _promptSyncAdapter.push(localPrompts, userId, quota.prompts_create_limit);
+  const count = localPrompts.length === 0 ? 0 : await _promptSyncAdapter.push(localPrompts, userId, quota.prompts_create_limit);
+
+  // Reliable orphan-delete: fetch remote IDs, diff against local, delete by ID.
+  const [{ data: remotePromptIdRows, error: rpErr }, { data: remoteFolderIdRows, error: rfErr }] = await Promise.all([
+    supabase.from('prompts').select('id').eq('user_id', userId),
+    supabase.from('prompt_folders').select('id').eq('user_id', userId),
+  ]);
+  if (rpErr) throw new Error(`Prompts remote-fetch failed: ${rpErr.message}`);
+  if (rfErr) throw new Error(`Prompt folders remote-fetch failed: ${rfErr.message}`);
+
+  const localPromptIdSet = new Set(localPrompts.map((p) => p.id));
+  const localFolderIdSet = new Set(localFolders.map((f) => f.id));
+  const orphanPromptIds = (remotePromptIdRows ?? []).map((r) => r.id as string).filter((id) => !localPromptIdSet.has(id));
+  const orphanFolderIds = (remoteFolderIdRows ?? []).map((r) => r.id as string).filter((id) => !localFolderIdSet.has(id));
+
+  if (orphanPromptIds.length > 0) {
+    const { error } = await supabase.from('prompts').delete().eq('user_id', userId).in('id', orphanPromptIds);
+    if (error) throw new Error(`Prompts orphan-delete failed: ${error.message}`);
+  }
+  if (orphanFolderIds.length > 0) {
+    const { error } = await supabase.from('prompt_folders').delete().eq('user_id', userId).in('id', orphanFolderIds);
+    if (error) throw new Error(`Prompt folders orphan-delete failed: ${error.message}`);
+  }
+
+  return count;
 }
 
 async function syncSubscriptions(userId: string, quota: UserQuota): Promise<number> {
@@ -485,14 +508,21 @@ async function syncBookmarkFolders(
   }
 
   // Reliable orphan-delete: fetch remote IDs, diff against local, delete by ID.
-  const { data: remoteFolderIdRows } = await supabase
-    .from('bookmark_folders').select('id').eq('user_id', userId);
+  const [{ data: remoteFolderIdRows }, { data: remoteEntryIdRows }] = await Promise.all([
+    supabase.from('bookmark_folders').select('id').eq('user_id', userId),
+    supabase.from('bookmark_entries').select('id').eq('user_id', userId),
+  ]);
+
   const localFolderIdSet = new Set(toSyncFolders.map((c) => c.id));
-  const orphanFolderIds = (remoteFolderIdRows ?? [])
-    .map((r) => r.id as string)
-    .filter((id) => !localFolderIdSet.has(id));
+  const orphanFolderIds = (remoteFolderIdRows ?? []).map((r) => r.id as string).filter((id) => !localFolderIdSet.has(id));
   if (orphanFolderIds.length > 0) {
     await supabase.from('bookmark_folders').delete().eq('user_id', userId).in('id', orphanFolderIds);
+  }
+
+  const localEntryIdSet = new Set(limitedEntries.map((e) => e.id));
+  const orphanEntryIds = (remoteEntryIdRows ?? []).map((r) => r.id as string).filter((id) => !localEntryIdSet.has(id));
+  if (orphanEntryIds.length > 0) {
+    await supabase.from('bookmark_entries').delete().eq('user_id', userId).in('id', orphanEntryIds);
   }
 
   return toSyncFolders.length;
@@ -655,6 +685,17 @@ async function pullPrompts(userId: string): Promise<number> {
     ...newPrompts.map((p) => PromptStorage.save(p)),
   ]);
 
+  // Reconcile: delete local 'local'-source prompts/folders not in remote set.
+  // 'app'-source items are seeded separately and must not be touched.
+  const remotePromptIds = new Set(remotePrompts.map((p) => p.id));
+  const remoteFolderIds = new Set(remoteFolders.map((f) => f.id));
+  const orphanPrompts = existingPrompts.filter((p) => p.source === 'local' && !remotePromptIds.has(p.id));
+  const orphanFolders = existingFolders.filter((f) => f.source === 'local' && !remoteFolderIds.has(f.id));
+
+  // Delete orphan prompts first, then folders (deleteFolder re-parents child prompts).
+  await Promise.all(orphanPrompts.map((p) => PromptStorage.delete(p.id)));
+  await Promise.all(orphanFolders.map((f) => PromptStorage.deleteFolder(f.id)));
+
   return newPrompts.length;
 }
 
@@ -677,13 +718,21 @@ async function pullSubscriptions(userId: string): Promise<number> {
 
 async function pullTabGroupTemplates(userId: string): Promise<number> {
   const remoteTemplates = await _tabGroupSyncAdapter.pull(userId);
-  if (remoteTemplates.length === 0) return 0;
+  const remoteKeys = new Set(remoteTemplates.map((t) => t.key));
 
-  const existing = await TabGroupTemplateStorage.getAll();
-  const existingKeys = new Set(existing.map((t) => t.key));
-  const toWrite = remoteTemplates.filter((t) => !existingKeys.has(t.key));
-  await Promise.all(toWrite.map((t) => TabGroupTemplateStorage.upsert(t)));
-  return toWrite.length;
+  if (remoteTemplates.length > 0) {
+    const existing = await TabGroupTemplateStorage.getAll();
+    const existingKeys = new Set(existing.map((t) => t.key));
+    const toWrite = remoteTemplates.filter((t) => !existingKeys.has(t.key));
+    await Promise.all(toWrite.map((t) => TabGroupTemplateStorage.upsert(t)));
+  }
+
+  // Reconcile: delete local templates whose key no longer exists on remote.
+  const allLocal = await TabGroupTemplateStorage.getAll();
+  const orphans = allLocal.filter((t) => !remoteKeys.has(t.key));
+  await Promise.all(orphans.map((t) => TabGroupTemplateStorage.delete(t.key)));
+
+  return remoteTemplates.length;
 }
 
 async function pullBookmarkFolders(userId: string): Promise<number> {
@@ -721,6 +770,14 @@ async function pullBookmarkFolders(userId: string): Promise<number> {
     ...newEntries.map((r) =>
       db.put<BookmarkEntry>('bookmarkEntries', bookmarkEntryFromRowWithContext(r, now)),
     ),
+  ]);
+
+  // Reconcile: delete local folders/entries that no longer exist on remote.
+  const remoteFolderIdSet = new Set((folderRows as Record<string, unknown>[]).map((r) => r.id as string));
+  const remoteEntryIdSet = new Set(allEntries.map((r) => r.id as string));
+  await Promise.all([
+    ...existingFolders.filter((c) => !remoteFolderIdSet.has(c.id)).map((c) => db.delete('bookmarkCategories', c.id)),
+    ...existingEntries.filter((e) => !remoteEntryIdSet.has(e.id)).map((e) => db.delete('bookmarkEntries', e.id)),
   ]);
 
   return newFolders.length;
