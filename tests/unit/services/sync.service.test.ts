@@ -152,7 +152,9 @@ describe('sync.service', () => {
     mockGetAllSessions.mockResolvedValue([makeSession()]);
 
     // Supabase from() mock: supports upsert, delete, and select chains.
-    // select('id').eq(...) is used for orphan-delete (fetch remote IDs before diff).
+    // delete/select chains are kept as no-ops because the explicit per-entity
+    // delete API (deleteRemoteSession) still calls them; sync push paths no
+    // longer issue orphan-deletes.
     const mockUpsert = vi.fn().mockResolvedValue({ error: null });
     const mockDeleteChain = {
       eq: vi.fn().mockReturnThis(),

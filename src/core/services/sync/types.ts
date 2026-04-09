@@ -19,6 +19,7 @@ export interface UserQuota {
   tab_groups_synced_limit: number | null;
   todos_synced_limit: number | null;
   dashboard_syncs_limit: number | null;
+  quick_links_synced_limit: number | null;
   sync_enabled: boolean;
 }
 
@@ -30,6 +31,7 @@ export interface SyncUsage {
   folders: number;
   tabGroups: number;
   todos: number;
+  quickLinks: number;
 }
 
 export interface DashboardSyncResult {
@@ -66,6 +68,7 @@ export interface PullResult {
     tabGroups: number;
     folders: number;
     todos: number;
+    quickLinks: number;
   };
   error?: string;
 }

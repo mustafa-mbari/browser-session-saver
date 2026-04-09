@@ -1,4 +1,6 @@
 import { newtabDB } from '@core/storage/newtab-storage';
+import { recordDeletion, recordDeletions } from '@core/storage/deletion-log';
+import { notifySyncMutation } from '@core/services/sync-trigger';
 import type { TodoItem, TodoList, BookmarkCategory } from '@core/types/newtab.types';
 import { generateId } from '@core/utils/uuid';
 import { nowISO } from '@core/utils/date';
@@ -20,6 +22,7 @@ export async function saveTodoList(
 ): Promise<TodoList> {
   const list: TodoList = { ...data, id: generateId(), createdAt: nowISO() };
   await db.put(LISTS, list);
+  notifySyncMutation();
   return list;
 }
 
@@ -30,6 +33,7 @@ export async function updateTodoList(
   const existing = await db.get<TodoList>(LISTS, id);
   if (!existing) return;
   await db.put(LISTS, { ...existing, ...updates });
+  notifySyncMutation();
 }
 
 export async function deleteTodoList(id: string): Promise<void> {
@@ -39,6 +43,9 @@ export async function deleteTodoList(id: string): Promise<void> {
     ...items.map((item) => removeTodoFromCardNoteContent(item.id)),
   ]);
   await db.delete(LISTS, id);
+  await recordDeletion('todo_lists', id);
+  await recordDeletions('todo_items', items.map((i) => i.id));
+  notifySyncMutation();
 }
 
 // ─── TodoItem ──────────────────────────────────────────────────────────────────
@@ -53,6 +60,7 @@ export async function saveTodoItem(
 ): Promise<TodoItem> {
   const item: TodoItem = { ...data, id: generateId(), createdAt: nowISO() };
   await db.put(ITEMS, item);
+  notifySyncMutation();
   return item;
 }
 
@@ -63,6 +71,7 @@ export async function updateTodoItem(
   const existing = await db.get<TodoItem>(ITEMS, id);
   if (!existing) return;
   await db.put(ITEMS, { ...existing, ...updates });
+  notifySyncMutation();
 }
 
 export async function deleteTodoItem(id: string): Promise<void> {
@@ -70,6 +79,8 @@ export async function deleteTodoItem(id: string): Promise<void> {
   // Also remove from any dashboard card's noteContent so the sync
   // harvester doesn't re-create the deleted item from stale JSON.
   await removeTodoFromCardNoteContent(id);
+  await recordDeletion('todo_items', id);
+  notifySyncMutation();
 }
 
 export async function reorderTodoItems(
@@ -85,6 +96,7 @@ export async function reorderTodoItems(
       return Promise.resolve();
     }),
   );
+  notifySyncMutation();
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────

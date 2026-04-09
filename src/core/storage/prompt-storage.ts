@@ -1,6 +1,8 @@
 import type { Prompt, PromptCategory, PromptFolder, PromptTag } from '@core/types/prompt.types';
 import { ChromeLocalKeyAdapter } from './chrome-local-key-adapter';
 import { ChromeLocalArrayRepository } from './chrome-local-array-repository';
+import { recordDeletion, recordDeletions } from './deletion-log';
+import { notifySyncMutation } from '@core/services/sync-trigger';
 
 const promptsRepo = new ChromeLocalArrayRepository<Prompt>('prompts');
 const foldersRepo = new ChromeLocalArrayRepository<PromptFolder>('prompt_folders');
@@ -28,18 +30,30 @@ export const PromptStorage = {
 
   async save(prompt: Prompt): Promise<void> {
     await promptsRepo.save(prompt);
+    notifySyncMutation();
   },
 
   async update(id: string, updates: Partial<Prompt>): Promise<void> {
     await promptsRepo.update(id, { ...updates, updatedAt: new Date().toISOString() } as Partial<Prompt>);
+    notifySyncMutation();
   },
 
   async delete(id: string): Promise<void> {
+    const existing = await promptsRepo.getById(id);
     await promptsRepo.delete(id);
+    // Only local prompts are pushed to Supabase, so tombstones for app-source
+    // prompts would be meaningless (they do not exist on remote).
+    if (existing && existing.source !== 'app') {
+      await recordDeletion('prompts', id);
+    }
+    notifySyncMutation();
   },
 
   async deleteAll(): Promise<void> {
+    const all = await promptsRepo.getAll();
     await promptsRepo.replaceAll([]);
+    await recordDeletions('prompts', all.filter((p) => p.source !== 'app').map((p) => p.id));
+    notifySyncMutation();
   },
 
   async trackUsage(id: string): Promise<void> {
@@ -66,6 +80,7 @@ export const PromptStorage = {
 
   async saveFolder(folder: PromptFolder): Promise<void> {
     await foldersRepo.save(folder);
+    notifySyncMutation();
   },
 
   async deleteFolder(id: string): Promise<void> {
@@ -91,6 +106,11 @@ export const PromptStorage = {
       foldersRepo.replaceAll(updatedFolders),
       promptsRepo.replaceAll(updatedPrompts),
     ]);
+    // Only local folders are pushed to Supabase.
+    if (folder && folder.source !== 'app') {
+      await recordDeletion('prompt_folders', id);
+    }
+    notifySyncMutation();
   },
 
   // ── Categories ──────────────────────────────────────────────────────────

@@ -9,3 +9,4 @@ export {
   bookmarkEntryFromRowWithContext,
 } from './bookmark.mapper';
 export { todoListMapper, todoItemMapper } from './todo.mapper';
+export { quicklinkMapper } from './quicklink.mapper';

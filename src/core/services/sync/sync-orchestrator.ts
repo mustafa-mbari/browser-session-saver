@@ -26,8 +26,9 @@ import { subscriptionMapper } from './row-mappers/subscription.mapper';
 import { tabGroupTemplateRawMapper } from './row-mappers/tab-group.mapper';
 import { bookmarkCategoryMapper, bookmarkEntryMapper, bookmarkCategoryFromRowWithContext, bookmarkEntryFromRowWithContext } from './row-mappers/bookmark.mapper';
 import { todoListMapper, todoItemMapper } from './row-mappers/todo.mapper';
-import { enforceQuota } from './quota';
+import { quicklinkMapper } from './row-mappers/quicklink.mapper';
 import { isExcludedUrl, collectAllSyncableUrls } from './url-filter';
+import { getDeletions, clearDeletions, recordDeletions, type DeletionEntity } from '@core/storage/deletion-log';
 import type {
   UserQuota,
   SyncUsage,
@@ -39,7 +40,7 @@ import type {
 import type { Session } from '@core/types/session.types';
 import type { Prompt, PromptFolder } from '@core/types/prompt.types';
 import type { Subscription } from '@core/types/subscription.types';
-import type { BookmarkCategory, BookmarkEntry, TodoList, TodoItem } from '@core/types/newtab.types';
+import type { BookmarkCategory, BookmarkEntry, TodoList, TodoItem, QuickLink } from '@core/types/newtab.types';
 import type { TabGroupTemplate } from '@core/types/tab-group.types';
 
 // ─── Internal state ──────────────────────────────────────────────────────────
@@ -134,7 +135,7 @@ export async function getSyncStatus(): Promise<SyncStatus> {
  * Safe to call concurrently — concurrent calls are no-ops if already syncing.
  */
 export async function syncAll(): Promise<SyncResult> {
-  const _emptyUsage: SyncUsage = { sessions: 0, prompts: 0, subs: 0, tabs: 0, folders: 0, tabGroups: 0, todos: 0 };
+  const _emptyUsage: SyncUsage = { sessions: 0, prompts: 0, subs: 0, tabs: 0, folders: 0, tabGroups: 0, todos: 0, quickLinks: 0 };
 
   if (_isSyncing) {
     return { success: false, synced: _emptyUsage, error: 'Sync already in progress' };
@@ -148,13 +149,18 @@ export async function syncAll(): Promise<SyncResult> {
   _isSyncing = true;
   await persistStatus({ isSyncing: true, error: null });
 
-  const synced: SyncUsage = { sessions: 0, prompts: 0, subs: 0, tabs: 0, folders: 0, tabGroups: 0, todos: 0 };
+  const synced: SyncUsage = { sessions: 0, prompts: 0, subs: 0, tabs: 0, folders: 0, tabGroups: 0, todos: 0, quickLinks: 0 };
 
   try {
     const quota = await getUserQuota(userId);
     if (!quota.sync_enabled) {
       throw new Error('Sync is not enabled on your current plan. Upgrade to Pro or Max to enable cloud sync.');
     }
+
+    // Flush the tombstone queue FIRST — explicit user-initiated deletions must
+    // propagate before anything else. On success each queue is cleared; on
+    // failure the ids stay in the queue and get retried on the next cycle.
+    await flushDeletionLog(userId);
 
     // Load all local data upfront for global URL dedup check
     const [allSessions, allTemplates] = await Promise.all([
@@ -177,21 +183,23 @@ export async function syncAll(): Promise<SyncResult> {
     }
 
     // Push in parallel — all targets are independent
-    const [sessionCount, promptCount, subCount, folderCount, tabGroupCount, todoCount] = await Promise.all([
+    const [sessionCount, promptCount, subCount, folderCount, tabGroupCount, todoCount, quickLinkCount] = await Promise.all([
       syncSessions(userId, quota, allSessions),
       syncPrompts(userId, quota),
       syncSubscriptions(userId, quota),
       syncBookmarkFolders(userId, quota, allBmEntries),
       syncTabGroupTemplates(userId, allTemplates, quota),
       syncTodos(userId, quota),
+      syncQuickLinks(userId),
     ]);
 
-    synced.sessions  = sessionCount;
-    synced.prompts   = promptCount;
-    synced.subs      = subCount;
-    synced.folders   = folderCount;
-    synced.tabGroups = tabGroupCount;
-    synced.todos     = todoCount;
+    synced.sessions   = sessionCount;
+    synced.prompts    = promptCount;
+    synced.subs       = subCount;
+    synced.folders    = folderCount;
+    synced.tabGroups  = tabGroupCount;
+    synced.todos      = todoCount;
+    synced.quickLinks = quickLinkCount;
 
     const now = new Date().toISOString();
     const actualUsage = await fetchActualUsage(userId).catch(() => null);
@@ -299,12 +307,61 @@ export async function pullDashboard(userId: string): Promise<DashboardSyncResult
 }
 
 /**
+ * Drain the deletion-log tombstone queue: for each entity, issue an explicit
+ * Supabase DELETE filtered by `user_id` and the pending ids, then clear the
+ * queue on success. Ids stay in the queue on failure and get retried next run.
+ *
+ * This is how user-initiated deletions propagate to the cloud now that
+ * orphan-delete has been removed from the push/pull paths.
+ */
+async function flushDeletionLog(userId: string): Promise<void> {
+  // id-keyed entities — all use `id` as the delete filter column.
+  const idEntities: DeletionEntity[] = [
+    'sessions',
+    'prompts',
+    'prompt_folders',
+    'tracked_subscriptions',
+    'bookmark_folders',
+    'bookmark_entries',
+    'todo_lists',
+    'todo_items',
+    'quick_links',
+  ];
+
+  for (const entity of idEntities) {
+    const ids = await getDeletions(entity);
+    if (ids.length === 0) continue;
+    const { error } = await supabase.from(entity).delete().eq('user_id', userId).in('id', ids);
+    if (error) {
+      console.warn(`[sync] tombstone flush failed for ${entity}:`, error.message);
+      continue; // leave ids in the queue for next retry
+    }
+    await clearDeletions(entity, ids);
+  }
+
+  // tab_group_templates is keyed by (user_id, key) — the tombstone stores `key`.
+  const tabGroupKeys = await getDeletions('tab_group_templates');
+  if (tabGroupKeys.length > 0) {
+    const { error } = await supabase
+      .from('tab_group_templates')
+      .delete()
+      .eq('user_id', userId)
+      .in('key', tabGroupKeys);
+    if (error) {
+      console.warn('[sync] tombstone flush failed for tab_group_templates:', error.message);
+    } else {
+      await clearDeletions('tab_group_templates', tabGroupKeys);
+    }
+  }
+}
+
+/**
  * Pull all synced data from Supabase and merge it into local storage.
  * Existing local items are preserved (merge by ID — no overwrites).
  * Safe to call on a new device right after sign-in.
  */
 export async function pullAll(): Promise<PullResult> {
-  const emptyPulled = { sessions: 0, prompts: 0, subs: 0, tabGroups: 0, folders: 0, todos: 0 };
+  const emptyPulled = { sessions: 0, prompts: 0, subs: 0, tabGroups: 0, folders: 0, todos: 0, quickLinks: 0 };
 
   const userId = await getSyncUserId();
   if (!userId) {
@@ -312,13 +369,14 @@ export async function pullAll(): Promise<PullResult> {
   }
 
   try {
-    const [sessionCount, promptCount, subCount, tabGroupCount, folderCount, todoCount] = await Promise.all([
+    const [sessionCount, promptCount, subCount, tabGroupCount, folderCount, todoCount, quickLinkCount] = await Promise.all([
       pullSessions(userId),
       pullPrompts(userId),
       pullSubscriptions(userId),
       pullTabGroupTemplates(userId),
       pullBookmarkFolders(userId),
       pullTodos(userId),
+      pullQuickLinks(userId),
     ]);
 
     return {
@@ -330,6 +388,7 @@ export async function pullAll(): Promise<PullResult> {
         tabGroups: tabGroupCount,
         folders: folderCount,
         todos: todoCount,
+        quickLinks: quickLinkCount,
       },
     };
   } catch (err) {
@@ -365,6 +424,7 @@ export async function getUserQuota(userId: string): Promise<UserQuota> {
       tab_groups_synced_limit: 0,
       todos_synced_limit: 0,
       dashboard_syncs_limit: 0,
+      quick_links_synced_limit: 0,
       sync_enabled: false,
     };
   }
@@ -394,13 +454,14 @@ async function fetchActualUsage(userId: string): Promise<SyncUsage | null> {
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) return null;
   return {
-    sessions:  Number((row as Record<string, unknown>).synced_sessions  ?? 0),
-    prompts:   Number((row as Record<string, unknown>).synced_prompts   ?? 0),
-    subs:      Number((row as Record<string, unknown>).synced_subs      ?? 0),
-    folders:   Number((row as Record<string, unknown>).synced_bm_folders ?? 0),
-    tabs:      Number((row as Record<string, unknown>).synced_tabs      ?? 0),
-    tabGroups: Number((row as Record<string, unknown>).synced_tab_groups ?? 0),
-    todos:     Number((row as Record<string, unknown>).synced_todos     ?? 0),
+    sessions:   Number((row as Record<string, unknown>).synced_sessions   ?? 0),
+    prompts:    Number((row as Record<string, unknown>).synced_prompts    ?? 0),
+    subs:       Number((row as Record<string, unknown>).synced_subs       ?? 0),
+    folders:    Number((row as Record<string, unknown>).synced_bm_folders ?? 0),
+    tabs:       Number((row as Record<string, unknown>).synced_tabs       ?? 0),
+    tabGroups:  Number((row as Record<string, unknown>).synced_tab_groups ?? 0),
+    todos:      Number((row as Record<string, unknown>).synced_todos      ?? 0),
+    quickLinks: Number((row as Record<string, unknown>).synced_quick_links ?? 0),
   };
 }
 
@@ -425,27 +486,8 @@ async function syncPrompts(userId: string, quota: UserQuota): Promise<number> {
   const localPrompts = allPrompts.filter((p) => p.source === 'local');
   const count = localPrompts.length === 0 ? 0 : await _promptSyncAdapter.push(localPrompts, userId, quota.prompts_create_limit);
 
-  // Reliable orphan-delete: fetch remote IDs, diff against local, delete by ID.
-  const [{ data: remotePromptIdRows, error: rpErr }, { data: remoteFolderIdRows, error: rfErr }] = await Promise.all([
-    supabase.from('prompts').select('id').eq('user_id', userId),
-    supabase.from('prompt_folders').select('id').eq('user_id', userId),
-  ]);
-  if (rpErr) throw new Error(`Prompts remote-fetch failed: ${rpErr.message}`);
-  if (rfErr) throw new Error(`Prompt folders remote-fetch failed: ${rfErr.message}`);
-
-  const localPromptIdSet = new Set(localPrompts.map((p) => p.id));
-  const localFolderIdSet = new Set(localFolders.map((f) => f.id));
-  const orphanPromptIds = (remotePromptIdRows ?? []).map((r) => r.id as string).filter((id) => !localPromptIdSet.has(id));
-  const orphanFolderIds = (remoteFolderIdRows ?? []).map((r) => r.id as string).filter((id) => !localFolderIdSet.has(id));
-
-  if (orphanPromptIds.length > 0) {
-    const { error } = await supabase.from('prompts').delete().eq('user_id', userId).in('id', orphanPromptIds);
-    if (error) throw new Error(`Prompts orphan-delete failed: ${error.message}`);
-  }
-  if (orphanFolderIds.length > 0) {
-    const { error } = await supabase.from('prompt_folders').delete().eq('user_id', userId).in('id', orphanFolderIds);
-    if (error) throw new Error(`Prompt folders orphan-delete failed: ${error.message}`);
-  }
+  // NOTE: orphan-delete intentionally removed. Deletions are propagated
+  // through the deletion-log tombstone queue flushed at the start of syncAll.
 
   return count;
 }
@@ -454,18 +496,8 @@ async function syncSubscriptions(userId: string, quota: UserQuota): Promise<numb
   const allSubs = await SubscriptionStorage.getAll();
   const count = allSubs.length === 0 ? 0 : await _subscriptionSyncAdapter.push(allSubs, userId, quota.subs_synced_limit);
 
-  // Reliable orphan-delete: fetch remote IDs, diff against local, delete by ID.
-  const { data: remoteIdRows, error: rErr } = await supabase
-    .from('tracked_subscriptions').select('id').eq('user_id', userId);
-  if (rErr) throw new Error(`Subscription remote-fetch failed: ${rErr.message}`);
-
-  const localIdSet = new Set(allSubs.map((s) => s.id));
-  const orphanIds = (remoteIdRows ?? []).map((r) => r.id as string).filter((id) => !localIdSet.has(id));
-  if (orphanIds.length > 0) {
-    const { error } = await supabase
-      .from('tracked_subscriptions').delete().eq('user_id', userId).in('id', orphanIds);
-    if (error) throw new Error(`Subscription orphan-delete failed: ${error.message}`);
-  }
+  // NOTE: orphan-delete intentionally removed. Deletions are propagated
+  // through the deletion-log tombstone queue flushed at the start of syncAll.
 
   return count;
 }
@@ -507,23 +539,12 @@ async function syncBookmarkFolders(
     if (eErr) throw new Error(`Bookmark entries sync failed: ${eErr.message}`);
   }
 
-  // Reliable orphan-delete: fetch remote IDs, diff against local, delete by ID.
-  const [{ data: remoteFolderIdRows }, { data: remoteEntryIdRows }] = await Promise.all([
-    supabase.from('bookmark_folders').select('id').eq('user_id', userId),
-    supabase.from('bookmark_entries').select('id').eq('user_id', userId),
-  ]);
-
-  const localFolderIdSet = new Set(toSyncFolders.map((c) => c.id));
-  const orphanFolderIds = (remoteFolderIdRows ?? []).map((r) => r.id as string).filter((id) => !localFolderIdSet.has(id));
-  if (orphanFolderIds.length > 0) {
-    await supabase.from('bookmark_folders').delete().eq('user_id', userId).in('id', orphanFolderIds);
-  }
-
-  const localEntryIdSet = new Set(limitedEntries.map((e) => e.id));
-  const orphanEntryIds = (remoteEntryIdRows ?? []).map((r) => r.id as string).filter((id) => !localEntryIdSet.has(id));
-  if (orphanEntryIds.length > 0) {
-    await supabase.from('bookmark_entries').delete().eq('user_id', userId).in('id', orphanEntryIds);
-  }
+  // NOTE: orphan-delete intentionally removed. A push must NEVER delete remote
+  // rows just because they are absent from the current local set — local can
+  // legitimately be smaller than remote (fresh install, IDB cleared, quota
+  // truncation, multi-device race) and we previously destroyed user data here.
+  // Cross-device deletion propagation requires tombstones (`deleted_at`); until
+  // that lands, deletions only flow through explicit per-entity delete APIs.
 
   return toSyncFolders.length;
 }
@@ -533,19 +554,8 @@ async function syncTabGroupTemplates(userId: string, allTemplates: TabGroupTempl
 
   const count = await _tabGroupSyncAdapter.push(allTemplates, userId, quota.tab_groups_synced_limit);
 
-  const limit = quota.tab_groups_synced_limit ?? Infinity;
-  const toSync = enforceQuota(allTemplates, { limit, sortField: 'updatedAt' });
-
-  // Reliable orphan-delete: fetch remote keys, diff against local, delete by key.
-  const { data: remoteKeyRows } = await supabase
-    .from('tab_group_templates').select('key').eq('user_id', userId);
-  const localKeySet = new Set(toSync.map((t) => t.key));
-  const orphanKeys = (remoteKeyRows ?? [])
-    .map((r) => r.key as string)
-    .filter((k) => !localKeySet.has(k));
-  if (orphanKeys.length > 0) {
-    await supabase.from('tab_group_templates').delete().eq('user_id', userId).in('key', orphanKeys);
-  }
+  // NOTE: orphan-delete intentionally removed (see syncBookmarkFolders for full
+  // reasoning). Pushes are upsert-only.
 
   return count;
 }
@@ -600,12 +610,15 @@ async function syncTodos(userId: string, quota: UserQuota): Promise<number> {
     });
   }
 
-  // Purge widget-deleted items from IDB and exclude them from the sync payload
+  // Purge widget-deleted items from IDB and exclude them from the sync payload.
+  // Also record tombstones so the next tombstone-flush removes the remote rows
+  // and subsequent pulls do not rehydrate them via noteContent.
   if (widgetDeletedIds.size > 0) {
     await Promise.all([...widgetDeletedIds].map((id) => db.delete('todoItems', id)));
     for (let i = allItems.length - 1; i >= 0; i--) {
       if (widgetDeletedIds.has(allItems[i].id)) allItems.splice(i, 1);
     }
+    await recordDeletions('todo_items', [...widgetDeletedIds]);
   }
 
   // Push local lists and items (upsert only if there's something to write)
@@ -623,29 +636,11 @@ async function syncTodos(userId: string, quota: UserQuota): Promise<number> {
     if (error) throw new Error(`Todo items sync failed: ${error.message}`);
   }
 
-  // Reliable orphan-delete: fetch current remote IDs, diff against local, delete by ID.
-  // This avoids the unreliable .not('id','in','(...)') PostgREST filter and correctly
-  // handles the "deleted all items" case without a separate code path.
-  const [{ data: remoteItemIdRows, error: riErr }, { data: remoteListIdRows, error: rlErr }] = await Promise.all([
-    supabase.from('todo_items').select('id').eq('user_id', userId),
-    supabase.from('todo_lists').select('id').eq('user_id', userId),
-  ]);
-  if (riErr) throw new Error(`Todo items remote-fetch failed: ${riErr.message}`);
-  if (rlErr) throw new Error(`Todo lists remote-fetch failed: ${rlErr.message}`);
-
-  const localItemIdSet = new Set(allItems.map((i) => i.id));
-  const localListIdSet = new Set(allLists.map((l) => l.id));
-  const orphanItemIds = (remoteItemIdRows ?? []).map((r) => r.id as string).filter((id) => !localItemIdSet.has(id));
-  const orphanListIds = (remoteListIdRows ?? []).map((r) => r.id as string).filter((id) => !localListIdSet.has(id));
-
-  if (orphanItemIds.length > 0) {
-    const { error } = await supabase.from('todo_items').delete().eq('user_id', userId).in('id', orphanItemIds);
-    if (error) throw new Error(`Todo items orphan-delete failed: ${error.message}`);
-  }
-  if (orphanListIds.length > 0) {
-    const { error } = await supabase.from('todo_lists').delete().eq('user_id', userId).in('id', orphanListIds);
-    if (error) throw new Error(`Todo lists orphan-delete failed: ${error.message}`);
-  }
+  // NOTE: orphan-delete intentionally removed (see syncBookmarkFolders for the
+  // full reasoning). Pushes are now upsert-only; deletions only propagate
+  // through explicit per-entity delete APIs until tombstones are added.
+  // Widget-deleted items are still purged from local IDB above so they will not
+  // be re-pushed on the next cycle, but stale remote rows are left in place.
 
   return toSync.length;
 }
@@ -656,10 +651,11 @@ async function pullSessions(userId: string): Promise<number> {
   const remoteSessions = await _sessionSyncAdapter.pull(userId);
   if (remoteSessions.length === 0) return 0;
 
+  const pendingDeletes = new Set(await getDeletions('sessions'));
   const repo = getSessionRepository();
   const existing = await repo.getAll();
   const existingIds = new Set(existing.map((s) => s.id));
-  const toWrite = remoteSessions.filter((s) => !existingIds.has(s.id));
+  const toWrite = remoteSessions.filter((s) => !existingIds.has(s.id) && !pendingDeletes.has(s.id));
   await Promise.all(toWrite.map((s) => repo.save(s)));
   return toWrite.length;
 }
@@ -670,67 +666,62 @@ async function pullPrompts(userId: string): Promise<number> {
     _promptSyncAdapter.pull(userId),
   ]);
 
-  const [existingPrompts, existingFolders] = await Promise.all([
+  const [existingPrompts, existingFolders, pendingPromptDeletes, pendingFolderDeletes] = await Promise.all([
     PromptStorage.getAll(),
     PromptStorage.getFolders(),
+    getDeletions('prompts'),
+    getDeletions('prompt_folders'),
   ]);
   const existingPromptIds = new Set(existingPrompts.map((p) => p.id));
   const existingFolderIds = new Set(existingFolders.map((f) => f.id));
+  const pendingPromptSet = new Set(pendingPromptDeletes);
+  const pendingFolderSet = new Set(pendingFolderDeletes);
 
-  const newFolders = remoteFolders.filter((f) => !existingFolderIds.has(f.id));
-  const newPrompts = remotePrompts.filter((p) => !existingPromptIds.has(p.id));
+  const newFolders = remoteFolders.filter((f) => !existingFolderIds.has(f.id) && !pendingFolderSet.has(f.id));
+  const newPrompts = remotePrompts.filter((p) => !existingPromptIds.has(p.id) && !pendingPromptSet.has(p.id));
 
   await Promise.all([
     ...newFolders.map((f) => PromptStorage.saveFolder(f)),
     ...newPrompts.map((p) => PromptStorage.save(p)),
   ]);
 
-  // Reconcile: delete local 'local'-source prompts/folders not in remote set.
-  // 'app'-source items are seeded separately and must not be touched.
-  const remotePromptIds = new Set(remotePrompts.map((p) => p.id));
-  const remoteFolderIds = new Set(remoteFolders.map((f) => f.id));
-  const orphanPrompts = existingPrompts.filter((p) => p.source === 'local' && !remotePromptIds.has(p.id));
-  const orphanFolders = existingFolders.filter((f) => f.source === 'local' && !remoteFolderIds.has(f.id));
-
-  // Delete orphan prompts first, then folders (deleteFolder re-parents child prompts).
-  await Promise.all(orphanPrompts.map((p) => PromptStorage.delete(p.id)));
-  await Promise.all(orphanFolders.map((f) => PromptStorage.deleteFolder(f.id)));
+  // NOTE: local reconciliation-delete intentionally removed. Deletions are
+  // propagated through the deletion-log tombstone queue (filtered above).
 
   return newPrompts.length;
 }
 
 async function pullSubscriptions(userId: string): Promise<number> {
   const remoteSubs = await _subscriptionSyncAdapter.pull(userId);
-  const remoteIds = new Set(remoteSubs.map((s) => s.id));
 
   if (remoteSubs.length > 0) {
-    await SubscriptionStorage.importMany(remoteSubs);
+    const pendingDeletes = new Set(await getDeletions('tracked_subscriptions'));
+    const toImport = remoteSubs.filter((s) => !pendingDeletes.has(s.id));
+    if (toImport.length > 0) await SubscriptionStorage.importMany(toImport);
   }
 
-  // Reconcile: delete local subs that no longer exist on remote.
-  // Prevents a deleted sub from being re-surfaced if push ran before pull cleaned up remote.
-  const localSubs = await SubscriptionStorage.getAll();
-  const orphans = localSubs.filter((s) => !remoteIds.has(s.id));
-  await Promise.all(orphans.map((s) => SubscriptionStorage.delete(s.id)));
+  // NOTE: local reconciliation-delete intentionally removed. Deletions are
+  // propagated through the deletion-log tombstone queue (filtered above).
 
   return remoteSubs.length;
 }
 
 async function pullTabGroupTemplates(userId: string): Promise<number> {
   const remoteTemplates = await _tabGroupSyncAdapter.pull(userId);
-  const remoteKeys = new Set(remoteTemplates.map((t) => t.key));
 
   if (remoteTemplates.length > 0) {
-    const existing = await TabGroupTemplateStorage.getAll();
+    const [existing, pendingDeletes] = await Promise.all([
+      TabGroupTemplateStorage.getAll(),
+      getDeletions('tab_group_templates'),
+    ]);
     const existingKeys = new Set(existing.map((t) => t.key));
-    const toWrite = remoteTemplates.filter((t) => !existingKeys.has(t.key));
+    const pendingKeySet = new Set(pendingDeletes);
+    const toWrite = remoteTemplates.filter((t) => !existingKeys.has(t.key) && !pendingKeySet.has(t.key));
     await Promise.all(toWrite.map((t) => TabGroupTemplateStorage.upsert(t)));
   }
 
-  // Reconcile: delete local templates whose key no longer exists on remote.
-  const allLocal = await TabGroupTemplateStorage.getAll();
-  const orphans = allLocal.filter((t) => !remoteKeys.has(t.key));
-  await Promise.all(orphans.map((t) => TabGroupTemplateStorage.delete(t.key)));
+  // NOTE: local reconciliation-delete intentionally removed. Deletions are
+  // propagated through the deletion-log tombstone queue (filtered above).
 
   return remoteTemplates.length;
 }
@@ -745,12 +736,16 @@ async function pullBookmarkFolders(userId: string): Promise<number> {
   if (!folderRows || folderRows.length === 0) return 0;
 
   const db = newtabDB;
-  const [existingFolders, existingEntries] = await Promise.all([
+  const [existingFolders, existingEntries, pendingFolderDeletes, pendingEntryDeletes] = await Promise.all([
     db.getAll<BookmarkCategory>('bookmarkCategories'),
     db.getAll<BookmarkEntry>('bookmarkEntries'),
+    getDeletions('bookmark_folders'),
+    getDeletions('bookmark_entries'),
   ]);
   const existingFolderIds = new Set(existingFolders.map((c) => c.id));
   const existingEntryIds = new Set(existingEntries.map((e) => e.id));
+  const pendingFolderSet = new Set(pendingFolderDeletes);
+  const pendingEntrySet = new Set(pendingEntryDeletes);
 
   const allEntries = (entryRows ?? []) as Record<string, unknown>[];
   const entryIdsByFolder = allEntries.reduce<Record<string, string[]>>((acc, r) => {
@@ -759,8 +754,12 @@ async function pullBookmarkFolders(userId: string): Promise<number> {
     return acc;
   }, {});
 
-  const newFolders = (folderRows as Record<string, unknown>[]).filter((r) => !existingFolderIds.has(r.id as string));
-  const newEntries = allEntries.filter((r) => !existingEntryIds.has(r.id as string));
+  const newFolders = (folderRows as Record<string, unknown>[]).filter(
+    (r) => !existingFolderIds.has(r.id as string) && !pendingFolderSet.has(r.id as string),
+  );
+  const newEntries = allEntries.filter(
+    (r) => !existingEntryIds.has(r.id as string) && !pendingEntrySet.has(r.id as string),
+  );
 
   const now = new Date().toISOString();
   await Promise.all([
@@ -772,13 +771,8 @@ async function pullBookmarkFolders(userId: string): Promise<number> {
     ),
   ]);
 
-  // Reconcile: delete local folders/entries that no longer exist on remote.
-  const remoteFolderIdSet = new Set((folderRows as Record<string, unknown>[]).map((r) => r.id as string));
-  const remoteEntryIdSet = new Set(allEntries.map((r) => r.id as string));
-  await Promise.all([
-    ...existingFolders.filter((c) => !remoteFolderIdSet.has(c.id)).map((c) => db.delete('bookmarkCategories', c.id)),
-    ...existingEntries.filter((e) => !remoteEntryIdSet.has(e.id)).map((e) => db.delete('bookmarkEntries', e.id)),
-  ]);
+  // NOTE: local reconciliation-delete intentionally removed. Deletions are
+  // propagated through the deletion-log tombstone queue (filtered above).
 
   return newFolders.length;
 }
@@ -793,25 +787,27 @@ async function pullTodos(userId: string): Promise<number> {
   if (!listRows && !itemRows) return 0;
 
   const db = newtabDB;
-  const remoteListIds = new Set((listRows ?? []).map((r) => r.id as string));
-  const remoteItemIds = new Set((itemRows ?? []).map((r) => r.id as string));
 
-  // Upsert pulled items into IDB
+  const [pendingListDeletes, pendingItemDeletes] = await Promise.all([
+    getDeletions('todo_lists'),
+    getDeletions('todo_items'),
+  ]);
+  const pendingListSet = new Set(pendingListDeletes);
+  const pendingItemSet = new Set(pendingItemDeletes);
+
+  // Upsert pulled items into IDB — tombstoned ids are skipped so deleted todos
+  // do not re-appear from the cloud before the next flush.
   await Promise.all([
-    ...(listRows ?? []).map((r) => db.put<TodoList>('todoLists', todoListMapper.fromRow(r as Record<string, unknown>))),
-    ...(itemRows ?? []).map((r) => db.put<TodoItem>('todoItems', todoItemMapper.fromRow(r as Record<string, unknown>))),
+    ...(listRows ?? [])
+      .filter((r) => !pendingListSet.has(r.id as string))
+      .map((r) => db.put<TodoList>('todoLists', todoListMapper.fromRow(r as Record<string, unknown>))),
+    ...(itemRows ?? [])
+      .filter((r) => !pendingItemSet.has(r.id as string))
+      .map((r) => db.put<TodoItem>('todoItems', todoItemMapper.fromRow(r as Record<string, unknown>))),
   ]);
 
-  // Reconcile: delete local items/lists that no longer exist on the remote.
-  // This prevents a stale concurrent pull from re-surfacing deleted items.
-  const [localLists, localItems] = await Promise.all([
-    db.getAll<TodoList>('todoLists'),
-    db.getAll<TodoItem>('todoItems'),
-  ]);
-  await Promise.all([
-    ...localItems.filter((i) => !remoteItemIds.has(i.id)).map((i) => db.delete('todoItems', i.id)),
-    ...localLists.filter((l) => !remoteListIds.has(l.id)).map((l) => db.delete('todoLists', l.id)),
-  ]);
+  // NOTE: local reconciliation-delete intentionally removed. Deletions are
+  // propagated through the deletion-log tombstone queue (filtered above).
 
   // For dashboard card todo widgets: write pulled items back into the category's
   // noteContent so the card UI reflects the synced state on reload.
@@ -821,8 +817,10 @@ async function pullTodos(userId: string): Promise<number> {
     const byList: Record<string, Array<{ id: string; text: string; done: boolean; position: number }>> = {};
     for (const r of (itemRows ?? [])) {
       const listId = r.list_id as string;
+      const itemId = r.id as string;
+      if (pendingItemSet.has(itemId)) continue; // don't re-hydrate tombstoned items
       if (todoCardMap.has(listId)) {
-        (byList[listId] ??= []).push({ id: r.id as string, text: r.text as string, done: r.completed as boolean, position: (r.position as number) ?? 0 });
+        (byList[listId] ??= []).push({ id: itemId, text: r.text as string, done: r.completed as boolean, position: (r.position as number) ?? 0 });
       }
     }
     await Promise.all(
@@ -836,6 +834,43 @@ async function pullTodos(userId: string): Promise<number> {
   }
 
   return (itemRows ?? []).length;
+}
+
+async function syncQuickLinks(userId: string): Promise<number> {
+  const db = newtabDB;
+  const allLinks = await db.getAll<QuickLink>('quickLinks');
+  const manualLinks = allLinks.filter((l) => !l.isAutoGenerated);
+
+  if (manualLinks.length > 0) {
+    const rows = manualLinks.map((l) => quicklinkMapper.toRow(l, userId));
+    const { error } = await supabase.from('quick_links').upsert(rows, { onConflict: 'id,user_id' });
+    if (error) throw new Error(`Quick links sync failed: ${error.message}`);
+  }
+
+  // NOTE: orphan-delete intentionally removed (see syncBookmarkFolders for full
+  // reasoning). Pushes are upsert-only.
+
+  return manualLinks.length;
+}
+
+async function pullQuickLinks(userId: string): Promise<number> {
+  const { data: remoteRows, error } = await supabase
+    .from('quick_links').select('*').eq('user_id', userId);
+  if (error) throw new Error(`Quick links pull failed: ${error.message}`);
+  if (!remoteRows || remoteRows.length === 0) return 0;
+
+  const db = newtabDB;
+  const remoteLinks = (remoteRows as Record<string, unknown>[]).map((r) => quicklinkMapper.fromRow(r));
+  const pendingDeletes = new Set(await getDeletions('quick_links'));
+
+  // Upsert all remote links into local IDB, skipping any that are tombstoned.
+  const toWrite = remoteLinks.filter((l) => !pendingDeletes.has(l.id));
+  await Promise.all(toWrite.map((l) => db.put<QuickLink>('quickLinks', l)));
+
+  // NOTE: local reconciliation-delete intentionally removed. Deletions are
+  // propagated through the deletion-log tombstone queue (filtered above).
+
+  return toWrite.length;
 }
 
 // ─── Persistence helpers ────────────────────────────────────────────────────

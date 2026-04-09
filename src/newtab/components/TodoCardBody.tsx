@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { Plus, Trash2, Check } from 'lucide-react';
 import { generateId } from '@core/utils/uuid';
+import { deleteTodoItem } from '@core/services/todo.service';
 import type { SpanValue } from '@core/types/newtab.types';
 
 interface TodoCardItem { id: string; text: string; done: boolean; }
@@ -27,8 +28,12 @@ export default function TodoCardBody({ rawContent, onUpdate }: TodoCardBodyProps
   const toggle = (id: string) =>
     save(items.map((it) => it.id === id ? { ...it, done: !it.done } : it));
 
-  const remove = (id: string) =>
+  const remove = (id: string) => {
     save(items.filter((it) => it.id !== id));
+    // Also delete from IDB + record tombstone so the next sync doesn't
+    // re-hydrate the item from remote back into noteContent.
+    void deleteTodoItem(id);
+  };
 
   const add = () => {
     const text = newText.trim();

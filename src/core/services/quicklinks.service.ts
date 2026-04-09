@@ -1,4 +1,6 @@
 import { newtabDB } from '@core/storage/newtab-storage';
+import { recordDeletion } from '@core/storage/deletion-log';
+import { notifySyncMutation } from '@core/services/sync-trigger';
 import type { QuickLink } from '@core/types/newtab.types';
 import { generateId } from '@core/utils/uuid';
 
@@ -29,6 +31,7 @@ export async function saveQuickLink(
 ): Promise<QuickLink> {
   const record: QuickLink = { ...link, id: generateId() };
   await db.put(STORE, record);
+  notifySyncMutation();
   return record;
 }
 
@@ -39,11 +42,16 @@ export async function updateQuickLink(
   const existing = await db.get<QuickLink>(STORE, id);
   if (!existing) return;
   await db.put(STORE, { ...existing, ...updates });
+  notifySyncMutation();
 }
 
 export async function deleteQuickLink(id: string, autoUrl?: string): Promise<void> {
   if (autoUrl) await blockUrl(autoUrl);
   await db.delete(STORE, id);
+  // Only manual (non-auto-generated) links ever get synced, but recording the
+  // tombstone is cheap and harmless for auto links as well.
+  await recordDeletion('quick_links', id);
+  notifySyncMutation();
 }
 
 export async function reorderQuickLinks(orderedIds: string[]): Promise<void> {
@@ -56,6 +64,7 @@ export async function reorderQuickLinks(orderedIds: string[]): Promise<void> {
       return Promise.resolve();
     }),
   );
+  notifySyncMutation();
 }
 
 export async function syncTopSites(): Promise<QuickLink[]> {

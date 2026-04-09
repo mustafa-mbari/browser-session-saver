@@ -78,9 +78,47 @@ async function handleMessage(message: Message): Promise<MessageResponse> {
       return handlePullDashboard();
     case 'SYNC_PULL_ALL':
       return handlePullAll();
+    case 'SYNC_MUTATION':
+      return handleSyncMutation();
     default:
       return { success: false, error: 'Unknown action' };
   }
+}
+
+// ── Debounced mutation-triggered sync ───────────────────────────────────────
+// Coalesces bursts of deletes/updates (e.g. deleting 30 bookmarks in a row)
+// into a single sync a short while after the last mutation.
+
+let _mutationSyncTimer: ReturnType<typeof setTimeout> | null = null;
+const MUTATION_SYNC_DEBOUNCE_MS = 1500;
+
+function scheduleMutationSync(): void {
+  if (_mutationSyncTimer) clearTimeout(_mutationSyncTimer);
+  _mutationSyncTimer = setTimeout(() => {
+    _mutationSyncTimer = null;
+    void (async () => {
+      try {
+        const userId = await getSyncUserId();
+        if (!userId) return;
+        await syncAll();
+      } catch (err) {
+        try {
+          const stored = await chrome.storage.local.get('cloud_sync_status');
+          const current = (stored['cloud_sync_status'] as Record<string, unknown>) ?? {};
+          await chrome.storage.local.set({
+            cloud_sync_status: { ...current, error: `Mutation sync failed: ${String(err)}` },
+          });
+        } catch {
+          /* best-effort */
+        }
+      }
+    })();
+  }, MUTATION_SYNC_DEBOUNCE_MS);
+}
+
+async function handleSyncMutation(): Promise<MessageResponse> {
+  scheduleMutationSync();
+  return { success: true };
 }
 
 async function handleSaveSession(payload: {
@@ -647,13 +685,19 @@ async function handleSyncSignOut(): Promise<MessageResponse> {
 }
 
 async function handleSyncNow(): Promise<MessageResponse> {
-  // Bidirectional: push local data up, then pull remote changes down.
-  const syncResult = await syncAll();
-  if (!syncResult.success) return { success: false, error: syncResult.error };
+  // Bidirectional: pull remote changes down FIRST, then push local data up.
+  // Pull-first is critical: if local state is smaller than remote (e.g. local
+  // IDB was cleared, a previous sync truncated local, or this is a fresh
+  // install on a second device), pushing first would NOT delete remote rows
+  // (orphan-delete has been removed) but pulling first still ensures the user
+  // sees their cloud data immediately rather than waiting for the next pull
+  // tick. The push afterwards is a no-op if nothing changed locally.
   const pullResult = await pullAll();
   if (pullResult.success) {
     try { await chrome.storage.local.set({ cloud_last_pull_at: Date.now() }); } catch {}
   }
+  const syncResult = await syncAll();
+  if (!syncResult.success) return { success: false, error: syncResult.error };
   const status = await getSyncStatus();
   return { success: true, data: status };
 }

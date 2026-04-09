@@ -1,5 +1,7 @@
 import type { TabGroupTemplate } from '@core/types/tab-group.types';
 import { ChromeLocalKeyAdapter } from './chrome-local-key-adapter';
+import { recordDeletion } from './deletion-log';
+import { notifySyncMutation } from '@core/services/sync-trigger';
 
 const adapter = new ChromeLocalKeyAdapter<TabGroupTemplate>('tab_group_templates');
 
@@ -21,11 +23,14 @@ export class TabGroupTemplateStorage {
       all.push(template);
     }
     await adapter.setAll(all);
+    notifySyncMutation();
   }
 
   static async delete(key: string): Promise<void> {
     const all = await adapter.getAll();
     await adapter.setAll(all.filter((t) => t.key !== key));
+    await recordDeletion('tab_group_templates', key);
+    notifySyncMutation();
   }
 
   static replaceAll(templates: TabGroupTemplate[]): Promise<void> {

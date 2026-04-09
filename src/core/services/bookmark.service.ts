@@ -1,4 +1,6 @@
 import { newtabDB } from '@core/storage/newtab-storage';
+import { recordDeletion, recordDeletions } from '@core/storage/deletion-log';
+import { notifySyncMutation } from '@core/services/sync-trigger';
 import type { Board, BookmarkCategory, BookmarkEntry } from '@core/types/newtab.types';
 import { generateId } from '@core/utils/uuid';
 import { nowISO } from '@core/utils/date';
@@ -23,6 +25,7 @@ export async function saveBoard(
   const now = nowISO();
   const board: Board = { ...data, id: generateId(), createdAt: now, updatedAt: now };
   await db.put(BOARDS, board);
+  notifySyncMutation();
   return board;
 }
 
@@ -33,18 +36,29 @@ export async function updateBoard(
   const existing = await db.get<Board>(BOARDS, id);
   if (!existing) return;
   await db.put(BOARDS, { ...existing, ...updates, updatedAt: nowISO() });
+  notifySyncMutation();
 }
 
 export async function deleteBoard(id: string): Promise<void> {
   const categories = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'boardId', id);
+  const deletedCategoryIds: string[] = [];
+  const deletedEntryIds: string[] = [];
   await Promise.all(
     categories.map(async (cat) => {
       const entries = await db.getAllByIndex<BookmarkEntry>(ENTRIES, 'categoryId', cat.id);
       await Promise.all(entries.map((e) => db.delete(ENTRIES, e.id)));
+      deletedEntryIds.push(...entries.map((e) => e.id));
       await db.delete(CATEGORIES, cat.id);
+      deletedCategoryIds.push(cat.id);
     }),
   );
   await db.delete(BOARDS, id);
+  // Boards themselves are not synced, but their categories and entries are — record
+  // tombstones so the next sync flushes the matching rows from Supabase and pulls
+  // cannot re-hydrate them.
+  await recordDeletions('bookmark_folders', deletedCategoryIds);
+  await recordDeletions('bookmark_entries', deletedEntryIds);
+  notifySyncMutation();
 }
 
 // ─── Categories ───────────────────────────────────────────────────────────────
@@ -73,6 +87,7 @@ export async function saveCategory(
       updatedAt: nowISO(),
     });
   }
+  notifySyncMutation();
   return cat;
 }
 
@@ -86,6 +101,7 @@ export async function updateCategory(
     await assertNoDuplicateName(updates.name, existing.boardId, existing.parentCategoryId, id);
   }
   await db.put(CATEGORIES, { ...existing, ...updates });
+  notifySyncMutation();
 }
 
 export async function deleteCategory(id: string): Promise<void> {
@@ -104,6 +120,9 @@ export async function deleteCategory(id: string): Promise<void> {
     }
   }
   await db.delete(CATEGORIES, id);
+  await recordDeletion('bookmark_folders', id);
+  await recordDeletions('bookmark_entries', entries.map((e) => e.id));
+  notifySyncMutation();
 }
 
 // ─── Entries ──────────────────────────────────────────────────────────────────
@@ -128,6 +147,7 @@ export async function saveEntry(
   if (cat) {
     await db.put(CATEGORIES, { ...cat, bookmarkIds: [...cat.bookmarkIds, entry.id] });
   }
+  notifySyncMutation();
   return entry;
 }
 
@@ -138,6 +158,7 @@ export async function updateEntry(
   const existing = await db.get<BookmarkEntry>(ENTRIES, id);
   if (!existing) return;
   await db.put(ENTRIES, { ...existing, ...updates });
+  notifySyncMutation();
 }
 
 export async function deleteEntry(id: string): Promise<void> {
@@ -152,6 +173,8 @@ export async function deleteEntry(id: string): Promise<void> {
     }
   }
   await db.delete(ENTRIES, id);
+  await recordDeletion('bookmark_entries', id);
+  notifySyncMutation();
 }
 
 /** Throws if a sibling folder at the same level already uses the same name (case-insensitive). */
@@ -195,6 +218,7 @@ export async function createTopLevelFolder(
     createdAt: nowISO(),
   };
   await db.put(CATEGORIES, cat);
+  notifySyncMutation();
   return cat;
 }
 
@@ -344,6 +368,7 @@ export async function createSubFolder(
     createdAt: nowISO(),
   };
   await db.put(CATEGORIES, cat);
+  notifySyncMutation();
   return cat;
 }
 
@@ -355,6 +380,7 @@ export async function deleteFolderRecursive(id: string): Promise<void> {
   // Delete all entries in this category
   const entries = await db.getAllByIndex<BookmarkEntry>(ENTRIES, 'categoryId', id);
   await Promise.all(entries.map((e) => db.delete(ENTRIES, e.id)));
+  await recordDeletions('bookmark_entries', entries.map((e) => e.id));
 
   // Recursively delete sub-folders
   const subFolders = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'parentCategoryId', id);
@@ -373,6 +399,8 @@ export async function deleteFolderRecursive(id: string): Promise<void> {
     }
   }
   await db.delete(CATEGORIES, id);
+  await recordDeletion('bookmark_folders', id);
+  notifySyncMutation();
 }
 
 // ─── Native Import ─────────────────────────────────────────────────────────────
