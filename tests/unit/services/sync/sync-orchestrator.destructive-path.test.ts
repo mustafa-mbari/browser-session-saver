@@ -456,3 +456,218 @@ describe('sync-orchestrator destructive-path regression', () => {
     expect(recorder.deleteCallsForTable('quick_links')).toHaveLength(0);
   });
 });
+
+// ── Tombstone-filter regression ──────────────────────────────────────────────
+//
+// When an item is in the sync_deletion_log (pending tombstone), a pull must
+// NOT re-create it locally even if the remote has a row for that id.
+// Each test seeds the deletion log BEFORE calling pullAll() and asserts the
+// local storage write is skipped for the tombstoned id.
+
+/**
+ * Unified chrome.storage mock that handles BOTH the Promise-based API used by
+ * deletion-log.ts AND the callback-based API used by persistStatus() in the
+ * sync-orchestrator. Returns a mutable store object for pre-seeding tombstones.
+ */
+function setupUnifiedChromeStorage(): Record<string, unknown> {
+  const store: Record<string, unknown> = {};
+  (chrome.storage.local.get as ReturnType<typeof vi.fn>).mockImplementation(
+    (key: string, cb?: (r: Record<string, unknown>) => void) => {
+      const result = { [key]: store[key] };
+      if (typeof cb === 'function') cb(result);
+      return Promise.resolve(result);
+    },
+  );
+  (chrome.storage.local.set as ReturnType<typeof vi.fn>).mockImplementation(
+    (items: Record<string, unknown>, cb?: () => void) => {
+      Object.assign(store, items);
+      cb?.();
+      return Promise.resolve();
+    },
+  );
+  return store;
+}
+
+/** Empty selectData for all tables — used as a baseline, override specific tables per test. */
+function emptySelectData(): Record<string, unknown[]> {
+  return {
+    sessions: [],
+    prompts: [],
+    prompt_folders: [],
+    tracked_subscriptions: [],
+    tab_group_templates: [],
+    bookmark_folders: [],
+    bookmark_entries: [],
+    todo_lists: [],
+    todo_items: [],
+    quick_links: [],
+  };
+}
+
+describe('tombstone filtering in pull paths', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    mockAuth.getSyncUserId.mockResolvedValue('user-1');
+    mockAuth.getSyncEmail.mockResolvedValue('u@example.com');
+    mockGetAllSessions.mockResolvedValue([]);
+    mockSessionRepo.getAll.mockResolvedValue([]);
+    mockSessionRepo.save.mockResolvedValue(undefined);
+    mockPromptStorage.getAll.mockResolvedValue([]);
+    mockPromptStorage.getFolders.mockResolvedValue([]);
+    mockPromptStorage.save.mockResolvedValue(undefined);
+    mockPromptStorage.saveFolder.mockResolvedValue(undefined);
+    mockSubscriptionStorage.getAll.mockResolvedValue([]);
+    mockSubscriptionStorage.importMany.mockResolvedValue(undefined);
+    mockTabGroupTemplateStorage.getAll.mockResolvedValue([]);
+    mockTabGroupTemplateStorage.upsert.mockResolvedValue(undefined);
+    mockNewTabDB.getAll.mockResolvedValue([]);
+    mockNewTabDB.put.mockResolvedValue(undefined);
+
+    mockSupabase.rpc.mockResolvedValue({ data: makeQuota(), error: null });
+  });
+
+  // ── todo_items ───────────────────────────────────────────────────────────
+
+  it('pullAll skips a tombstoned todo_item from remote', async () => {
+    const store = setupUnifiedChromeStorage();
+    store['sync_deletion_log'] = { todo_items: ['item-tombstoned'] };
+
+    buildSupabaseRecorder({
+      selectData: {
+        ...emptySelectData(),
+        todo_items: [
+          { id: 'item-tombstoned', user_id: 'user-1', list_id: 'list-1', text: 'deleted task', completed: false, priority: 'none', position: 0, created_at: '2026-01-01T00:00:00.000Z' },
+          { id: 'item-clean',      user_id: 'user-1', list_id: 'list-1', text: 'kept task',    completed: false, priority: 'none', position: 1, created_at: '2026-01-01T00:00:00.000Z' },
+        ],
+      },
+    });
+
+    const { pullAll } = await importSyncService();
+    const result = await pullAll();
+
+    expect(result.success).toBe(true);
+
+    const todoItemPuts = mockNewTabDB.put.mock.calls.filter(
+      (c: unknown[]) => c[0] === 'todoItems',
+    );
+    const savedIds = todoItemPuts.map((c: unknown[]) => (c[1] as { id: string }).id);
+    expect(savedIds).not.toContain('item-tombstoned');
+    expect(savedIds).toContain('item-clean');
+  });
+
+  // ── bookmark_entries ─────────────────────────────────────────────────────
+
+  it('pullAll skips a tombstoned bookmark_entry from remote', async () => {
+    const store = setupUnifiedChromeStorage();
+    store['sync_deletion_log'] = { bookmark_entries: ['entry-tombstoned'] };
+
+    buildSupabaseRecorder({
+      selectData: {
+        ...emptySelectData(),
+        bookmark_folders: [
+          { id: 'folder-1', user_id: 'user-1', board_id: 'board-1', name: 'Work', icon: null, color: null, card_type: 'bookmark', note_content: null, col_span: 3, row_span: 3, position: 0, parent_folder_id: null },
+        ],
+        bookmark_entries: [
+          { id: 'entry-tombstoned', user_id: 'user-1', folder_id: 'folder-1', title: 'Old Site',  url: 'https://old.test',   is_native: false, position: 0 },
+          { id: 'entry-clean',      user_id: 'user-1', folder_id: 'folder-1', title: 'Good Site', url: 'https://good.test', is_native: false, position: 1 },
+        ],
+      },
+    });
+
+    const { pullAll } = await importSyncService();
+    const result = await pullAll();
+
+    expect(result.success).toBe(true);
+
+    const entryPuts = mockNewTabDB.put.mock.calls.filter(
+      (c: unknown[]) => c[0] === 'bookmarkEntries',
+    );
+    const savedIds = entryPuts.map((c: unknown[]) => (c[1] as { id: string }).id);
+    expect(savedIds).not.toContain('entry-tombstoned');
+    expect(savedIds).toContain('entry-clean');
+  });
+
+  // ── prompts ──────────────────────────────────────────────────────────────
+
+  it('pullAll skips a tombstoned prompt from remote', async () => {
+    const store = setupUnifiedChromeStorage();
+    store['sync_deletion_log'] = { prompts: ['prompt-tombstoned'] };
+
+    buildSupabaseRecorder({
+      selectData: {
+        ...emptySelectData(),
+        prompts: [
+          { id: 'prompt-tombstoned', user_id: 'user-1', title: 'Old', content: 'x', source: 'local', tags: [], is_favorite: false, is_pinned: false, usage_count: 0, created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z' },
+          { id: 'prompt-clean',      user_id: 'user-1', title: 'New', content: 'y', source: 'local', tags: [], is_favorite: false, is_pinned: false, usage_count: 0, created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z' },
+        ],
+      },
+    });
+
+    const { pullAll } = await importSyncService();
+    const result = await pullAll();
+
+    expect(result.success).toBe(true);
+
+    const savedIds = mockPromptStorage.save.mock.calls.map(
+      (c: unknown[]) => (c[0] as { id: string }).id,
+    );
+    expect(savedIds).not.toContain('prompt-tombstoned');
+    expect(savedIds).toContain('prompt-clean');
+  });
+
+  // ── tracked_subscriptions ────────────────────────────────────────────────
+
+  it('pullAll excludes a tombstoned subscription from the importMany batch', async () => {
+    const store = setupUnifiedChromeStorage();
+    store['sync_deletion_log'] = { tracked_subscriptions: ['sub-tombstoned'] };
+
+    buildSupabaseRecorder({
+      selectData: {
+        ...emptySelectData(),
+        tracked_subscriptions: [
+          { id: 'sub-tombstoned', user_id: 'user-1', name: 'Netflix', category: 'streaming', price: 10, currency: 'USD', billing_cycle: 'monthly', next_billing_date: '2026-06-01', status: 'active', reminder: 3, created_at: '2026-01-01T00:00:00.000Z' },
+          { id: 'sub-clean',      user_id: 'user-1', name: 'Spotify', category: 'music',     price: 5,  currency: 'USD', billing_cycle: 'monthly', next_billing_date: '2026-06-15', status: 'active', reminder: 3, created_at: '2026-01-01T00:00:00.000Z' },
+        ],
+      },
+    });
+
+    const { pullAll } = await importSyncService();
+    const result = await pullAll();
+
+    expect(result.success).toBe(true);
+
+    expect(mockSubscriptionStorage.importMany).toHaveBeenCalledTimes(1);
+    const imported = mockSubscriptionStorage.importMany.mock.calls[0][0] as Array<{ id: string }>;
+    expect(imported.some((s) => s.id === 'sub-tombstoned')).toBe(false);
+    expect(imported.some((s) => s.id === 'sub-clean')).toBe(true);
+  });
+
+  // ── sessions ─────────────────────────────────────────────────────────────
+
+  it('pullAll does not save a tombstoned session from remote', async () => {
+    const store = setupUnifiedChromeStorage();
+    store['sync_deletion_log'] = { sessions: ['session-tombstoned'] };
+
+    buildSupabaseRecorder({
+      selectData: {
+        ...emptySelectData(),
+        sessions: [
+          { id: 'session-tombstoned', user_id: 'user-1', name: 'Old Session',   created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z', tabs: [], tab_groups: [], window_id: 0, tags: [], is_pinned: false, is_starred: false, is_locked: false, is_auto_save: false, auto_save_trigger: 'manual', notes: '', tab_count: 0, version: '1' },
+          { id: 'session-clean',      user_id: 'user-1', name: 'Good Session',  created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z', tabs: [], tab_groups: [], window_id: 0, tags: [], is_pinned: false, is_starred: false, is_locked: false, is_auto_save: false, auto_save_trigger: 'manual', notes: '', tab_count: 0, version: '1' },
+        ],
+      },
+    });
+
+    const { pullAll } = await importSyncService();
+    const result = await pullAll();
+
+    expect(result.success).toBe(true);
+
+    const savedIds = mockSessionRepo.save.mock.calls.map(
+      (c: unknown[]) => (c[0] as { id: string }).id,
+    );
+    expect(savedIds).not.toContain('session-tombstoned');
+    expect(savedIds).toContain('session-clean');
+  });
+});
