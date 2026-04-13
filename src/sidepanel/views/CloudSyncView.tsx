@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Cloud, CloudOff, RefreshCw, LogOut, CheckCircle2, AlertCircle, Loader2, CloudDownload } from 'lucide-react';
 import { useMessaging } from '@shared/hooks/useMessaging';
+import SyncControlsPanel from '@shared/components/SyncControlsPanel';
 import type { SyncStatus } from '@core/services/sync.service';
 import type { SyncSignInResponse } from '@core/types/messages.types';
 import { QUOTA_WARNING_PCT } from '@core/constants/limits';
@@ -382,6 +383,13 @@ export default function CloudSyncView() {
               browserhub.app/billing
             </a>
           </span>
+        </div>
+      )}
+
+      {/* Selective sync + pause + mass-delete controls (Phase 2) */}
+      {quota?.sync_enabled && (
+        <div className="pt-2 border-t border-[var(--color-border)]">
+          <SyncControlsPanel themeVariant="sidepanel" onChange={loadStatus} />
         </div>
       )}
 

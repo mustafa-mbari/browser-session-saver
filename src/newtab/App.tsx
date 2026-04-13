@@ -20,6 +20,7 @@ import FocusLayout from '@newtab/layouts/FocusLayout';
 import DashboardLayout from '@newtab/layouts/DashboardLayout';
 import SubscriptionReminder from '@newtab/components/SubscriptionReminder';
 import SessionRestoreReminder from '@newtab/components/SessionRestoreReminder';
+import OnboardingModal, { useOnboardingFlag } from '@shared/components/OnboardingModal';
 
 // Heavy overlays — loaded only when opened
 const DashboardRestoreModal = lazy(() => import('@newtab/components/DashboardRestoreModal'));
@@ -30,6 +31,7 @@ const KeyboardHelpModal = lazy(() => import('@newtab/components/KeyboardHelpModa
 export default function App() {
   const { isLoading } = useNewTabSettings();
   useTheme();
+  const { needsOnboarding, markComplete } = useOnboardingFlag();
 
   // Incremented whenever the background SW completes a pull, triggering a data reload.
   const [dataVersion, setDataVersion] = useState(0);
@@ -292,6 +294,10 @@ export default function App() {
       )}
       <SubscriptionReminder />
       <SessionRestoreReminder />
+      <OnboardingModal
+        isOpen={needsOnboarding === true}
+        onClose={() => void markComplete()}
+      />
       {pendingDashboardConfig && (
         <Suspense fallback={null}>
           <DashboardRestoreModal

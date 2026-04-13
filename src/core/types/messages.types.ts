@@ -57,7 +57,15 @@ export type Message =
   | { action: 'SYNC_DASHBOARD'; payload: { config: string } }
   | { action: 'PULL_DASHBOARD'; payload: Record<string, never> }
   | { action: 'SYNC_PULL_ALL'; payload: Record<string, never> }
-  | { action: 'SYNC_MUTATION'; payload: Record<string, never> };
+  | { action: 'SYNC_MUTATION'; payload: Record<string, never> }
+  | { action: 'SYNC_GET_SETTINGS'; payload: Record<string, never> }
+  | { action: 'SYNC_UPDATE_SETTINGS'; payload: { syncEnabled?: boolean; entities?: Record<string, boolean> } }
+  | { action: 'SYNC_PAUSE'; payload: { minutes: number; reason?: string } }
+  | { action: 'SYNC_CLEAR_PAUSE'; payload: Record<string, never> }
+  | { action: 'SYNC_GET_MASS_DELETE_TRIPS'; payload: Record<string, never> }
+  | { action: 'SYNC_CLEAR_MASS_DELETE_TRIP'; payload: { entity: string } }
+  | { action: 'SYNC_CLEAR_ALL_MASS_DELETE_TRIPS'; payload: Record<string, never> }
+  | { action: 'SYNC_GET_DIRTY_COUNTS'; payload: Record<string, never> };
 
 export interface MessageResponse<T = unknown> {
   success: boolean;

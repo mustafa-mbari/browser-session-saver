@@ -4,11 +4,13 @@ import type { Settings } from '@core/types/settings.types';
 import { DEFAULT_SETTINGS } from '@core/types/settings.types';
 import { getNewTabSettings, updateNewTabSettings } from '@core/services/newtab-settings.service';
 import { useMessaging } from '@shared/hooks/useMessaging';
+import { useOnboardingFlag } from '@shared/components/OnboardingModal';
 import { useSidePanelStore } from '../stores/sidepanel.store';
 
 export default function SettingsView() {
   const { sendMessage } = useMessaging();
   const { navigateTo } = useSidePanelStore();
+  const { reset: resetOnboarding } = useOnboardingFlag();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [newtabEnabled, setNewtabEnabled] = useState(true);
 
@@ -171,6 +173,19 @@ export default function SettingsView() {
         >
           Import / Export Sessions
         </button>
+      </Section>
+
+      {/* Help */}
+      <Section title="Help">
+        <button
+          onClick={() => void resetOnboarding()}
+          className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-[var(--color-bg-secondary)] rounded transition-colors"
+        >
+          Show welcome tour
+        </button>
+        <p className="text-[11px] text-[var(--color-text-secondary)] leading-snug px-3">
+          Replays the 7-step first-launch tutorial in every open Browser Hub surface.
+        </p>
       </Section>
     </div>
   );

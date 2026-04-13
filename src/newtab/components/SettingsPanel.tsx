@@ -4,6 +4,7 @@ import type { TextSizeMode, NewTabSettings, SearchEngine } from '@core/types/new
 import type { Settings } from '@core/types/settings.types';
 import { DEFAULT_SETTINGS } from '@core/types/settings.types';
 import { useMessaging } from '@shared/hooks/useMessaging';
+import { useOnboardingFlag } from '@shared/components/OnboardingModal';
 
 interface Props {
   settings: NewTabSettings;
@@ -135,6 +136,7 @@ export default function SettingsPanel({ settings, onUpdate, onClose, onClearData
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearing, setClearing] = useState(false);
   const { sendMessage } = useMessaging();
+  const { reset: resetOnboarding } = useOnboardingFlag();
   const [appSettings, setAppSettings] = useState<Settings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
@@ -414,6 +416,27 @@ export default function SettingsPanel({ settings, onUpdate, onClose, onClearData
                 onChange={(v) => { void updateApp('autoDeleteAfterDays', v === 'never' ? null : Number(v)); }}
               />
             </div>
+          </section>
+
+          <Divider />
+
+          {/* Help */}
+          <section>
+            <SectionTitle>Help</SectionTitle>
+            <button
+              onClick={() => { void resetOnboarding(); onClose(); }}
+              className="w-full px-3 py-2 rounded-lg text-sm text-left transition-colors"
+              style={{
+                background: 'rgba(99,102,241,0.12)',
+                border: '1px solid rgba(99,102,241,0.25)',
+                color: '#c7d2fe',
+              }}
+            >
+              Show welcome tour
+            </button>
+            <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              Replays the 7-step first-launch tutorial in every open Browser Hub surface.
+            </p>
           </section>
 
           <Divider />

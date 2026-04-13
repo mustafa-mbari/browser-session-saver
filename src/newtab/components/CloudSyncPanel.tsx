@@ -10,6 +10,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useMessaging } from '@shared/hooks/useMessaging';
+import SyncControlsPanel from '@shared/components/SyncControlsPanel';
 import type { SyncStatus } from '@core/services/sync.service';
 import type { SyncSignInResponse } from '@core/types/messages.types';
 import { QUOTA_WARNING_PCT } from '@core/constants/limits';
@@ -441,6 +442,16 @@ export default function CloudSyncPanel() {
               Upgrade at browserhub.app/billing
             </a>
           </span>
+        </div>
+      )}
+
+      {/* Selective sync + pause + mass-delete controls (Phase 2) */}
+      {quota?.sync_enabled && (
+        <div
+          className="p-4 rounded-2xl"
+          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+        >
+          <SyncControlsPanel themeVariant="newtab" onChange={loadStatus} />
         </div>
       )}
 

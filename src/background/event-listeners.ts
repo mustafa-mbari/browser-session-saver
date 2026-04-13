@@ -14,6 +14,19 @@ import { isValidUrl, isValidSession } from '@core/utils/validators';
 import { MAX_IMPORT_SIZE_BYTES } from '@core/constants/limits';
 import { syncSignIn, syncSignOut, getSyncUserId } from '@core/services/sync-auth.service';
 import { syncAll, getSyncStatus, pushSession, deleteRemoteSession, syncDashboard, pullDashboard, pullAll } from '@core/services/sync.service';
+import {
+  getSettings as getSelectiveSyncSettings,
+  updateSettings as updateSelectiveSyncSettings,
+  pauseSyncFor,
+  clearPause,
+} from '@core/sync/state/selective-sync-settings';
+import {
+  getTrips as getMassDeleteTrips,
+  clearTrip as clearMassDeleteTrip,
+  clearAllTrips as clearAllMassDeleteTrips,
+} from '@core/sync/state/mass-delete-guard';
+import { ALL_SYNC_ENTITY_KEYS, type SyncEntityKey } from '@core/sync/types/syncable';
+import { getSyncEngine } from '@core/sync/handlers';
 
 export function registerEventListeners(): void {
   chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
@@ -80,6 +93,22 @@ async function handleMessage(message: Message): Promise<MessageResponse> {
       return handlePullAll();
     case 'SYNC_MUTATION':
       return handleSyncMutation();
+    case 'SYNC_GET_SETTINGS':
+      return handleSyncGetSettings();
+    case 'SYNC_UPDATE_SETTINGS':
+      return handleSyncUpdateSettings(message.payload);
+    case 'SYNC_PAUSE':
+      return handleSyncPause(message.payload);
+    case 'SYNC_CLEAR_PAUSE':
+      return handleSyncClearPause();
+    case 'SYNC_GET_MASS_DELETE_TRIPS':
+      return handleSyncGetMassDeleteTrips();
+    case 'SYNC_CLEAR_MASS_DELETE_TRIP':
+      return handleSyncClearMassDeleteTrip(message.payload);
+    case 'SYNC_CLEAR_ALL_MASS_DELETE_TRIPS':
+      return handleSyncClearAllMassDeleteTrips();
+    case 'SYNC_GET_DIRTY_COUNTS':
+      return handleSyncGetDirtyCounts();
     default:
       return { success: false, error: 'Unknown action' };
   }
@@ -742,6 +771,77 @@ async function handlePullAll(): Promise<MessageResponse> {
   // Push after pull so any new local items/changes reach Supabase.
   await syncAll();
   return { success: result.success, data: result, error: result.error };
+}
+
+// ─── Phase 2: Selective sync + mass-delete handlers ─────────────────────────
+
+async function handleSyncGetSettings(): Promise<MessageResponse> {
+  const settings = await getSelectiveSyncSettings();
+  return { success: true, data: settings };
+}
+
+async function handleSyncUpdateSettings(payload: {
+  syncEnabled?: boolean;
+  entities?: Record<string, boolean>;
+}): Promise<MessageResponse> {
+  // Only allow known entity keys through.
+  const filteredEntities: Partial<Record<SyncEntityKey, boolean>> = {};
+  if (payload.entities) {
+    for (const key of ALL_SYNC_ENTITY_KEYS) {
+      if (key in payload.entities) filteredEntities[key] = !!payload.entities[key];
+    }
+  }
+  const next = await updateSelectiveSyncSettings({
+    syncEnabled: payload.syncEnabled,
+    entities: filteredEntities as Record<SyncEntityKey, boolean>,
+  });
+  return { success: true, data: next };
+}
+
+async function handleSyncPause(payload: {
+  minutes: number;
+  reason?: string;
+}): Promise<MessageResponse> {
+  const minutes = Math.max(1, Math.min(payload.minutes | 0, 60 * 24 * 7));
+  await pauseSyncFor(minutes, payload.reason);
+  const settings = await getSelectiveSyncSettings();
+  return { success: true, data: settings };
+}
+
+async function handleSyncClearPause(): Promise<MessageResponse> {
+  await clearPause();
+  const settings = await getSelectiveSyncSettings();
+  return { success: true, data: settings };
+}
+
+async function handleSyncGetMassDeleteTrips(): Promise<MessageResponse> {
+  const trips = await getMassDeleteTrips();
+  return { success: true, data: trips };
+}
+
+async function handleSyncClearMassDeleteTrip(payload: {
+  entity: string;
+}): Promise<MessageResponse> {
+  if (!(ALL_SYNC_ENTITY_KEYS as readonly string[]).includes(payload.entity)) {
+    return { success: false, error: 'Unknown entity key' };
+  }
+  await clearMassDeleteTrip(payload.entity as SyncEntityKey);
+  return { success: true };
+}
+
+async function handleSyncClearAllMassDeleteTrips(): Promise<MessageResponse> {
+  await clearAllMassDeleteTrips();
+  return { success: true };
+}
+
+async function handleSyncGetDirtyCounts(): Promise<MessageResponse> {
+  try {
+    const engine = getSyncEngine();
+    const counts = await engine.getDirtyCounts();
+    return { success: true, data: counts };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
 }
 
 /**

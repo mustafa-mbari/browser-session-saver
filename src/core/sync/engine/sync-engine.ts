@@ -139,6 +139,24 @@ export class SyncEngine {
     }
   }
 
+  /**
+   * Dirty/tombstone counts per registered entity — feeds the Cloud Sync UI
+   * so the user can see how many pending writes are queued locally.
+   */
+  async getDirtyCounts(): Promise<Record<SyncEntityKey, { dirty: number; tombstones: number }>> {
+    const out = {} as Record<SyncEntityKey, { dirty: number; tombstones: number }>;
+    for (const [key, handler] of this.handlers.entries()) {
+      try {
+        const dirty = await handler.repo.getDirty();
+        const tombstones = dirty.filter((e) => e.deletedAt != null).length;
+        out[key] = { dirty: dirty.length, tombstones };
+      } catch {
+        out[key] = { dirty: 0, tombstones: 0 };
+      }
+    }
+    return out;
+  }
+
   /** Sync a single entity by key — useful for UI "sync just this" actions. */
   async syncEntity(key: SyncEntityKey, deps: SyncEngineDeps): Promise<EntitySyncResult> {
     const handler = this.handlers.get(key);

@@ -7,12 +7,14 @@ import UnifiedNavBar from './components/UnifiedNavBar';
 import NavigationStack from './components/NavigationStack';
 import QuickActions from './components/QuickActions';
 import Toast, { type ToastData } from '@shared/components/Toast';
+import OnboardingModal, { useOnboardingFlag } from '@shared/components/OnboardingModal';
 import { generateId } from '@core/utils/uuid';
 
 export default function App() {
   useTheme();
   const { navigateTo, focusSearch, openPageFromMenu } = useSidePanelStore();
   const [toasts, setToasts] = useState<ToastData[]>([]);
+  const { needsOnboarding, markComplete } = useOnboardingFlag();
 
   const addToast = useCallback((toast: Omit<ToastData, 'id'>) => {
     setToasts((prev) => [...prev, { ...toast, id: generateId() }]);
@@ -38,6 +40,10 @@ export default function App() {
         <NavigationStack />
       </div>
       <QuickActions onToast={addToast} />
+      <OnboardingModal
+        isOpen={needsOnboarding === true}
+        onClose={() => void markComplete()}
+      />
       {/* Global Toast Container */}
       <div className="fixed bottom-16 left-2 right-2 z-50 space-y-2 pointer-events-none">
         <div className="pointer-events-auto space-y-2">
