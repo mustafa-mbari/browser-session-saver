@@ -1,11 +1,15 @@
 import type { IStorage } from './storage.interface';
 import type { Session } from '@core/types/session.types';
-import type { IIndexedRepository, IBulkRepository } from './repository';
+import type { IIndexedRepository, IBulkRepository, SyncableRepository } from './repository';
 import { ChromeStorageAdapter } from './chrome-storage';
 import { IndexedDBRepository } from './indexeddb-repository';
 
+type SessionRepo = IIndexedRepository<Session> &
+  IBulkRepository<Session> &
+  SyncableRepository<Session>;
+
 let _settingsStorage: IStorage | null = null;
-let _sessionRepository: (IIndexedRepository<Session> & IBulkRepository<Session>) | null = null;
+let _sessionRepository: SessionRepo | null = null;
 
 export function getSettingsStorage(): IStorage {
   if (!_settingsStorage) {
@@ -14,7 +18,7 @@ export function getSettingsStorage(): IStorage {
   return _settingsStorage;
 }
 
-export function getSessionRepository(): IIndexedRepository<Session> & IBulkRepository<Session> {
+export function getSessionRepository(): SessionRepo {
   if (!_sessionRepository) {
     _sessionRepository = new IndexedDBRepository<Session>({
       dbName: 'browser-hub',

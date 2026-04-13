@@ -14,7 +14,9 @@ export interface Prompt {
   createdAt: string;
   updatedAt: string;
   compatibleModels?: string[]; // e.g. ['GPT-4o', 'Claude 3.5']
-  // user_id: reserved for future Supabase integration
+  deletedAt?: string | null;
+  dirty?: boolean;
+  lastSyncedAt?: string | null;
 }
 
 export interface PromptFolder {
@@ -26,6 +28,10 @@ export interface PromptFolder {
   parentId?: string;           // parent folder id for nesting
   position: number;            // sort order among siblings
   createdAt: string;
+  updatedAt?: string;
+  deletedAt?: string | null;
+  dirty?: boolean;
+  lastSyncedAt?: string | null;
 }
 
 export interface PromptCategory {

@@ -1,7 +1,11 @@
-import type { SyncRowMapper } from '../sync-adapter';
 import type { QuickLink } from '@core/types/newtab.types';
 
-export const quicklinkMapper: SyncRowMapper<QuickLink> = {
+interface QuickLinkMapper {
+  toRow(link: QuickLink, userId: string): Record<string, unknown>;
+  fromRow(row: Record<string, unknown>): QuickLink;
+}
+
+export const quicklinkMapper: QuickLinkMapper = {
   toRow(link: QuickLink, userId: string): Record<string, unknown> {
     return {
       id: link.id,

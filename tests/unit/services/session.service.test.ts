@@ -30,6 +30,13 @@ vi.mock('@core/storage/storage-factory', () => {
       delete store[id];
       return Promise.resolve(existed);
     }),
+    markDeleted: vi.fn((id: string) => {
+      const existing = store[id] as Record<string, unknown> | undefined;
+      if (!existing) return Promise.resolve(false);
+      const now = new Date().toISOString();
+      store[id] = { ...existing, deletedAt: now, updatedAt: now, dirty: true };
+      return Promise.resolve(true);
+    }),
     getAll: vi.fn(() => Promise.resolve(Object.values(store))),
     count: vi.fn(() => Promise.resolve(Object.keys(store).length)),
     update: vi.fn((id: string, updates: Record<string, unknown>) => {
@@ -284,10 +291,15 @@ describe('session.service', () => {
       expect(store[session.id]).toBeDefined();
     });
 
-    it('removes an unlocked session and returns true', async () => {
+    it('soft-deletes an unlocked session and returns true', async () => {
       const session = await saveSession(NO_TABS, NO_GROUPS);
       expect(await deleteSession(session.id)).toBe(true);
-      expect(store[session.id]).toBeUndefined();
+      // Soft-delete leaves the record in place with a tombstone stamp
+      // so the sync engine can propagate the deletion.
+      const record = store[session.id] as Record<string, unknown> | undefined;
+      expect(record).toBeDefined();
+      expect(record?.deletedAt).toBeTruthy();
+      expect(record?.dirty).toBe(true);
     });
   });
 

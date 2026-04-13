@@ -1,7 +1,6 @@
 import type { Prompt, PromptCategory, PromptFolder, PromptTag } from '@core/types/prompt.types';
 import { ChromeLocalKeyAdapter } from './chrome-local-key-adapter';
 import { ChromeLocalArrayRepository } from './chrome-local-array-repository';
-import { recordDeletion, recordDeletions } from './deletion-log';
 import { notifySyncMutation } from '@core/services/sync-trigger';
 
 const promptsRepo = new ChromeLocalArrayRepository<Prompt>('prompts');
@@ -40,19 +39,25 @@ export const PromptStorage = {
 
   async delete(id: string): Promise<void> {
     const existing = await promptsRepo.getById(id);
-    await promptsRepo.delete(id);
-    // Only local prompts are pushed to Supabase, so tombstones for app-source
-    // prompts would be meaningless (they do not exist on remote).
-    if (existing && existing.source !== 'app') {
-      await recordDeletion('prompts', id);
+    // App-source prompts have no remote counterpart — hard-delete locally.
+    // Local-source prompts soft-delete so the engine pushes the tombstone.
+    if (existing && existing.source === 'app') {
+      await promptsRepo.delete(id);
+    } else if (existing) {
+      await promptsRepo.markDeleted(id);
     }
     notifySyncMutation();
   },
 
   async deleteAll(): Promise<void> {
     const all = await promptsRepo.getAll();
-    await promptsRepo.replaceAll([]);
-    await recordDeletions('prompts', all.filter((p) => p.source !== 'app').map((p) => p.id));
+    for (const p of all) {
+      if (p.source === 'app') {
+        await promptsRepo.delete(p.id);
+      } else {
+        await promptsRepo.markDeleted(p.id);
+      }
+    }
     notifySyncMutation();
   },
 
@@ -84,31 +89,32 @@ export const PromptStorage = {
   },
 
   async deleteFolder(id: string): Promise<void> {
-    // Delete folder and move its child prompts to parent (or root)
+    // Delete folder and move its child prompts to parent (or root).
+    // Use per-record update()/markDeleted() so tombstones on siblings are
+    // preserved — replaceAll() would silently drop them.
     const [folders, prompts] = await Promise.all([
       foldersRepo.getAll(),
       promptsRepo.getAll(),
     ]);
     const folder = folders.find((f) => f.id === id);
-    // Re-parent child folders to the deleted folder's parent
-    const updatedFolders = folders
-      .filter((f) => f.id !== id)
-      .map((f) =>
-        f.parentId === id
-          ? { ...f, parentId: folder?.parentId }
-          : f,
-      );
-    // Clear folderId on prompts in this folder
-    const updatedPrompts = prompts.map((p) =>
-      p.folderId === id ? { ...p, folderId: undefined } : p,
-    );
-    await Promise.all([
-      foldersRepo.replaceAll(updatedFolders),
-      promptsRepo.replaceAll(updatedPrompts),
-    ]);
-    // Only local folders are pushed to Supabase.
-    if (folder && folder.source !== 'app') {
-      await recordDeletion('prompt_folders', id);
+
+    // Re-parent child folders to the deleted folder's parent.
+    for (const child of folders) {
+      if (child.id !== id && child.parentId === id) {
+        await foldersRepo.update(child.id, { parentId: folder?.parentId });
+      }
+    }
+    // Clear folderId on prompts inside this folder.
+    for (const p of prompts) {
+      if (p.folderId === id) {
+        await promptsRepo.update(p.id, { folderId: undefined });
+      }
+    }
+    // App-source folders have no remote counterpart — hard-delete locally.
+    if (folder && folder.source === 'app') {
+      await foldersRepo.delete(id);
+    } else if (folder) {
+      await foldersRepo.markDeleted(id);
     }
     notifySyncMutation();
   },

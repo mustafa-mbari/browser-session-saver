@@ -27,6 +27,10 @@ export interface Subscription {
   notes?: string;
   tags?: string[];
   createdAt: string; // ISO timestamp
+  updatedAt?: string; // ISO timestamp — stamped by SyncableRepository
+  deletedAt?: string | null;
+  dirty?: boolean;
+  lastSyncedAt?: string | null;
 }
 
 export interface SubscriptionTemplate {

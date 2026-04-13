@@ -1,5 +1,5 @@
 import { newtabDB } from '@core/storage/newtab-storage';
-import { recordDeletion, recordDeletions } from '@core/storage/deletion-log';
+import { softDeleteNewTab, softDeleteNewTabMany } from '@core/storage/newtab-soft-delete';
 import { notifySyncMutation } from '@core/services/sync-trigger';
 import type { Board, BookmarkCategory, BookmarkEntry } from '@core/types/newtab.types';
 import { generateId } from '@core/utils/uuid';
@@ -16,7 +16,9 @@ const ENTRIES = 'bookmarkEntries';
 
 export async function getBoards(): Promise<Board[]> {
   const boards = await db.getAll<Board>(BOARDS);
-  return boards.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return boards
+    .filter((b) => !b.deletedAt)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 export async function saveBoard(
@@ -41,30 +43,23 @@ export async function updateBoard(
 
 export async function deleteBoard(id: string): Promise<void> {
   const categories = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'boardId', id);
-  const deletedCategoryIds: string[] = [];
   const deletedEntryIds: string[] = [];
-  await Promise.all(
-    categories.map(async (cat) => {
-      const entries = await db.getAllByIndex<BookmarkEntry>(ENTRIES, 'categoryId', cat.id);
-      await Promise.all(entries.map((e) => db.delete(ENTRIES, e.id)));
-      deletedEntryIds.push(...entries.map((e) => e.id));
-      await db.delete(CATEGORIES, cat.id);
-      deletedCategoryIds.push(cat.id);
-    }),
-  );
+  for (const cat of categories) {
+    const entries = await db.getAllByIndex<BookmarkEntry>(ENTRIES, 'categoryId', cat.id);
+    deletedEntryIds.push(...entries.map((e) => e.id));
+    await softDeleteNewTab(CATEGORIES, cat.id);
+  }
+  await softDeleteNewTabMany(ENTRIES, deletedEntryIds);
+  // Boards themselves are not synced — hard delete is fine.
   await db.delete(BOARDS, id);
-  // Boards themselves are not synced, but their categories and entries are — record
-  // tombstones so the next sync flushes the matching rows from Supabase and pulls
-  // cannot re-hydrate them.
-  await recordDeletions('bookmark_folders', deletedCategoryIds);
-  await recordDeletions('bookmark_entries', deletedEntryIds);
   notifySyncMutation();
 }
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 
 export async function getCategories(boardId: string): Promise<BookmarkCategory[]> {
-  const cats = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'boardId', boardId);
+  const raw = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'boardId', boardId);
+  const cats = raw.filter((c) => !c.deletedAt);
   const board = await db.get<Board>(BOARDS, boardId);
   if (board && board.categoryIds.length > 0) {
     const order = new Map(board.categoryIds.map((id, idx) => [id, idx]));
@@ -106,8 +101,6 @@ export async function updateCategory(
 
 export async function deleteCategory(id: string): Promise<void> {
   const entries = await db.getAllByIndex<BookmarkEntry>(ENTRIES, 'categoryId', id);
-  await Promise.all(entries.map((e) => db.delete(ENTRIES, e.id)));
-
   const cat = await db.get<BookmarkCategory>(CATEGORIES, id);
   if (cat) {
     const board = await db.get<Board>(BOARDS, cat.boardId);
@@ -119,16 +112,16 @@ export async function deleteCategory(id: string): Promise<void> {
       });
     }
   }
-  await db.delete(CATEGORIES, id);
-  await recordDeletion('bookmark_folders', id);
-  await recordDeletions('bookmark_entries', entries.map((e) => e.id));
+  await softDeleteNewTab(CATEGORIES, id);
+  await softDeleteNewTabMany(ENTRIES, entries.map((e) => e.id));
   notifySyncMutation();
 }
 
 // ─── Entries ──────────────────────────────────────────────────────────────────
 
 export async function getEntries(categoryId: string): Promise<BookmarkEntry[]> {
-  const entries = await db.getAllByIndex<BookmarkEntry>(ENTRIES, 'categoryId', categoryId);
+  const raw = await db.getAllByIndex<BookmarkEntry>(ENTRIES, 'categoryId', categoryId);
+  const entries = raw.filter((e) => !e.deletedAt);
   const cat = await db.get<BookmarkCategory>(CATEGORIES, categoryId);
   if (cat && cat.bookmarkIds.length > 0) {
     const order = new Map(cat.bookmarkIds.map((id, idx) => [id, idx]));
@@ -172,8 +165,7 @@ export async function deleteEntry(id: string): Promise<void> {
       });
     }
   }
-  await db.delete(ENTRIES, id);
-  await recordDeletion('bookmark_entries', id);
+  await softDeleteNewTab(ENTRIES, id);
   notifySyncMutation();
 }
 
@@ -279,14 +271,16 @@ export interface FolderNode {
  * load all folders in a single query).
  */
 export async function getAllCategories(): Promise<BookmarkCategory[]> {
-  return db.getAll<BookmarkCategory>(CATEGORIES);
+  const all = await db.getAll<BookmarkCategory>(CATEGORIES);
+  return all.filter((c) => !c.deletedAt);
 }
 
 /**
  * Returns all BookmarkEntries across all categories (used by the explorer).
  */
 export async function getAllEntries(): Promise<BookmarkEntry[]> {
-  return db.getAll<BookmarkEntry>(ENTRIES);
+  const all = await db.getAll<BookmarkEntry>(ENTRIES);
+  return all.filter((e) => !e.deletedAt);
 }
 
 /**
@@ -295,7 +289,8 @@ export async function getAllEntries(): Promise<BookmarkEntry[]> {
 export async function getSubFolders(
   parentCategoryId: string,
 ): Promise<BookmarkCategory[]> {
-  return db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'parentCategoryId', parentCategoryId);
+  const raw = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'parentCategoryId', parentCategoryId);
+  return raw.filter((c) => !c.deletedAt);
 }
 
 /**
@@ -313,7 +308,8 @@ export async function getTopLevelCategories(
  * Top-level nodes are categories without a parentCategoryId.
  */
 export async function getFolderTree(boardId: string): Promise<FolderNode[]> {
-  const all = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'boardId', boardId);
+  const raw = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'boardId', boardId);
+  const all = raw.filter((c) => !c.deletedAt);
   const byParent = new Map<string, BookmarkCategory[]>();
   for (const cat of all) {
     const key = cat.parentCategoryId ?? '__root__';
@@ -377,16 +373,15 @@ export async function createSubFolder(
  * Also removes the folder from the parent board's categoryIds if applicable.
  */
 export async function deleteFolderRecursive(id: string): Promise<void> {
-  // Delete all entries in this category
+  // Soft-delete all entries in this category.
   const entries = await db.getAllByIndex<BookmarkEntry>(ENTRIES, 'categoryId', id);
-  await Promise.all(entries.map((e) => db.delete(ENTRIES, e.id)));
-  await recordDeletions('bookmark_entries', entries.map((e) => e.id));
+  await softDeleteNewTabMany(ENTRIES, entries.map((e) => e.id));
 
-  // Recursively delete sub-folders
+  // Recursively soft-delete sub-folders.
   const subFolders = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'parentCategoryId', id);
   await Promise.all(subFolders.map((sf) => deleteFolderRecursive(sf.id)));
 
-  // Remove from board's categoryIds if it was a top-level category
+  // Remove from board's categoryIds if it was a top-level category.
   const cat = await db.get<BookmarkCategory>(CATEGORIES, id);
   if (cat && !cat.parentCategoryId) {
     const board = await db.get<Board>(BOARDS, cat.boardId);
@@ -398,8 +393,7 @@ export async function deleteFolderRecursive(id: string): Promise<void> {
       });
     }
   }
-  await db.delete(CATEGORIES, id);
-  await recordDeletion('bookmark_folders', id);
+  await softDeleteNewTab(CATEGORIES, id);
   notifySyncMutation();
 }
 

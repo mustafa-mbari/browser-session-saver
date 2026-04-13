@@ -1,5 +1,5 @@
 import { newtabDB } from '@core/storage/newtab-storage';
-import { recordDeletion, recordDeletions } from '@core/storage/deletion-log';
+import { softDeleteNewTab, softDeleteNewTabMany } from '@core/storage/newtab-soft-delete';
 import { notifySyncMutation } from '@core/services/sync-trigger';
 import type { TodoItem, TodoList, BookmarkCategory } from '@core/types/newtab.types';
 import { generateId } from '@core/utils/uuid';
@@ -14,7 +14,9 @@ const ITEMS = 'todoItems';
 
 export async function getTodoLists(): Promise<TodoList[]> {
   const lists = await db.getAll<TodoList>(LISTS);
-  return lists.sort((a, b) => a.position - b.position);
+  return lists
+    .filter((l) => !l.deletedAt)
+    .sort((a, b) => a.position - b.position);
 }
 
 export async function saveTodoList(
@@ -38,13 +40,9 @@ export async function updateTodoList(
 
 export async function deleteTodoList(id: string): Promise<void> {
   const items = await db.getAllByIndex<TodoItem>(ITEMS, 'listId', id);
-  await Promise.all([
-    ...items.map((item) => db.delete(ITEMS, item.id)),
-    ...items.map((item) => removeTodoFromCardNoteContent(item.id)),
-  ]);
-  await db.delete(LISTS, id);
-  await recordDeletion('todo_lists', id);
-  await recordDeletions('todo_items', items.map((i) => i.id));
+  await Promise.all(items.map((item) => removeTodoFromCardNoteContent(item.id)));
+  await softDeleteNewTabMany(ITEMS, items.map((i) => i.id));
+  await softDeleteNewTab(LISTS, id);
   notifySyncMutation();
 }
 
@@ -52,7 +50,9 @@ export async function deleteTodoList(id: string): Promise<void> {
 
 export async function getTodoItems(listId: string): Promise<TodoItem[]> {
   const items = await db.getAllByIndex<TodoItem>(ITEMS, 'listId', listId);
-  return items.sort((a, b) => a.position - b.position);
+  return items
+    .filter((i) => !i.deletedAt)
+    .sort((a, b) => a.position - b.position);
 }
 
 export async function saveTodoItem(
@@ -75,11 +75,10 @@ export async function updateTodoItem(
 }
 
 export async function deleteTodoItem(id: string): Promise<void> {
-  await db.delete(ITEMS, id);
+  await softDeleteNewTab(ITEMS, id);
   // Also remove from any dashboard card's noteContent so the sync
   // harvester doesn't re-create the deleted item from stale JSON.
   await removeTodoFromCardNoteContent(id);
-  await recordDeletion('todo_items', id);
   notifySyncMutation();
 }
 

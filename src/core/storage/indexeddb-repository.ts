@@ -6,8 +6,9 @@
  * Used by: Sessions.
  */
 
-import type { BaseEntity } from '@core/types/base.types';
-import type { IIndexedRepository, IBulkRepository } from './repository';
+import type { BaseEntity, SyncableEntity } from '@core/types/base.types';
+import type { IIndexedRepository, IBulkRepository, ReadOptions } from './repository';
+import { stampForWrite } from './sync-helpers';
 
 export interface IndexedDBRepositoryConfig {
   dbName: string;
@@ -29,6 +30,9 @@ export interface IndexedDBRepositoryConfig {
 export class IndexedDBRepository<T extends BaseEntity>
   implements IIndexedRepository<T>, IBulkRepository<T>
 {
+  // Soft-delete invariants apply only when T is SyncableEntity; the cast below is
+  // safe because the sync engine is the only caller of the SyncableRepository
+  // methods and always parameterises the repo with a SyncableEntity subtype.
   private _db: IDBDatabase | null = null;
   private readonly config: IndexedDBRepositoryConfig;
 
@@ -54,17 +58,19 @@ export class IndexedDBRepository<T extends BaseEntity>
   }
 
   async getById(id: string): Promise<T | null> {
-    const db = await this.open();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(this.config.storeName, 'readonly');
-      const store = tx.objectStore(this.config.storeName);
-      const req = store.get(id);
-      req.onsuccess = () => resolve((req.result as T) ?? null);
-      req.onerror = () => reject(req.error);
-    });
+    const row = await this.getByIdRaw(id);
+    if (!row) return null;
+    if ((row as unknown as SyncableEntity).deletedAt) return null;
+    return row;
   }
 
   async getAll(): Promise<T[]> {
+    const all = await this.getAllRaw();
+    return all.filter((e) => !(e as unknown as SyncableEntity).deletedAt);
+  }
+
+  /** Returns all rows including soft-deleted — sync engine use only. */
+  private async getAllRaw(): Promise<T[]> {
     const db = await this.open();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(this.config.storeName, 'readonly');
@@ -75,25 +81,43 @@ export class IndexedDBRepository<T extends BaseEntity>
     });
   }
 
+  async getAllWithOptions(opts?: ReadOptions): Promise<T[]> {
+    if (opts?.includeDeleted) return this.getAllRaw();
+    return this.getAll();
+  }
+
   async save(entity: T): Promise<void> {
+    const stamped = stampForWrite(entity);
     const db = await this.open();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(this.config.storeName, 'readwrite');
       const store = tx.objectStore(this.config.storeName);
       const req = this.config.outOfLineKeys
-        ? store.put(entity, entity.id)
-        : store.put(entity);
+        ? store.put(stamped, stamped.id)
+        : store.put(stamped);
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
   }
 
   async update(id: string, updates: Partial<T>): Promise<T | null> {
-    const existing = await this.getById(id);
+    const existing = await this.getByIdRaw(id);
     if (!existing) return null;
-    const updated = { ...existing, ...updates };
-    await this.save(updated);
-    return updated;
+    const merged = { ...existing, ...updates } as T;
+    await this.save(merged);
+    return merged;
+  }
+
+  /** getById that includes soft-deleted rows (sync engine internal). */
+  private async getByIdRaw(id: string): Promise<T | null> {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(this.config.storeName, 'readonly');
+      const store = tx.objectStore(this.config.storeName);
+      const req = store.get(id);
+      req.onsuccess = () => resolve((req.result as T) ?? null);
+      req.onerror = () => reject(req.error);
+    });
   }
 
   async delete(id: string): Promise<boolean> {
@@ -184,4 +208,79 @@ export class IndexedDBRepository<T extends BaseEntity>
       tx.onerror = () => reject(tx.error);
     });
   }
+
+  // ─── SyncableRepository ──────────────────────────────────────────────────
+
+  async markDeleted(id: string): Promise<boolean> {
+    const existing = await this.getByIdRaw(id);
+    if (!existing) return false;
+    const now = new Date().toISOString();
+    const tombstoned = {
+      ...existing,
+      deletedAt: now,
+      updatedAt: now,
+      dirty: true,
+    } as T;
+    await this.putRaw(tombstoned);
+    return true;
+  }
+
+  async getDirty(): Promise<T[]> {
+    const all = await this.getAllRaw();
+    return all.filter((e) => (e as unknown as SyncableEntity).dirty === true);
+  }
+
+  async markSynced(id: string, serverUpdatedAt: string): Promise<void> {
+    const existing = await this.getByIdRaw(id);
+    if (!existing) return;
+    const cleaned = {
+      ...existing,
+      dirty: false,
+      lastSyncedAt: new Date().toISOString(),
+      updatedAt: serverUpdatedAt,
+    } as T;
+    await this.putRaw(cleaned);
+  }
+
+  async applyRemote(remote: T): Promise<void> {
+    const cleaned = {
+      ...remote,
+      dirty: false,
+      lastSyncedAt: new Date().toISOString(),
+    } as T;
+    await this.putRaw(cleaned);
+  }
+
+  async purgeDeleted(beforeTs: string): Promise<number> {
+    const all = await this.getAllRaw();
+    const doomed = all.filter((e) => {
+      const s = e as unknown as SyncableEntity;
+      return s.deletedAt != null && s.deletedAt < beforeTs;
+    });
+    if (doomed.length === 0) return 0;
+    const db = await this.open();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(this.config.storeName, 'readwrite');
+      const store = tx.objectStore(this.config.storeName);
+      for (const e of doomed) store.delete(e.id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    return doomed.length;
+  }
+
+  /** Write WITHOUT stamping (used by sync engine for authoritative writes). */
+  private async putRaw(entity: T): Promise<void> {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(this.config.storeName, 'readwrite');
+      const store = tx.objectStore(this.config.storeName);
+      const req = this.config.outOfLineKeys
+        ? store.put(entity, entity.id)
+        : store.put(entity);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
 }
+

@@ -5,7 +5,6 @@ import { CURRENT_SCHEMA_VERSION } from '@core/types/storage.types';
 import { generateId } from '@core/utils/uuid';
 import { nowISO, formatTimestamp } from '@core/utils/date';
 import { getSessionRepository, getSettingsStorage } from '@core/storage/storage-factory';
-import { recordDeletion } from '@core/storage/deletion-log';
 import { STORAGE_KEYS } from '@core/types/storage.types';
 import type { StorageMetadata } from '@core/types/storage.types';
 
@@ -225,11 +224,10 @@ export async function deleteSession(id: string): Promise<boolean> {
   if (!session) return false;
   if (session.isLocked) return false;
 
-  await repo.delete(id);
-  // Record a tombstone so a concurrent pull cannot re-hydrate the row before
-  // `deleteRemoteSession` completes on the background-sync path.
-  await recordDeletion('sessions', id);
-  return true;
+  // Soft delete: the sync engine will push the tombstone and the pg_cron
+  // sweep (migration 028) hard-deletes after 30 days. Local compaction
+  // purges older confirmed-synced tombstones to keep the store small.
+  return repo.markDeleted(id);
 }
 
 export async function duplicateSession(id: string): Promise<Session | null> {

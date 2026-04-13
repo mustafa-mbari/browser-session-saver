@@ -6,9 +6,10 @@
  * Used by: Subscriptions, Prompts (×4 adapters), Tab Groups.
  */
 
-import type { BaseEntity } from '@core/types/base.types';
-import type { IRepository, IBulkRepository } from './repository';
+import type { BaseEntity, SyncableEntity } from '@core/types/base.types';
+import type { IRepository, IBulkRepository, ReadOptions } from './repository';
 import { ChromeLocalKeyAdapter } from './chrome-local-key-adapter';
+import { stampForWrite } from './sync-helpers';
 
 export class ChromeLocalArrayRepository<T extends BaseEntity>
   implements IRepository<T>, IBulkRepository<T>
@@ -20,32 +21,45 @@ export class ChromeLocalArrayRepository<T extends BaseEntity>
   }
 
   async getById(id: string): Promise<T | null> {
+    const row = await this.getByIdRaw(id);
+    if (!row) return null;
+    if ((row as unknown as SyncableEntity).deletedAt) return null;
+    return row;
+  }
+
+  async getAll(): Promise<T[]> {
+    const all = await this.adapter.getAll();
+    return all.filter((e) => !(e as unknown as SyncableEntity).deletedAt);
+  }
+
+  async getAllWithOptions(opts?: ReadOptions): Promise<T[]> {
+    if (opts?.includeDeleted) return this.adapter.getAll();
+    return this.getAll();
+  }
+
+  private async getByIdRaw(id: string): Promise<T | null> {
     const all = await this.adapter.getAll();
     return all.find((item) => item.id === id) ?? null;
   }
 
-  async getAll(): Promise<T[]> {
-    return this.adapter.getAll();
-  }
-
   async save(entity: T): Promise<void> {
+    const stamped = stampForWrite(entity);
     const all = await this.adapter.getAll();
-    const idx = all.findIndex((item) => item.id === entity.id);
+    const idx = all.findIndex((item) => item.id === stamped.id);
     if (idx >= 0) {
-      all[idx] = entity;
+      all[idx] = stamped;
     } else {
-      all.push(entity);
+      all.push(stamped);
     }
     await this.adapter.setAll(all);
   }
 
   async update(id: string, updates: Partial<T>): Promise<T | null> {
-    const all = await this.adapter.getAll();
-    const idx = all.findIndex((item) => item.id === id);
-    if (idx < 0) return null;
-    all[idx] = { ...all[idx], ...updates };
-    await this.adapter.setAll(all);
-    return all[idx];
+    const existing = await this.getByIdRaw(id);
+    if (!existing) return null;
+    const merged = { ...existing, ...updates } as T;
+    await this.save(merged);
+    return merged;
   }
 
   async delete(id: string): Promise<boolean> {
@@ -58,7 +72,7 @@ export class ChromeLocalArrayRepository<T extends BaseEntity>
 
   async count(): Promise<number> {
     const all = await this.adapter.getAll();
-    return all.length;
+    return all.filter((e) => !(e as unknown as SyncableEntity).deletedAt).length;
   }
 
   async importMany(entities: T[]): Promise<void> {
@@ -72,6 +86,65 @@ export class ChromeLocalArrayRepository<T extends BaseEntity>
 
   async replaceAll(entities: T[]): Promise<void> {
     await this.adapter.setAll(entities);
+  }
+
+  // ─── SyncableRepository ──────────────────────────────────────────────────
+
+  async markDeleted(id: string): Promise<boolean> {
+    const all = await this.adapter.getAll();
+    const idx = all.findIndex((item) => item.id === id);
+    if (idx < 0) return false;
+    const now = new Date().toISOString();
+    all[idx] = {
+      ...all[idx],
+      deletedAt: now,
+      updatedAt: now,
+      dirty: true,
+    } as T;
+    await this.adapter.setAll(all);
+    return true;
+  }
+
+  async getDirty(): Promise<T[]> {
+    const all = await this.adapter.getAll();
+    return all.filter((e) => (e as unknown as SyncableEntity).dirty === true);
+  }
+
+  async markSynced(id: string, serverUpdatedAt: string): Promise<void> {
+    const all = await this.adapter.getAll();
+    const idx = all.findIndex((item) => item.id === id);
+    if (idx < 0) return;
+    all[idx] = {
+      ...all[idx],
+      dirty: false,
+      lastSyncedAt: new Date().toISOString(),
+      updatedAt: serverUpdatedAt,
+    } as T;
+    await this.adapter.setAll(all);
+  }
+
+  async applyRemote(remote: T): Promise<void> {
+    const all = await this.adapter.getAll();
+    const cleaned = {
+      ...remote,
+      dirty: false,
+      lastSyncedAt: new Date().toISOString(),
+    } as T;
+    const idx = all.findIndex((item) => item.id === cleaned.id);
+    if (idx >= 0) all[idx] = cleaned;
+    else all.push(cleaned);
+    await this.adapter.setAll(all);
+  }
+
+  async purgeDeleted(beforeTs: string): Promise<number> {
+    const all = await this.adapter.getAll();
+    const kept = all.filter((e) => {
+      const s = e as unknown as SyncableEntity;
+      return !(s.deletedAt != null && s.deletedAt < beforeTs);
+    });
+    const purged = all.length - kept.length;
+    if (purged > 0) await this.adapter.setAll(kept);
+    return purged;
   }
 }
 

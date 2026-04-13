@@ -5,7 +5,7 @@
  * sync adapters, and tests interact with a single contract.
  */
 
-import type { BaseEntity } from '@core/types/base.types';
+import type { BaseEntity, SyncableEntity } from '@core/types/base.types';
 
 // ─── Core repository ─────────────────────────────────────────────────────────
 
@@ -51,4 +51,45 @@ export interface IBulkRepository<T extends BaseEntity> extends IRepository<T> {
   importMany(entities: T[]): Promise<void>;
   /** Replace the entire dataset. */
   replaceAll(entities: T[]): Promise<void>;
+}
+
+// ─── Sync-aware repository ──────────────────────────────────────────────────
+
+/** Options for sync-aware read operations. */
+export interface ReadOptions {
+  /** When true, return soft-deleted records (deletedAt != null). Default: false. */
+  includeDeleted?: boolean;
+}
+
+/**
+ * Sync-capable repository.
+ *
+ * Implemented directly by IndexedDBRepository, ChromeLocalArrayRepository,
+ * and NewTabDBRepository. The sync engine talks only to this interface.
+ *
+ * Invariants:
+ *   - `getAll()` filters out soft-deleted records by default.
+ *   - `save()` / `update()` stamp `updatedAt = now`, `dirty = true`.
+ *   - `markDeleted()` is a soft delete: stamps `deletedAt`, `dirty = true`, retains row.
+ *   - `delete()` is a HARD delete — use only from sync engine compaction.
+ *   - `applyRemote()` writes WITHOUT dirtying the record (authoritative remote state).
+ */
+export interface SyncableRepository<T extends SyncableEntity> extends IRepository<T> {
+  /** Read variant that can optionally include soft-deleted records. */
+  getAllWithOptions(opts?: ReadOptions): Promise<T[]>;
+
+  /** Soft-delete: stamps deletedAt = now, dirty = true. Row retained. */
+  markDeleted(id: string): Promise<boolean>;
+
+  /** Return records where dirty === true (includes tombstones). */
+  getDirty(): Promise<T[]>;
+
+  /** Clear dirty flag and stamp lastSyncedAt after successful push. */
+  markSynced(id: string, serverUpdatedAt: string): Promise<void>;
+
+  /** Apply a remote row as authoritative state (dirty=false, stamps lastSyncedAt). */
+  applyRemote(remote: T): Promise<void>;
+
+  /** Hard-delete tombstones older than the given ISO timestamp. Returns count purged. */
+  purgeDeleted(beforeTs: string): Promise<number>;
 }

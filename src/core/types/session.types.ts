@@ -60,4 +60,7 @@ export interface Session {
   notes: string;
   tabCount: number;
   version: string;
+  deletedAt?: string | null;
+  dirty?: boolean;
+  lastSyncedAt?: string | null;
 }

@@ -28,6 +28,27 @@ export interface MutableEntity extends BaseEntity {
 export interface Syncable extends BaseEntity {}
 
 /**
+ * Canonical base for entities that participate in the cloud sync engine.
+ *
+ * All fields except `updatedAt` (inherited from MutableEntity) are optional
+ * so existing entity constructors keep compiling. The sync engine and
+ * repository layer stamp defaults on write:
+ *   - `deletedAt`    → null (alive)
+ *   - `dirty`        → false (clean; set true when mutated)
+ *   - `lastSyncedAt` → null (never synced)
+ *
+ * Reads should treat missing fields as their defaults via `?? null` / `?? false`.
+ */
+export interface SyncableEntity extends MutableEntity {
+  /** ISO 8601 timestamp when soft-deleted, or null if alive. */
+  deletedAt?: string | null;
+  /** Local flag: true when this record has unpushed changes. */
+  dirty?: boolean;
+  /** ISO 8601 timestamp of the last successful sync round-trip. */
+  lastSyncedAt?: string | null;
+}
+
+/**
  * Bidirectional mapper between a local camelCase entity and a Supabase
  * snake_case row. One mapper instance per entity type.
  */

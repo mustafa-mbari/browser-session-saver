@@ -21,4 +21,7 @@ export interface TabGroupTemplate {
   updatedAt: string;
   /** True when explicitly saved by the user via the Bookmark button — syncs across devices. */
   pinned?: boolean;
+  deletedAt?: string | null;
+  dirty?: boolean;
+  lastSyncedAt?: string | null;
 }

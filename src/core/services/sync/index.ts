@@ -1,27 +1,10 @@
-// Sync layer barrel export
+// Sync layer barrel — shared infra only.
+//
+// Orchestrator / adapter / quota were replaced by the new SyncEngine under
+// `@core/sync/`. Callers use `@core/services/sync.service` for the public API
+// and the path-specific imports below for low-level helpers.
 
-// ─── Orchestrator (public API) ──────────────────────────────────────────────
-
-export {
-  getSyncStatus,
-  syncAll,
-  pushSession,
-  deleteRemoteSession,
-  syncDashboard,
-  pullDashboard,
-  pullAll,
-  getUserQuota,
-} from './sync-orchestrator';
-
-// ─── Infrastructure ─────────────────────────────────────────────────────────
-
-export { SyncAdapter } from './sync-adapter';
-export type { SyncRowMapper } from './sync-adapter';
-export { enforceQuota } from './quota';
-export type { QuotaConfig } from './quota';
 export { isExcludedUrl, collectAllSyncableUrls } from './url-filter';
-
-// ─── Types ──────────────────────────────────────────────────────────────────
 
 export type {
   UserQuota,
@@ -32,8 +15,6 @@ export type {
   DashboardSyncResult,
   SyncAdapterConfig,
 } from './types';
-
-// ─── Row mappers ────────────────────────────────────────────────────────────
 
 export {
   sessionMapper,

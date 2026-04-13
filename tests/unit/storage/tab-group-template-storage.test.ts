@@ -67,10 +67,11 @@ describe('TabGroupTemplateStorage', () => {
     const original = makeTemplate({ savedAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' });
     setupStorage({ tab_group_templates: [original] });
 
+    const before = new Date().toISOString();
     const updated = makeTemplate({
       title: 'Work Revised',
       savedAt: '2099-01-01T00:00:00.000Z', // should be ignored on update
-      updatedAt: '2026-06-01T00:00:00.000Z',
+      updatedAt: '2026-06-01T00:00:00.000Z', // ignored — upsert stamps now
     });
     await TabGroupTemplateStorage.upsert(updated);
 
@@ -79,8 +80,10 @@ describe('TabGroupTemplateStorage', () => {
     expect(result[0].title).toBe('Work Revised');
     // savedAt preserved from original
     expect(result[0].savedAt).toBe('2026-01-01T00:00:00.000Z');
-    // updatedAt from the incoming template
-    expect(result[0].updatedAt).toBe('2026-06-01T00:00:00.000Z');
+    // updatedAt is stamped at upsert time (caller-provided value is ignored
+    // so the sync engine has an authoritative local mutation timestamp).
+    expect(result[0].updatedAt >= before).toBe(true);
+    expect(result[0].dirty).toBe(true);
   });
 
   it('upsert distinguishes templates by key', async () => {

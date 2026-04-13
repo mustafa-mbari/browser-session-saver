@@ -72,7 +72,12 @@ function makeSession(overrides: Partial<BrowserSession> = {}): BrowserSession {
   };
 }
 
-async function importSyncService() {
+interface ImportOverrides {
+  engine?: { syncAll?: ReturnType<typeof vi.fn>; syncEntity?: ReturnType<typeof vi.fn> };
+  sessionRepo?: { markDeleted?: ReturnType<typeof vi.fn> };
+}
+
+async function importSyncService(overrides: ImportOverrides = {}) {
   vi.resetModules();
   vi.doMock('@core/supabase/client', () => ({ supabase: mockSupabase }));
   vi.doMock('@core/services/sync-auth.service', () => mockAuth);
@@ -85,6 +90,20 @@ async function importSyncService() {
   vi.doMock('@core/storage/newtab-storage', () => ({
     newtabDB: mockNewTabDB,
   }));
+  vi.doMock('@core/sync/legacy/deletion-log-importer', () => ({
+    importLegacyDeletionLog: vi.fn().mockResolvedValue(undefined),
+  }));
+  vi.doMock('@core/sync/handlers', () => ({
+    getSyncEngine: () => ({
+      syncAll: overrides.engine?.syncAll ?? vi.fn().mockResolvedValue({ ok: true, entities: [] }),
+      syncEntity: overrides.engine?.syncEntity ?? vi.fn().mockResolvedValue({ ok: true }),
+    }),
+  }));
+  if (overrides.sessionRepo) {
+    vi.doMock('@core/storage/storage-factory', () => ({
+      getSessionRepository: () => overrides.sessionRepo,
+    }));
+  }
   return await import('@core/services/sync.service');
 }
 
@@ -142,60 +161,46 @@ describe('sync.service', () => {
   });
 
   // ── syncAll — successful sync ─────────────────────────────────────────────
+  // The new SyncEngine mediates all entity push/pull. Here we mock the engine
+  // factory so the facade's orchestration (quota fetch, persist status, usage
+  // aggregation) is exercised without pulling in the full handler graph.
 
-  it('syncAll succeeds with valid quota and data', async () => {
+  it('syncAll succeeds with valid quota and engine reports success', async () => {
     mockAuth.getSyncUserId.mockResolvedValue('user-1');
     mockAuth.getSyncEmail.mockResolvedValue('u@example.com');
+    mockSupabase.rpc.mockResolvedValue({ data: makeQuota(), error: null });
 
-    const quota = makeQuota();
-    mockSupabase.rpc.mockResolvedValue({ data: quota, error: null });
-    mockGetAllSessions.mockResolvedValue([makeSession()]);
-
-    // Supabase from() mock: supports upsert, delete, and select chains.
-    // delete/select chains are kept as no-ops because the explicit per-entity
-    // delete API (deleteRemoteSession) still calls them; sync push paths no
-    // longer issue orphan-deletes.
-    const mockUpsert = vi.fn().mockResolvedValue({ error: null });
-    const mockDeleteChain = {
-      eq: vi.fn().mockReturnThis(),
-      in: vi.fn().mockResolvedValue({ error: null }),
-    };
-    const mockSelectChain = {
-      eq: vi.fn().mockResolvedValue({ data: [], error: null }),
-    };
-    mockSupabase.from.mockReturnValue({
-      upsert: mockUpsert,
-      delete: vi.fn().mockReturnValue(mockDeleteChain),
-      select: vi.fn().mockReturnValue(mockSelectChain),
+    const { syncAll } = await importSyncService({
+      engine: {
+        syncAll: vi.fn().mockResolvedValue({
+          ok: true,
+          entities: [{ entity: 'sessions', pushed: 1, pulled: 0 }],
+        }),
+      },
     });
-
-    const { syncAll } = await importSyncService();
     const result = await syncAll();
     expect(result.success).toBe(true);
     expect(result.synced.sessions).toBe(1);
   });
 
   // ── syncAll — sequential guard ────────────────────────────────────────────
-  // The `_isSyncing` flag is set AFTER the first `await` (getSyncUserId).
-  // A second call made AFTER the first's getSyncUserId resolves will see the flag.
 
   it('second syncAll returns early when first is still in progress', async () => {
     mockAuth.getSyncUserId.mockResolvedValue('user-1');
+    mockSupabase.rpc.mockResolvedValue({ data: makeQuota(), error: null });
 
-    // Make rpc hang so the first call stays in-flight after _isSyncing=true is set
-    mockSupabase.rpc.mockImplementation(() => new Promise(() => {})); // never resolves
-    mockGetAllSessions.mockResolvedValue([]);
+    const { syncAll } = await importSyncService({
+      engine: {
+        // never resolves — keeps first call in-flight so _isSyncing stays true
+        syncAll: vi.fn().mockImplementation(() => new Promise(() => {})),
+      },
+    });
 
-    const { syncAll } = await importSyncService();
-
-    // Start the first call (won't complete — rpc hangs)
-    syncAll(); // fire-and-forget — not awaited
-
-    // Yield microtasks so getSyncUserId() resolves and _isSyncing=true is set
+    syncAll(); // fire-and-forget
     await Promise.resolve();
     await Promise.resolve();
+    await Promise.resolve();
 
-    // Second call should now see _isSyncing=true
     const secondResult = await syncAll();
     expect(secondResult.error).toBe('Sync already in progress');
   });
@@ -206,53 +211,47 @@ describe('sync.service', () => {
     mockAuth.getSyncUserId.mockResolvedValue('user-1');
     mockSupabase.rpc.mockResolvedValue({ data: makeQuota(), error: null });
 
-    const mockUpsert = vi.fn().mockResolvedValue({ error: null });
-    mockSupabase.from.mockReturnValue({ upsert: mockUpsert });
-
-    const { pushSession } = await importSyncService();
+    const engineSyncEntity = vi.fn().mockResolvedValue({ ok: true });
+    const { pushSession } = await importSyncService({
+      engine: { syncEntity: engineSyncEntity },
+    });
     await pushSession(makeSession({ isAutoSave: true }), 'user-1');
 
-    expect(mockUpsert).not.toHaveBeenCalled();
+    expect(engineSyncEntity).not.toHaveBeenCalled();
   });
 
-  it('pushSession upserts non-auto-save sessions', async () => {
+  it('pushSession delegates to engine.syncEntity for non-auto-save sessions', async () => {
     mockSupabase.rpc.mockResolvedValue({ data: makeQuota(), error: null });
-    const mockUpsert = vi.fn().mockResolvedValue({ error: null });
-    mockSupabase.from.mockReturnValue({ upsert: mockUpsert });
 
-    const { pushSession } = await importSyncService();
+    const engineSyncEntity = vi.fn().mockResolvedValue({ ok: true });
+    const { pushSession } = await importSyncService({
+      engine: { syncEntity: engineSyncEntity },
+    });
     await pushSession(makeSession({ isAutoSave: false }), 'user-1');
 
-    expect(mockUpsert).toHaveBeenCalled();
+    expect(engineSyncEntity).toHaveBeenCalledWith('sessions', expect.anything());
   });
 
   // ── deleteRemoteSession ───────────────────────────────────────────────────
+  // In the new system deletes are soft-deletes: the session repo stamps a
+  // tombstone and the engine propagates on the next cycle. The facade just
+  // routes to repo.markDeleted and never talks to Supabase directly.
 
-  it('deleteRemoteSession calls supabase delete with correct filters', async () => {
-    mockAuth.getSyncUserId.mockResolvedValue('user-1');
-
-    const mockEq2 = vi.fn().mockResolvedValue({ error: null });
-    const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
-    const mockDelete = vi.fn().mockReturnValue({ eq: mockEq1 });
-    mockSupabase.from.mockReturnValue({ delete: mockDelete });
-
-    const { deleteRemoteSession } = await importSyncService();
+  it('deleteRemoteSession calls repo.markDeleted with the given id', async () => {
+    const markDeleted = vi.fn().mockResolvedValue(true);
+    const { deleteRemoteSession } = await importSyncService({
+      sessionRepo: { markDeleted },
+    });
     await deleteRemoteSession('session-1');
-
-    expect(mockDelete).toHaveBeenCalled();
-    expect(mockEq1).toHaveBeenCalledWith('id', 'session-1');
-    expect(mockEq2).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(markDeleted).toHaveBeenCalledWith('session-1');
   });
 
-  it('deleteRemoteSession is a no-op when not authenticated', async () => {
-    // mockAuth.getSyncUserId already returns null
-    const mockDelete = vi.fn();
-    mockSupabase.from.mockReturnValue({ delete: mockDelete });
-
-    const { deleteRemoteSession } = await importSyncService();
-    await deleteRemoteSession('session-1');
-
-    expect(mockDelete).not.toHaveBeenCalled();
+  it('deleteRemoteSession swallows errors from the repo', async () => {
+    const markDeleted = vi.fn().mockRejectedValue(new Error('boom'));
+    const { deleteRemoteSession } = await importSyncService({
+      sessionRepo: { markDeleted },
+    });
+    await expect(deleteRemoteSession('session-1')).resolves.toBeUndefined();
   });
 
   // ── getUserQuota — caching ────────────────────────────────────────────────
