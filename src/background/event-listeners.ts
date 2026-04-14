@@ -769,7 +769,9 @@ async function handlePullAll(): Promise<MessageResponse> {
     try { await chrome.storage.local.set({ cloud_last_pull_at: Date.now() }); } catch {}
   }
   // Push after pull so any new local items/changes reach Supabase.
-  await syncAll();
+  // Best-effort: a push failure (e.g. free-plan quota) must not mask the
+  // successful pull that already wrote data to local storage.
+  try { await syncAll(); } catch { /* non-fatal — pull already succeeded */ }
   return { success: result.success, data: result, error: result.error };
 }
 

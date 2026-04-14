@@ -104,6 +104,16 @@ export default function App() {
           <ExternalLink size={12} />
           Session Manager
         </button>
+        <button
+          onClick={() => {
+            chrome.tabs.create({ url: import.meta.env.VITE_SITE_URL as string ?? 'https://bh.mbari.de' });
+            window.close();
+          }}
+          className="flex items-center gap-1 text-xs text-primary hover:underline"
+        >
+          <ExternalLink size={12} />
+          Web App
+        </button>
       </div>
     </div>
   );

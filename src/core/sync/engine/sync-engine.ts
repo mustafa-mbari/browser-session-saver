@@ -124,7 +124,7 @@ export class SyncEngine {
       // After the full cycle, mark that at least one pull has completed so
       // future pushes are unblocked on this device.
       if (!pushAllowed) {
-        const anyPulled = results.some((r) => r.pulled > 0 || !r.error);
+        const anyPulled = results.some((r) => r.pulled > 0);
         if (anyPulled) await markPullCompleted(deps.userId);
       }
 

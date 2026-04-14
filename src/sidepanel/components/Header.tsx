@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Settings, Sun, Moon, Cloud } from 'lucide-react';
+import { ArrowLeft, Settings, Sun, Moon, Cloud, ExternalLink } from 'lucide-react';
 import { useSidePanelStore } from '../stores/sidepanel.store';
 import { useTheme } from '@shared/hooks/useTheme';
 import AutoSaveBadge from './AutoSaveBadge';
@@ -51,6 +51,14 @@ export default function Header() {
       </div>
       <div className="flex items-center gap-2">
         <AutoSaveBadge />
+        <button
+          onClick={() => chrome.tabs.create({ url: import.meta.env.VITE_SITE_URL as string ?? 'https://bh.mbari.de' })}
+          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          aria-label="Open web app"
+          title="Open web app"
+        >
+          <ExternalLink size={16} />
+        </button>
         <button
           onClick={() => navigateTo('cloud-sync')}
           className={`relative p-1.5 rounded transition-colors ${

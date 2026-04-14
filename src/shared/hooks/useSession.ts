@@ -119,7 +119,7 @@ export function useSession() {
   // with "message port closed before a response was received" if the SW is sleeping.
   useEffect(() => {
     const handler = async (changes: Record<string, chrome.storage.StorageChange>) => {
-      if (changes['_sessions_updated']) {
+      if (changes['_sessions_updated'] || changes['cloud_last_pull_at']) {
         const updated = await SessionService.getAllSessions();
         setSessions(updated);
         setTotalCount(updated.length);
