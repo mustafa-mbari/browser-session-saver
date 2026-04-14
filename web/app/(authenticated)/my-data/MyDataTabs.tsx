@@ -1,9 +1,9 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
-import { Globe, Pin, Star, CheckSquare, Square, Folder } from 'lucide-react'
+import { Globe, Pin, Star, CheckSquare, Square, Folder, FolderOpen, ChevronRight } from 'lucide-react'
 
 // Matches GROUP_COLORS in src/core/constants/tab-group-colors.ts
 const TAB_GROUP_COLORS: Record<string, string> = {
@@ -44,81 +44,140 @@ function EmptyState({ message }: { message: string }) {
 type BmFolder = { id: string; name: string; parent_folder_id: string | null; card_type: string }
 type BmEntry = { id: string; title: string; url: string; fav_icon_url: string | null }
 
+function EntryRow({ entry }: { entry: BmEntry }) {
+  let hostname = ''
+  try { hostname = new URL(entry.url).hostname } catch { /* invalid url */ }
+
+  return (
+    <a
+      href={entry.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-stone-50 dark:hover:bg-stone-800/60 transition-colors group min-w-0"
+    >
+      {entry.fav_icon_url ? (
+        <img
+          src={entry.fav_icon_url}
+          alt=""
+          width={14}
+          height={14}
+          className="shrink-0 rounded-sm opacity-80 group-hover:opacity-100"
+          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+        />
+      ) : (
+        <Globe className="h-3.5 w-3.5 shrink-0 text-stone-300 dark:text-stone-600" />
+      )}
+      <span className="flex-1 truncate text-sm text-stone-700 dark:text-stone-300 group-hover:text-stone-900 dark:group-hover:text-stone-100 transition-colors">
+        {entry.title || entry.url}
+      </span>
+      {hostname && (
+        <span className="shrink-0 text-[11px] text-stone-400 dark:text-stone-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors truncate max-w-[160px]">
+          {hostname}
+        </span>
+      )}
+    </a>
+  )
+}
+
 function FolderNode({
   folder,
   childrenMap,
   entriesByFolder,
+  openIds,
+  onToggle,
   depth,
 }: {
   folder: BmFolder
   childrenMap: Map<string | null, BmFolder[]>
   entriesByFolder: Record<string, BmEntry[]>
+  openIds: Set<string>
+  onToggle: (id: string) => void
   depth: number
 }) {
   const entries = entriesByFolder[folder.id] ?? []
   const children = childrenMap.get(folder.id) ?? []
   const total = entries.length + children.length
+  const isOpen = openIds.has(folder.id)
+  const hasContent = total > 0
 
   return (
-    <div className={depth > 0 ? 'mt-2 pl-4 border-l-2 border-stone-100 dark:border-stone-700/50' : ''}>
-      {/* Folder header */}
-      <div className="flex items-center gap-2 mb-2">
-        <Folder className={`shrink-0 ${depth === 0 ? 'h-4 w-4 text-amber-500' : 'h-3.5 w-3.5 text-amber-400'}`} />
-        <span className={`${depth === 0 ? 'font-semibold text-stone-800 dark:text-stone-100' : 'font-medium text-stone-700 dark:text-stone-200'} text-sm`}>
+    <div className={depth > 0 ? 'ml-2 pl-3 border-l border-stone-200 dark:border-stone-700/60' : ''}>
+      {/* Folder header — full-width clickable button */}
+      <button
+        onClick={() => hasContent && onToggle(folder.id)}
+        disabled={!hasContent}
+        aria-expanded={isOpen}
+        className={[
+          'w-full flex items-center gap-2 py-1.5 px-2 rounded-lg transition-colors text-left',
+          hasContent
+            ? 'hover:bg-stone-100 dark:hover:bg-stone-800/60 cursor-pointer'
+            : 'cursor-default opacity-50',
+        ].join(' ')}
+      >
+        {/* Rotating chevron */}
+        <ChevronRight
+          className={[
+            'h-3.5 w-3.5 shrink-0 text-stone-400 transition-transform duration-200',
+            isOpen ? 'rotate-90' : '',
+            !hasContent ? 'invisible' : '',
+          ].join(' ')}
+        />
+
+        {/* Open/closed folder icon */}
+        {isOpen
+          ? <FolderOpen className={`shrink-0 text-amber-500 ${depth === 0 ? 'h-4 w-4' : 'h-3.5 w-3.5'}`} />
+          : <Folder    className={`shrink-0 text-amber-400 ${depth === 0 ? 'h-4 w-4' : 'h-3.5 w-3.5'}`} />
+        }
+
+        <span className={[
+          'flex-1 truncate text-sm',
+          depth === 0
+            ? 'font-semibold text-stone-800 dark:text-stone-100'
+            : 'font-medium text-stone-700 dark:text-stone-200',
+        ].join(' ')}>
           {folder.name}
         </span>
-        <span className="ml-auto text-xs text-stone-400 dark:text-stone-500 shrink-0">
-          {total} item{total !== 1 ? 's' : ''}
-        </span>
-      </div>
 
-      {/* Bookmark entries */}
-      {entries.length > 0 && (
-        <ul className="flex flex-col gap-1.5 mb-2">
-          {entries.map(entry => {
-            let hostname = ''
-            try { hostname = new URL(entry.url).hostname } catch { /* invalid url */ }
-            return (
-              <li key={entry.id} className="flex items-center gap-2 text-sm min-w-0 pl-1">
-                {entry.fav_icon_url ? (
-                  <img
-                    src={entry.fav_icon_url}
-                    alt=""
-                    width={14}
-                    height={14}
-                    className="shrink-0 rounded-sm"
-                    onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+        {/* Item count pill — always visible */}
+        {hasContent && (
+          <span className="shrink-0 text-[11px] px-1.5 py-0.5 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400">
+            {total}
+          </span>
+        )}
+      </button>
+
+      {/* Animated content — grid-template-rows trick for smooth height */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateRows: isOpen ? '1fr' : '0fr',
+          transition: 'grid-template-rows 200ms ease',
+        }}
+      >
+        <div className="overflow-hidden">
+          <div className="pt-0.5 pb-1">
+            {/* Bookmark entries */}
+            {entries.map(entry => <EntryRow key={entry.id} entry={entry} />)}
+
+            {/* Nested sub-folders */}
+            {children.length > 0 && (
+              <div className="mt-1 flex flex-col">
+                {children.map(child => (
+                  <FolderNode
+                    key={child.id}
+                    folder={child}
+                    childrenMap={childrenMap}
+                    entriesByFolder={entriesByFolder}
+                    openIds={openIds}
+                    onToggle={onToggle}
+                    depth={depth + 1}
                   />
-                ) : (
-                  <Globe className="h-3.5 w-3.5 shrink-0 text-stone-300 dark:text-stone-600" />
-                )}
-                <span className="truncate text-stone-700 dark:text-stone-300">{entry.title || entry.url}</span>
-                {hostname && (
-                  <a
-                    href={entry.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-auto shrink-0 text-[11px] text-indigo-500 dark:text-indigo-400 hover:underline truncate max-w-[180px]"
-                  >
-                    {hostname}
-                  </a>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      )}
-
-      {/* Sub-folders (recursive) */}
-      {children.map(child => (
-        <FolderNode
-          key={child.id}
-          folder={child}
-          childrenMap={childrenMap}
-          entriesByFolder={entriesByFolder}
-          depth={depth + 1}
-        />
-      ))}
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -159,6 +218,24 @@ export default function MyDataTabs({
   }, [bookmarkFolders])
 
   const bmRootFolders = bmChildrenMap.get(null) ?? []
+
+  // Collapse/expand state — root folders open by default, sub-folders closed
+  const [openIds, setOpenIds] = useState<Set<string>>(() => new Set(bmRootFolders.map(f => f.id)))
+
+  const toggleFolder = useCallback((id: string) => {
+    setOpenIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const expandAll = useCallback(() => {
+    setOpenIds(new Set(bookmarkFolders.filter(f => f.card_type === 'bookmark').map(f => f.id)))
+  }, [bookmarkFolders])
+
+  const collapseAll = useCallback(() => setOpenIds(new Set()), [])
 
   return (
     <Tabs defaultValue="todos">
@@ -308,19 +385,51 @@ export default function MyDataTabs({
         {bmRootFolders.length === 0 ? (
           <EmptyState message="No bookmark folders synced yet." />
         ) : (
-          <div className="flex flex-col gap-4">
-            {bmRootFolders.map(folder => (
-              <Card key={folder.id}>
-                <CardContent className="pt-5 pb-4">
-                  <FolderNode
-                    folder={folder}
-                    childrenMap={bmChildrenMap}
-                    entriesByFolder={entriesByFolder}
-                    depth={0}
-                  />
-                </CardContent>
-              </Card>
-            ))}
+          <div className="flex flex-col gap-3">
+            {/* Toolbar */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-stone-400 dark:text-stone-500">
+                {bmRootFolders.length} folder{bmRootFolders.length !== 1 ? 's' : ''}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={expandAll}
+                  className="text-xs text-indigo-500 dark:text-indigo-400 hover:underline"
+                >
+                  Expand all
+                </button>
+                <span className="text-stone-300 dark:text-stone-600 select-none">·</span>
+                <button
+                  onClick={collapseAll}
+                  className="text-xs text-indigo-500 dark:text-indigo-400 hover:underline"
+                >
+                  Collapse all
+                </button>
+              </div>
+            </div>
+
+            {/* Folder tree */}
+            <Card>
+              <CardContent className="py-2 px-2">
+                <div className="flex flex-col">
+                  {bmRootFolders.map((folder, i) => (
+                    <div key={folder.id}>
+                      {i > 0 && (
+                        <div className="mx-2 my-1 h-px bg-stone-100 dark:bg-stone-800" />
+                      )}
+                      <FolderNode
+                        folder={folder}
+                        childrenMap={bmChildrenMap}
+                        entriesByFolder={entriesByFolder}
+                        openIds={openIds}
+                        onToggle={toggleFolder}
+                        depth={0}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
       </TabsContent>
