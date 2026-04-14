@@ -1,9 +1,9 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Globe, Pin, Star, CheckSquare, Square } from 'lucide-react'
+import { Globe, Pin, Star, CheckSquare, Square, Folder } from 'lucide-react'
 
 // Matches GROUP_COLORS in src/core/constants/tab-group-colors.ts
 const TAB_GROUP_COLORS: Record<string, string> = {
@@ -41,13 +41,95 @@ function EmptyState({ message }: { message: string }) {
   )
 }
 
+type BmFolder = { id: string; name: string; parent_folder_id: string | null; card_type: string }
+type BmEntry = { id: string; title: string; url: string; fav_icon_url: string | null }
+
+function FolderNode({
+  folder,
+  childrenMap,
+  entriesByFolder,
+  depth,
+}: {
+  folder: BmFolder
+  childrenMap: Map<string | null, BmFolder[]>
+  entriesByFolder: Record<string, BmEntry[]>
+  depth: number
+}) {
+  const entries = entriesByFolder[folder.id] ?? []
+  const children = childrenMap.get(folder.id) ?? []
+  const total = entries.length + children.length
+
+  return (
+    <div className={depth > 0 ? 'mt-2 pl-4 border-l-2 border-stone-100 dark:border-stone-700/50' : ''}>
+      {/* Folder header */}
+      <div className="flex items-center gap-2 mb-2">
+        <Folder className={`shrink-0 ${depth === 0 ? 'h-4 w-4 text-amber-500' : 'h-3.5 w-3.5 text-amber-400'}`} />
+        <span className={`${depth === 0 ? 'font-semibold text-stone-800 dark:text-stone-100' : 'font-medium text-stone-700 dark:text-stone-200'} text-sm`}>
+          {folder.name}
+        </span>
+        <span className="ml-auto text-xs text-stone-400 dark:text-stone-500 shrink-0">
+          {total} item{total !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      {/* Bookmark entries */}
+      {entries.length > 0 && (
+        <ul className="flex flex-col gap-1.5 mb-2">
+          {entries.map(entry => {
+            let hostname = ''
+            try { hostname = new URL(entry.url).hostname } catch { /* invalid url */ }
+            return (
+              <li key={entry.id} className="flex items-center gap-2 text-sm min-w-0 pl-1">
+                {entry.fav_icon_url ? (
+                  <img
+                    src={entry.fav_icon_url}
+                    alt=""
+                    width={14}
+                    height={14}
+                    className="shrink-0 rounded-sm"
+                    onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                  />
+                ) : (
+                  <Globe className="h-3.5 w-3.5 shrink-0 text-stone-300 dark:text-stone-600" />
+                )}
+                <span className="truncate text-stone-700 dark:text-stone-300">{entry.title || entry.url}</span>
+                {hostname && (
+                  <a
+                    href={entry.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-auto shrink-0 text-[11px] text-indigo-500 dark:text-indigo-400 hover:underline truncate max-w-[180px]"
+                  >
+                    {hostname}
+                  </a>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+
+      {/* Sub-folders (recursive) */}
+      {children.map(child => (
+        <FolderNode
+          key={child.id}
+          folder={child}
+          childrenMap={childrenMap}
+          entriesByFolder={entriesByFolder}
+          depth={depth + 1}
+        />
+      ))}
+    </div>
+  )
+}
+
 interface Props {
   sessions: Array<{ id: string; name: string; created_at: string; tab_count: number | null }>
   prompts: Array<{ id: string; title: string; folder_id: string | null; is_favorite: boolean; is_pinned: boolean; usage_count: number; created_at: string }>
   folderMap: Record<string, string>
   subscriptions: Array<{ id: string; name: string; price: number | null; currency: string; billing_cycle: string; next_billing_date: string | null; status: string }>
-  bookmarkFolders: Array<{ id: string; name: string }>
-  entriesByFolder: Record<string, Array<{ id: string; title: string; url: string; fav_icon_url: string | null }>>
+  bookmarkFolders: BmFolder[]
+  entriesByFolder: Record<string, BmEntry[]>
   tabGroups: Array<{ key: string; title: string; color: string; tabs: unknown[]; saved_at: string }>
   todoLists: Array<{ id: string; name: string; icon: string | null }>
   itemsByList: Record<string, Array<{ id: string; text: string; completed: boolean; priority: string }>>
@@ -64,6 +146,20 @@ export default function MyDataTabs({
   todoLists,
   itemsByList,
 }: Props) {
+  // Build parent→children map for the bookmark folder tree (only bookmark-type folders)
+  const bmChildrenMap = useMemo(() => {
+    const map = new Map<string | null, BmFolder[]>()
+    for (const f of bookmarkFolders) {
+      if (f.card_type !== 'bookmark') continue
+      const key = f.parent_folder_id ?? null
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(f)
+    }
+    return map
+  }, [bookmarkFolders])
+
+  const bmRootFolders = bmChildrenMap.get(null) ?? []
+
   return (
     <Tabs defaultValue="todos">
       <TabsList className="mb-6 flex-wrap h-auto gap-1 bg-stone-100 dark:bg-[var(--dark-card)] p-1">
@@ -209,54 +305,22 @@ export default function MyDataTabs({
 
       {/* ── Bookmarks ─────────────────────────────────────────────────── */}
       <TabsContent value="bookmarks">
-        {bookmarkFolders.length === 0 ? (
+        {bmRootFolders.length === 0 ? (
           <EmptyState message="No bookmark folders synced yet." />
         ) : (
           <div className="flex flex-col gap-4">
-            {bookmarkFolders.map(folder => {
-              const entries = entriesByFolder[folder.id] ?? []
-              return (
-                <Card key={folder.id}>
-                  <CardContent className="pt-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="font-semibold text-stone-800 dark:text-stone-100">{folder.name}</span>
-                      <span className="ml-auto text-xs text-stone-400 dark:text-stone-500">{entries.length} bookmark{entries.length !== 1 ? 's' : ''}</span>
-                    </div>
-                    {entries.length === 0 ? (
-                      <p className="text-xs text-stone-400 dark:text-stone-500">No bookmarks in this folder.</p>
-                    ) : (
-                      <ul className="flex flex-col gap-2">
-                        {entries.map(entry => (
-                          <li key={entry.id} className="flex items-center gap-2 text-sm min-w-0">
-                            {entry.fav_icon_url ? (
-                              <img
-                                src={entry.fav_icon_url}
-                                alt=""
-                                width={16}
-                                height={16}
-                                className="shrink-0 rounded-sm"
-                                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                              />
-                            ) : (
-                              <Globe className="h-4 w-4 shrink-0 text-stone-300 dark:text-stone-600" />
-                            )}
-                            <span className="font-medium text-stone-700 dark:text-stone-200 truncate">{entry.title || entry.url}</span>
-                            <a
-                              href={entry.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="ml-auto shrink-0 text-xs text-indigo-500 dark:text-indigo-400 hover:underline truncate max-w-[180px]"
-                            >
-                              {new URL(entry.url).hostname}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </CardContent>
-                </Card>
-              )
-            })}
+            {bmRootFolders.map(folder => (
+              <Card key={folder.id}>
+                <CardContent className="pt-5 pb-4">
+                  <FolderNode
+                    folder={folder}
+                    childrenMap={bmChildrenMap}
+                    entriesByFolder={entriesByFolder}
+                    depth={0}
+                  />
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
       </TabsContent>

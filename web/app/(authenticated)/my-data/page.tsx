@@ -43,9 +43,9 @@ async function getMyData(userId: string) {
 
     supabase
       .from('bookmark_folders')
-      .select('id, name')
+      .select('id, name, parent_folder_id, card_type')
       .eq('user_id', userId)
-      .eq('card_type', 'bookmark'),
+      .order('position', { ascending: true }),
 
     supabase
       .from('bookmark_entries')
