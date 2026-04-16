@@ -66,9 +66,9 @@ export async function updateTodoItem(
   id: string,
   updates: Partial<Omit<TodoItem, 'id' | 'createdAt'>>,
 ): Promise<void> {
-  await guardAction();
   const existing = await db.get<TodoItem>(ITEMS, id);
   if (!existing) return;
+  await guardAction();
   await db.put(ITEMS, { ...existing, ...updates });
   void trackAction();
 }

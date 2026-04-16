@@ -29,11 +29,11 @@ export async function getActionUsage(): Promise<ActionUsage> {
   return { daily, monthly };
 }
 
-export async function incrementAction(): Promise<void> {
+export async function incrementAction(count = 1): Promise<void> {
   const usage = await getActionUsage();
   const updated: ActionUsage = {
-    daily:   { ...usage.daily,   count: usage.daily.count + 1 },
-    monthly: { ...usage.monthly, count: usage.monthly.count + 1 },
+    daily:   { ...usage.daily,   count: usage.daily.count + count },
+    monthly: { ...usage.monthly, count: usage.monthly.count + count },
   };
   await chrome.storage.local.set({ [USAGE_KEY]: updated });
 }

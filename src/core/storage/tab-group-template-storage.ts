@@ -35,10 +35,10 @@ export class TabGroupTemplateStorage {
   }
 
   static async delete(key: string): Promise<void> {
-    await guardAction();
     const all = await adapter.getAll();
     const idx = all.findIndex((t) => t.key === key);
     if (idx < 0) return;
+    await guardAction();
     const now = new Date().toISOString();
     all[idx] = {
       ...all[idx],

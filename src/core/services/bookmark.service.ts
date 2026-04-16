@@ -147,9 +147,9 @@ export async function updateEntry(
   id: string,
   updates: Partial<Omit<BookmarkEntry, 'id' | 'addedAt'>>,
 ): Promise<void> {
-  await guardAction();
   const existing = await db.get<BookmarkEntry>(ENTRIES, id);
   if (!existing) return;
+  await guardAction();
   await db.put(ENTRIES, { ...existing, ...updates });
   void trackAction();
 }
@@ -199,6 +199,7 @@ export async function createTopLevelFolder(
   name: string,
 ): Promise<BookmarkCategory> {
   await assertNoDuplicateName(name, boardId, undefined);
+  await guardAction();
   const cat: BookmarkCategory = {
     id: generateId(),
     boardId,
@@ -211,6 +212,7 @@ export async function createTopLevelFolder(
     createdAt: nowISO(),
   };
   await db.put(CATEGORIES, cat);
+  void trackAction();
   return cat;
 }
 
@@ -351,6 +353,7 @@ export async function createSubFolder(
   boardId: string,
 ): Promise<BookmarkCategory> {
   await assertNoDuplicateName(name, boardId, parentCategoryId);
+  await guardAction();
   const cat: BookmarkCategory = {
     id: generateId(),
     boardId,
@@ -364,21 +367,21 @@ export async function createSubFolder(
     createdAt: nowISO(),
   };
   await db.put(CATEGORIES, cat);
+  void trackAction();
   return cat;
 }
 
 /**
- * Recursively deletes a folder and all its sub-folders and entries.
- * Also removes the folder from the parent board's categoryIds if applicable.
+ * Private recursive helper — no guard/track (guard is in the public wrapper).
  */
-export async function deleteFolderRecursive(id: string): Promise<void> {
+async function deleteFolderRecursiveHelper(id: string): Promise<void> {
   // Soft-delete all entries in this category.
   const entries = await db.getAllByIndex<BookmarkEntry>(ENTRIES, 'categoryId', id);
   await softDeleteNewTabMany(ENTRIES, entries.map((e) => e.id));
 
   // Recursively soft-delete sub-folders.
   const subFolders = await db.getAllByIndex<BookmarkCategory>(CATEGORIES, 'parentCategoryId', id);
-  await Promise.all(subFolders.map((sf) => deleteFolderRecursive(sf.id)));
+  await Promise.all(subFolders.map((sf) => deleteFolderRecursiveHelper(sf.id)));
 
   // Remove from board's categoryIds if it was a top-level category.
   const cat = await db.get<BookmarkCategory>(CATEGORIES, id);
@@ -393,6 +396,16 @@ export async function deleteFolderRecursive(id: string): Promise<void> {
     }
   }
   await softDeleteNewTab(CATEGORIES, id);
+}
+
+/**
+ * Recursively deletes a folder and all its sub-folders and entries.
+ * Also removes the folder from the parent board's categoryIds if applicable.
+ */
+export async function deleteFolderRecursive(id: string): Promise<void> {
+  await guardAction();
+  await deleteFolderRecursiveHelper(id);
+  void trackAction();
 }
 
 // ─── Native Import ─────────────────────────────────────────────────────────────

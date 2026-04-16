@@ -100,7 +100,7 @@ async function handleSaveSession(payload: {
       });
       sessions.push(session);
     }
-    void trackAction();
+    void trackAction(sessions.length);
     return { success: true, data: { session: sessions, isDuplicate: false } };
   }
 
@@ -376,7 +376,7 @@ async function handleImportSessions(payload: {
   await guardAction();
   const repo = getSessionRepository();
   await Promise.all(validSessions.map(s => repo.save(s)));
-  void trackAction();
+  void trackAction(validSessions.length);
 
   return {
     success: true,

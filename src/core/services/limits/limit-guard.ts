@@ -27,8 +27,8 @@ export async function guardAction(): Promise<void> {
  * for signed-in users, fire-and-forgets an upsert to Supabase so the
  * web dashboard can display counts.
  */
-export async function trackAction(): Promise<void> {
-  await incrementAction();
+export async function trackAction(count = 1): Promise<void> {
+  await incrementAction(count);
   // Fire-and-forget remote upsert for signed-in users
   void reportActionToSupabase();
 }

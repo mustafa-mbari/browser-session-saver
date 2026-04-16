@@ -37,7 +37,7 @@ describe('WIDGET_CONFIG', () => {
 
 describe('getDefaultSize', () => {
   it('returns correct defaults for bookmark', () => {
-    expect(getDefaultSize('bookmark')).toEqual({ colSpan: 3, rowSpan: 3 });
+    expect(getDefaultSize('bookmark')).toEqual({ colSpan: 3, rowSpan: 5 });
   });
 
   it('returns correct defaults for clock', () => {
