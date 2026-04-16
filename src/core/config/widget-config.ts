@@ -10,7 +10,7 @@ export interface WidgetSizeConfig {
 }
 
 export const WIDGET_CONFIG: Record<CardType, WidgetSizeConfig> = {
-  bookmark:           { minW: 2, minH: 2, maxW: 9, maxH: 9, defaultW: 3, defaultH: 3 },
+  bookmark:           { minW: 2, minH: 2, maxW: 9, maxH: 9, defaultW: 3, defaultH: 5 },
   clock:              { minW: 2, minH: 2, maxW: 5, maxH: 5, defaultW: 3, defaultH: 3 },
   note:               { minW: 2, minH: 2, maxW: 9, maxH: 9, defaultW: 3, defaultH: 4 },
   todo:               { minW: 2, minH: 2, maxW: 9, maxH: 9, defaultW: 3, defaultH: 4 },

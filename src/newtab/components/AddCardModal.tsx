@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import Modal from '@shared/components/Modal';
 import Button from '@shared/components/Button';
 import type { BookmarkCategory, CardType } from '@core/types/newtab.types';
@@ -75,37 +76,97 @@ const CARD_TYPES: CardTypeOption[] = [
 
 type BookmarkSubOption = 'create-new' | 'link-existing';
 
-interface FlatTreeItem {
+// ─── Recursive folder picker row ─────────────────────────────────────────────
+
+interface FolderPickerRowProps {
   folder: BookmarkCategory;
+  allFolders: BookmarkCategory[];
+  linkedFolderIds: string[];
+  selectedFolderId: string | null;
+  onSelect: (id: string) => void;
   depth: number;
 }
 
-/** Builds a depth-first flat list with depth info from a flat BookmarkCategory[]. */
-function buildFlatTree(folders: BookmarkCategory[]): FlatTreeItem[] {
-  const folderIds = new Set(folders.map((f) => f.id));
-  // Group by parent; a node is a root if it has no parentCategoryId or its parent isn't in the list
-  const byParent = new Map<string, BookmarkCategory[]>();
-  for (const f of folders) {
-    const key = f.parentCategoryId && folderIds.has(f.parentCategoryId)
-      ? f.parentCategoryId
-      : '__root__';
-    if (!byParent.has(key)) byParent.set(key, []);
-    byParent.get(key)!.push(f);
-  }
+function FolderPickerRow({
+  folder,
+  allFolders,
+  linkedFolderIds,
+  selectedFolderId,
+  onSelect,
+  depth,
+}: FolderPickerRowProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  const result: FlatTreeItem[] = [];
+  const childFolders = allFolders.filter((f) => f.parentCategoryId === folder.id);
+  const isLinked = linkedFolderIds.includes(folder.id);
+  const isSelected = selectedFolderId === folder.id;
+  const hasChildren = childFolders.length > 0;
 
-  function visit(parentKey: string, depth: number) {
-    const children = byParent.get(parentKey) ?? [];
-    for (const folder of children) {
-      result.push({ folder, depth });
-      visit(folder.id, depth + 1);
-    }
-  }
+  return (
+    <div>
+      <div
+        className="flex items-center gap-1 border-b border-[var(--color-border)]"
+        style={{ paddingLeft: `${depth * 16 + 4}px` }}
+      >
+        {/* Expand / collapse toggle — invisible placeholder when no children */}
+        <button
+          onClick={() => setIsExpanded((v) => !v)}
+          className="p-1 shrink-0 rounded hover:bg-[var(--color-bg-secondary)] transition-colors"
+          style={{ opacity: hasChildren ? 1 : 0, pointerEvents: hasChildren ? 'auto' : 'none' }}
+          tabIndex={hasChildren ? 0 : -1}
+          aria-label={isExpanded ? 'Collapse' : 'Expand'}
+        >
+          {isExpanded
+            ? <ChevronDown size={12} className="text-[var(--color-text-secondary)]" />
+            : <ChevronRight size={12} className="text-[var(--color-text-secondary)]" />
+          }
+        </button>
 
-  visit('__root__', 0);
-  return result;
+        {/* Folder selection row */}
+        <button
+          onClick={() => { if (!isLinked) onSelect(folder.id); }}
+          disabled={isLinked}
+          className={`flex flex-1 items-center gap-2 pr-3 py-2.5 text-left transition-colors min-w-0 ${
+            isLinked
+              ? 'opacity-40 cursor-not-allowed'
+              : isSelected
+                ? 'bg-blue-50 dark:bg-blue-900/20'
+                : 'hover:bg-[var(--color-bg-secondary)]'
+          }`}
+        >
+          <span
+            className="w-6 h-6 rounded-md flex items-center justify-center text-sm shrink-0"
+            style={{ backgroundColor: `${folder.color}22` }}
+          >
+            {folder.icon}
+          </span>
+          <span className="text-sm text-[var(--color-text)] truncate flex-1">{folder.name}</span>
+          {isLinked && (
+            <span className="text-xs text-[var(--color-text-secondary)] shrink-0">On board</span>
+          )}
+          {isSelected && !isLinked && (
+            <span className="text-blue-500 text-xs shrink-0">✓</span>
+          )}
+        </button>
+      </div>
+
+      {/* Children — only when expanded */}
+      {isExpanded && childFolders.map((cf) => (
+        <FolderPickerRow
+          key={cf.id}
+          folder={cf}
+          allFolders={allFolders}
+          linkedFolderIds={linkedFolderIds}
+          selectedFolderId={selectedFolderId}
+          onSelect={onSelect}
+          depth={depth + 1}
+        />
+      ))}
+    </div>
+  );
 }
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
 
 interface Props {
   isOpen: boolean;
@@ -152,7 +213,6 @@ export default function AddCardModal({
       return;
     }
 
-    // step === 'bookmark-options'
     if (subOption === 'create-new') {
       onAdd(boardId, 'bookmark');
     } else if (subOption === 'link-existing' && selectedFolderId && onLinkFolder) {
@@ -166,15 +226,17 @@ export default function AddCardModal({
     subOption === 'link-existing' &&
     (!selectedFolderId || linkedFolderIds.includes(selectedFolderId));
 
-  // Build tree-ordered flat list and split into selectable / already-on-board
-  const flatTree = buildFlatTree(availableFolders);
-  const unlinkedTree = flatTree.filter(({ folder }) => !linkedFolderIds.includes(folder.id));
-  const linkedTree = flatTree.filter(({ folder }) => linkedFolderIds.includes(folder.id));
+  // Only top-level folders as roots (those whose parent isn't in the list)
+  const folderIds = new Set(availableFolders.map((f) => f.id));
+  const rootFolders = availableFolders.filter(
+    (f) => !f.parentCategoryId || !folderIds.has(f.parentCategoryId),
+  );
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
+      size="lg"
       title={step === 'type-select' ? 'Add Widget' : 'Bookmark List / Folder'}
       actions={
         <>
@@ -263,72 +325,25 @@ export default function AddCardModal({
             </div>
           </button>
 
-          {/* Folder picker — shown when Link Existing is selected */}
+          {/* Collapsible folder tree — shown when Link Existing is selected */}
           {subOption === 'link-existing' && availableFolders.length > 0 && (
-            <div className="mt-1 max-h-52 overflow-y-auto rounded-xl border border-[var(--color-border)] divide-y divide-[var(--color-border)]">
-              {/* Unlinked folders — selectable, indented by depth */}
-              {unlinkedTree.map(({ folder, depth }) => (
-                <button
-                  key={folder.id}
-                  onClick={() => setSelectedFolderId(folder.id)}
-                  style={{ paddingLeft: `${depth * 16 + 16}px` }}
-                  className={`w-full flex items-center gap-3 pr-4 py-2.5 text-left transition-colors ${
-                    selectedFolderId === folder.id
-                      ? 'bg-blue-50 dark:bg-blue-900/20'
-                      : 'hover:bg-[var(--color-bg-secondary)]'
-                  }`}
-                >
-                  {depth > 0 && (
-                    <span className="text-[var(--color-text-secondary)] opacity-40 text-xs shrink-0">└</span>
-                  )}
-                  <span
-                    className="w-6 h-6 rounded-md flex items-center justify-center text-sm shrink-0"
-                    style={{ backgroundColor: `${folder.color}22` }}
-                  >
-                    {folder.icon}
-                  </span>
-                  <span className="text-sm text-[var(--color-text)] truncate flex-1">{folder.name}</span>
-                  {selectedFolderId === folder.id && (
-                    <span className="ml-auto text-blue-500 text-xs shrink-0">✓</span>
-                  )}
-                </button>
-              ))}
-
-              {/* Already-linked folders — informational, not selectable */}
-              {linkedTree.length > 0 && (
-                <>
-                  {unlinkedTree.length > 0 && (
-                    <div className="px-4 py-1.5 text-xs text-[var(--color-text-secondary)] bg-[var(--color-bg-secondary)]">
-                      Already on this board
-                    </div>
-                  )}
-                  {linkedTree.map(({ folder, depth }) => (
-                    <div
-                      key={folder.id}
-                      style={{ paddingLeft: `${depth * 16 + 16}px` }}
-                      className="w-full flex items-center gap-3 pr-4 py-2.5 opacity-40 cursor-not-allowed"
-                    >
-                      {depth > 0 && (
-                        <span className="text-xs shrink-0">└</span>
-                      )}
-                      <span
-                        className="w-6 h-6 rounded-md flex items-center justify-center text-sm shrink-0"
-                        style={{ backgroundColor: `${folder.color}22` }}
-                      >
-                        {folder.icon}
-                      </span>
-                      <span className="text-sm text-[var(--color-text)] truncate flex-1">{folder.name}</span>
-                      <span className="text-xs text-[var(--color-text-secondary)] shrink-0">On board</span>
-                    </div>
-                  ))}
-                </>
-              )}
-
-              {/* Empty state: all folders are already on the board */}
-              {unlinkedTree.length === 0 && linkedTree.length > 0 && (
+            <div className="max-h-72 overflow-y-auto rounded-xl border border-[var(--color-border)]">
+              {rootFolders.length === 0 ? (
                 <div className="px-4 py-3 text-xs text-center text-[var(--color-text-secondary)]">
                   All your folders are already on this board
                 </div>
+              ) : (
+                rootFolders.map((folder) => (
+                  <FolderPickerRow
+                    key={folder.id}
+                    folder={folder}
+                    allFolders={availableFolders}
+                    linkedFolderIds={linkedFolderIds}
+                    selectedFolderId={selectedFolderId}
+                    onSelect={setSelectedFolderId}
+                    depth={0}
+                  />
+                ))
               )}
             </div>
           )}

@@ -48,9 +48,8 @@ export default function DashboardLayout() {
   // Only bookmark-type folders that are NOT already placed as a widget on any board.
   // Dashboard widgets (created via "Create New Folder") are in board.categoryIds;
   // Folders-page folders (created via "My Folders" +) are not.
-  const allWidgetIds = new Set(boards.flatMap((b) => b.categoryIds));
   const availableFolders = categories.filter(
-    (c) => (c.cardType === 'bookmark' || !c.cardType) && !allWidgetIds.has(c.id)
+    (c) => (c.cardType === 'bookmark' || !c.cardType)
   );
 
   // Reload ALL categories (across every board) on every activeView change and on mount.

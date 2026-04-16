@@ -7,9 +7,10 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   actions?: ReactNode;
+  size?: 'md' | 'lg';
 }
 
-export default function Modal({ isOpen, onClose, title, children, actions }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, actions, size = 'md' }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export default function Modal({ isOpen, onClose, title, children, actions }: Mod
   return (
     <dialog
       ref={dialogRef}
-      className="fixed inset-0 z-50 m-auto rounded-modal bg-[var(--color-bg)] text-[var(--color-text)] shadow-xl backdrop:bg-black/50 p-0 max-w-md w-full"
+      className={`fixed inset-0 z-50 m-auto rounded-modal bg-[var(--color-bg)] text-[var(--color-text)] shadow-xl backdrop:bg-black/50 p-0 w-full ${size === 'lg' ? 'max-w-xl' : 'max-w-md'}`}
       onClick={(e) => {
         if (e.target === dialogRef.current) onClose();
       }}

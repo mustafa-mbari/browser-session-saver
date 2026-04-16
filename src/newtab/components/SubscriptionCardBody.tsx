@@ -102,8 +102,7 @@ export default function SubscriptionCardBody({ colSpan }: Props) {
 
   const upcoming = [...subscriptions]
     .filter((s) => s.status !== 'canceled')
-    .sort((a, b) => a.nextBillingDate.localeCompare(b.nextBillingDate))
-    .slice(0, colSpan >= 7 ? 10 : colSpan >= 4 ? 7 : 3);
+    .sort((a, b) => a.nextBillingDate.localeCompare(b.nextBillingDate));
 
   if (loading) {
     return (
@@ -114,9 +113,9 @@ export default function SubscriptionCardBody({ colSpan }: Props) {
   }
 
   return (
-    <div className="flex flex-col px-3 pb-3 gap-2">
-      {/* Summary strip */}
-      <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex flex-col h-full px-3 pb-3 gap-2">
+      {/* Summary strip — always visible at top */}
+      <div className="flex items-center gap-2 flex-wrap shrink-0">
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/10 text-xs font-medium" style={{ color: 'var(--newtab-text)' }}>
           <span>💳</span>
           <span>{SubscriptionService.formatCurrency(monthlyTotal, currency)}/mo</span>
@@ -138,105 +137,107 @@ export default function SubscriptionCardBody({ colSpan }: Props) {
         </span>
       </div>
 
-      {/* Upcoming renewals — table for 6w+, compact rows for smaller */}
-      {upcoming.length > 0 && colSpan >= 6 ? (
-        <div className="flex flex-col">
-          {/* Table header */}
-          <div
-            className="grid gap-x-2 px-1.5 pb-1 border-b border-white/8 text-[10px] font-semibold uppercase tracking-wider select-none"
-            style={{ gridTemplateColumns: '2fr 18px auto auto 1fr auto', justifyItems: 'start', color: 'var(--newtab-text-secondary)', opacity: 0.4 }}
-          >
-            <span>Name</span>
-            <span />
-            <span>Cycle</span>
-            <span>Status</span>
-            <span className="justify-self-end text-right">Next Due</span>
-            <span className="justify-self-end text-right">Price</span>
-          </div>
-          {/* Table rows */}
-          {upcoming.map((s) => {
-            const urgency = SubscriptionService.getUrgency(s);
-            const days = SubscriptionService.getDaysUntil(s.nextBillingDate);
-            const daysLabel = days < 0 ? `${Math.abs(days)}d late` : days === 0 ? 'Today' : `${days}d`;
-            const dateLabel = new Date(s.nextBillingDate).toLocaleDateString('default', { month: 'short', day: 'numeric' });
-            return (
-              <div
-                key={s.id}
-                className={`grid gap-x-2 items-center py-1 px-1.5 rounded-md hover:bg-white/8 transition-colors ${urgencyBorder[urgency]}`}
-                style={{ gridTemplateColumns: '2fr 18px auto auto 1fr auto', justifyItems: 'start', cursor: s.url ? 'pointer' : 'default' }}
-                onClick={() => safeOpenUrl(s.url)}
-              >
-                {/* Name */}
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <FaviconSmall url={s.url} name={s.name} />
-                  <span className="text-xs truncate" style={{ color: 'var(--newtab-text)' }}>{s.name}</span>
-                </div>
-                {/* Category emoji */}
-                <span className="text-xs text-center shrink-0" title={CATEGORY_LABELS[s.category] ?? customCats.find((c) => c.value === s.category)?.label ?? s.category}>
-                  {CATEGORY_EMOJI[s.category] ?? customCats.find((c) => c.value === s.category)?.emoji ?? '📦'}
-                </span>
-                {/* Billing cycle */}
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-center shrink-0" style={{ color: 'var(--newtab-text-secondary)' }}>
-                  {billingLabel[s.billingCycle] ?? s.billingCycle}
-                </span>
-                {/* Status */}
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium capitalize shrink-0 ${statusCls[s.status] ?? statusCls.active}`}>
-                  {s.status}
-                </span>
-                {/* Date + days */}
-                <div className="flex flex-col items-end shrink-0 justify-self-end">
-                  <span className="text-[10px] tabular-nums" style={{ color: 'var(--newtab-text-secondary)', opacity: 0.75 }}>
-                    {dateLabel}
+      {/* Upcoming renewals — scrollable list; table layout for 6w+, compact rows otherwise */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {upcoming.length > 0 && colSpan >= 6 ? (
+          <div className="flex flex-col">
+            {/* Table header */}
+            <div
+              className="grid gap-x-2 px-1.5 pb-1 border-b border-white/8 text-[10px] font-semibold uppercase tracking-wider select-none sticky top-0"
+              style={{ gridTemplateColumns: '2fr 18px auto auto 1fr auto', justifyItems: 'start', color: 'var(--newtab-text-secondary)', opacity: 0.4, background: 'transparent' }}
+            >
+              <span>Name</span>
+              <span />
+              <span>Cycle</span>
+              <span>Status</span>
+              <span className="justify-self-end text-right">Next Due</span>
+              <span className="justify-self-end text-right">Price</span>
+            </div>
+            {/* Table rows */}
+            {upcoming.map((s) => {
+              const urgency = SubscriptionService.getUrgency(s);
+              const days = SubscriptionService.getDaysUntil(s.nextBillingDate);
+              const daysLabel = days < 0 ? `${Math.abs(days)}d late` : days === 0 ? 'Today' : `${days}d`;
+              const dateLabel = new Date(s.nextBillingDate).toLocaleDateString('default', { month: 'short', day: 'numeric' });
+              return (
+                <div
+                  key={s.id}
+                  className={`grid gap-x-2 items-center py-1 px-1.5 rounded-md hover:bg-white/8 transition-colors ${urgencyBorder[urgency]}`}
+                  style={{ gridTemplateColumns: '2fr 18px auto auto 1fr auto', justifyItems: 'start', cursor: s.url ? 'pointer' : 'default' }}
+                  onClick={() => safeOpenUrl(s.url)}
+                >
+                  {/* Name */}
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <FaviconSmall url={s.url} name={s.name} />
+                    <span className="text-xs truncate" style={{ color: 'var(--newtab-text)' }}>{s.name}</span>
+                  </div>
+                  {/* Category emoji */}
+                  <span className="text-xs text-center shrink-0" title={CATEGORY_LABELS[s.category] ?? customCats.find((c) => c.value === s.category)?.label ?? s.category}>
+                    {CATEGORY_EMOJI[s.category] ?? customCats.find((c) => c.value === s.category)?.emoji ?? '📦'}
                   </span>
-                  <span className={`text-[9px] font-medium tabular-nums ${urgencyText[urgency]}`}>
+                  {/* Billing cycle */}
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-center shrink-0" style={{ color: 'var(--newtab-text-secondary)' }}>
+                    {billingLabel[s.billingCycle] ?? s.billingCycle}
+                  </span>
+                  {/* Status */}
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium capitalize shrink-0 ${statusCls[s.status] ?? statusCls.active}`}>
+                    {s.status}
+                  </span>
+                  {/* Date + days */}
+                  <div className="flex flex-col items-end shrink-0 justify-self-end">
+                    <span className="text-[10px] tabular-nums" style={{ color: 'var(--newtab-text-secondary)', opacity: 0.75 }}>
+                      {dateLabel}
+                    </span>
+                    <span className={`text-[9px] font-medium tabular-nums ${urgencyText[urgency]}`}>
+                      {daysLabel}
+                    </span>
+                  </div>
+                  {/* Price */}
+                  <span className="text-xs font-medium text-right shrink-0 tabular-nums justify-self-end" style={{ color: 'var(--newtab-text)' }}>
+                    {SubscriptionService.formatCurrency(s.price, s.currency)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : upcoming.length > 0 ? (
+          <div className="flex flex-col gap-1">
+            {upcoming.map((s) => {
+              const urgency = SubscriptionService.getUrgency(s);
+              const days = SubscriptionService.getDaysUntil(s.nextBillingDate);
+              const daysLabel = days < 0 ? `${Math.abs(days)}d late` : days === 0 ? 'Today' : `${days}d`;
+              return (
+                <div
+                  key={s.id}
+                  className={`flex items-center gap-1.5 py-1 px-1.5 rounded-md bg-white/5 hover:bg-white/10 transition-colors ${urgencyBorder[urgency]}`}
+                  onClick={() => safeOpenUrl(s.url)}
+                  style={{ cursor: s.url ? 'pointer' : 'default' }}
+                >
+                  <FaviconSmall url={s.url} name={s.name} />
+                  <span className="flex-1 text-xs truncate" style={{ color: 'var(--newtab-text)' }}>
+                    {s.name}
+                  </span>
+                  <span className={`text-[10px] shrink-0 tabular-nums ${urgencyText[urgency]}`}>
                     {daysLabel}
                   </span>
+                  <span className="text-xs font-medium shrink-0 tabular-nums" style={{ color: 'var(--newtab-text)' }}>
+                    {SubscriptionService.formatCurrency(s.price, s.currency)}
+                  </span>
                 </div>
-                {/* Price */}
-                <span className="text-xs font-medium text-right shrink-0 tabular-nums justify-self-end" style={{ color: 'var(--newtab-text)' }}>
-                  {SubscriptionService.formatCurrency(s.price, s.currency)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      ) : upcoming.length > 0 ? (
-        <div className="flex flex-col gap-1">
-          {upcoming.map((s) => {
-            const urgency = SubscriptionService.getUrgency(s);
-            const days = SubscriptionService.getDaysUntil(s.nextBillingDate);
-            const daysLabel = days < 0 ? `${Math.abs(days)}d late` : days === 0 ? 'Today' : `${days}d`;
-            return (
-              <div
-                key={s.id}
-                className={`flex items-center gap-1.5 py-1 px-1.5 rounded-md bg-white/5 hover:bg-white/10 transition-colors ${urgencyBorder[urgency]}`}
-                onClick={() => safeOpenUrl(s.url)}
-                style={{ cursor: s.url ? 'pointer' : 'default' }}
-              >
-                <FaviconSmall url={s.url} name={s.name} />
-                <span className="flex-1 text-xs truncate" style={{ color: 'var(--newtab-text)' }}>
-                  {s.name}
-                </span>
-                <span className={`text-[10px] shrink-0 tabular-nums ${urgencyText[urgency]}`}>
-                  {daysLabel}
-                </span>
-                <span className="text-xs font-medium shrink-0 tabular-nums" style={{ color: 'var(--newtab-text)' }}>
-                  {SubscriptionService.formatCurrency(s.price, s.currency)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
+              );
+            })}
+          </div>
+        ) : null}
 
-      {subscriptions.length === 0 && (
-        <p className="text-xs text-center py-2 opacity-50" style={{ color: 'var(--newtab-text-secondary)' }}>
-          No subscriptions yet
-        </p>
-      )}
+        {subscriptions.length === 0 && (
+          <p className="text-xs text-center py-2 opacity-50" style={{ color: 'var(--newtab-text-secondary)' }}>
+            No subscriptions yet
+          </p>
+        )}
+      </div>
 
-      {/* Footer actions */}
-      <div className="flex items-center justify-between pt-1 mt-0.5 border-t border-white/8">
+      {/* Footer actions — always visible at bottom */}
+      <div className="flex items-center justify-between pt-1 mt-0.5 border-t border-white/8 shrink-0">
         <button
           onClick={() => setActiveView('subscriptions')}
           className="flex items-center gap-1 text-[11px] hover:opacity-80 transition-opacity"
