@@ -56,6 +56,7 @@ export interface MessageResponse<T = unknown> {
   data?: T;
   error?: string;
   timedOut?: boolean;
+  limitStatus?: import('@core/types/limits.types').LimitStatus;
 }
 
 export interface AutoSaveStatusResponse {

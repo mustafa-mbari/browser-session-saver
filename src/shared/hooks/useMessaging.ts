@@ -9,8 +9,11 @@ export function useMessaging() {
         const timeout = new Promise<MessageResponse<T>>((resolve) =>
           setTimeout(() => resolve({ success: false, error: 'Service worker timeout', timedOut: true }), MESSAGE_TIMEOUT_MS),
         );
-        const response = await Promise.race([chrome.runtime.sendMessage(message), timeout]);
-        return response as MessageResponse<T>;
+        const response = await Promise.race([chrome.runtime.sendMessage(message), timeout]) as MessageResponse<T>;
+        if (!response.success && response.limitStatus) {
+          window.dispatchEvent(new CustomEvent('limit-reached', { detail: response.limitStatus }));
+        }
+        return response;
       } catch (error) {
         return { success: false, error: String(error) };
       }
