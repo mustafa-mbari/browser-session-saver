@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Settings, Sun, Moon, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Settings, Sun, Moon, User } from 'lucide-react';
 import { useSidePanelStore } from '../stores/sidepanel.store';
 import { useTheme } from '@shared/hooks/useTheme';
+import { isAuthenticated } from '@core/services/auth.service';
 import AutoSaveBadge from './AutoSaveBadge';
 import type { LimitStatus } from '@core/types/limits.types';
 
@@ -10,11 +11,12 @@ export default function Header() {
   const { isDark, setTheme } = useTheme();
   const canGoBack = navigationStack.length > 1 || (currentView === 'home' && activeNavBarTab === 'dynamic');
   const [limitStatus, setLimitStatus] = useState<LimitStatus | null>(null);
+  const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
     const load = () => {
       chrome.runtime.sendMessage({ action: 'GET_LIMIT_STATUS', payload: {} }, (r) => {
-        void chrome.runtime.lastError; // acknowledge to suppress MV3 console warning when SW is inactive
+        void chrome.runtime.lastError;
         if (r?.success && r.data) setLimitStatus(r.data as LimitStatus);
       });
     };
@@ -22,6 +24,13 @@ export default function Header() {
     const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
       if (changes.action_usage || changes.cached_plan) load();
     };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
+  }, []);
+
+  useEffect(() => {
+    void isAuthenticated().then(setSignedIn);
+    const listener = () => { void isAuthenticated().then(setSignedIn); };
     chrome.storage.onChanged.addListener(listener);
     return () => chrome.storage.onChanged.removeListener(listener);
   }, []);
@@ -59,12 +68,15 @@ export default function Header() {
           <LimitPill status={limitStatus} />
         )}
         <button
-          onClick={() => chrome.tabs.create({ url: import.meta.env.VITE_SITE_URL as string ?? 'https://bh.mbari.de' })}
-          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          aria-label="Open web app"
-          title="Open web app"
+          onClick={() => navigateTo('account')}
+          className="relative p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          aria-label="Account"
+          title="Account"
         >
-          <ExternalLink size={16} />
+          <User size={16} />
+          {signedIn && (
+            <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-green-500 border border-white dark:border-gray-800" />
+          )}
         </button>
         <button
           onClick={toggleTheme}
@@ -93,6 +105,7 @@ function viewTitle(view: string): string {
     'import-export': 'Import / Export',
     subscriptions: 'Subscriptions',
     prompts: 'Prompt Manager',
+    account: 'Account',
   };
   return titles[view] ?? 'Browser Hub';
 }

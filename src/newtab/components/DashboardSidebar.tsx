@@ -18,10 +18,10 @@ import {
   PanelLeft,
   Check,
   FolderOpen,
-  ExternalLink,
 } from 'lucide-react';
 import Tooltip from '@shared/components/Tooltip';
 import ContextMenu from '@shared/components/ContextMenu';
+import { isAuthenticated, getEmail } from '@core/services/auth.service';
 import type { Board } from '@core/types/newtab.types';
 import type { SidebarControl } from '@core/types/newtab.types';
 import type { NewTabView } from '@newtab/stores/newtab.store';
@@ -267,6 +267,8 @@ export default function DashboardSidebar({
   const [isHovering, setIsHovering] = useState(false);
   const [controlOpen, setControlOpen] = useState(false);
   const [limitStatus, setLimitStatus] = useState<LimitStatus | null>(null);
+  const [signedIn, setSignedIn] = useState(false);
+  const [accountEmail, setAccountEmail] = useState<string | null>(null);
   const controlBtnRef = useRef<HTMLButtonElement>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -279,7 +281,7 @@ export default function DashboardSidebar({
   useEffect(() => {
     const load = () => {
       chrome.runtime.sendMessage({ action: 'GET_LIMIT_STATUS', payload: {} }, (r) => {
-        void chrome.runtime.lastError; // acknowledge to suppress MV3 console warning when SW is inactive
+        void chrome.runtime.lastError;
         if (r?.success && r.data) setLimitStatus(r.data as LimitStatus);
       });
     };
@@ -287,6 +289,18 @@ export default function DashboardSidebar({
     const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
       if (changes.action_usage || changes.cached_plan) load();
     };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
+  }, []);
+
+  useEffect(() => {
+    const loadAuth = async () => {
+      const authed = await isAuthenticated();
+      setSignedIn(authed);
+      setAccountEmail(authed ? await getEmail() : null);
+    };
+    void loadAuth();
+    const listener = () => { void loadAuth(); };
     chrome.storage.onChanged.addListener(listener);
     return () => chrome.storage.onChanged.removeListener(listener);
   }, []);
@@ -429,13 +443,16 @@ export default function DashboardSidebar({
           </Tooltip>
         ))}
         <div className="mt-auto pt-2">
-          <Tooltip content="Open web app" position="right">
+          <Tooltip content={signedIn ? (accountEmail ?? 'Account') : 'Sign in'} position="right">
             <button
-              onClick={() => chrome.tabs.create({ url: import.meta.env.VITE_SITE_URL as string ?? 'https://bh.mbari.de' })}
-              className="w-7 h-7 rounded-full flex items-center justify-center mx-auto transition-colors hover:bg-white/10"
-              aria-label="Open web app"
+              onClick={() => onViewChange('account')}
+              className="relative w-7 h-7 rounded-full flex items-center justify-center mx-auto transition-colors hover:bg-white/10"
+              aria-label="Account"
             >
               <User size={14} style={{ color: '#818cf8' }} />
+              {signedIn && (
+                <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-green-400 border border-black/30" />
+              )}
             </button>
           </Tooltip>
         </div>
@@ -575,29 +592,31 @@ export default function DashboardSidebar({
 
       {/* ── ACCOUNT + SIDEBAR CONTROL ── */}
       <div className="border-t border-white/10 mt-auto shrink-0">
-        {/* Account row — opens web app */}
+        {/* Account row — navigates to account view */}
         <button
-          onClick={() => chrome.tabs.create({ url: import.meta.env.VITE_SITE_URL as string ?? 'https://bh.mbari.de' })}
+          onClick={() => onViewChange('account')}
           className="flex items-center gap-2.5 px-4 py-3 w-full text-left transition-colors hover:bg-white/10 rounded-lg mx-1"
           style={{ width: 'calc(100% - 0.5rem)' }}
-          aria-label="Open web app"
+          aria-label="Account"
         >
           <div
-            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+            className="relative w-8 h-8 rounded-full flex items-center justify-center shrink-0"
             style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.3)' }}
           >
             <User size={15} style={{ color: '#818cf8' }} />
+            {signedIn && (
+              <span className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-black/20" />
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-medium truncate" style={{ color: 'var(--newtab-text)' }}>
-              Account & Plans
+              {signedIn && accountEmail ? accountEmail : 'Sign in'}
             </div>
             {limitStatus ? (
               <LimitStatusRow status={limitStatus} />
             ) : (
-              <div className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--newtab-text-secondary)' }}>
-                <ExternalLink size={9} />
-                <span>Open web app</span>
+              <div className="text-[10px] opacity-50" style={{ color: 'var(--newtab-text-secondary)' }}>
+                {signedIn ? 'Manage account' : 'Sign in to unlock higher limits'}
               </div>
             )}
           </div>

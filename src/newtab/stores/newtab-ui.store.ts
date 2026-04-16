@@ -15,7 +15,8 @@ export type NewTabView =
   | 'import-export'
   | 'subscriptions'
   | 'prompts'
-  | 'settings';
+  | 'settings'
+  | 'account';
 
 interface NewTabUIState {
   settings: NewTabSettings;
