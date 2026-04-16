@@ -125,4 +125,4 @@ export type SupplementaryFormat = 'subscriptions-csv' | 'prompts-markdown' | 'to
 
 // ── UI tab state ───────────────────────────────────────────────────────────────
 
-export type ImportExportTab = 'export' | 'import' | 'cloud';
+export type ImportExportTab = 'export' | 'import';

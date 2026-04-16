@@ -1,25 +1,29 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Settings, Sun, Moon, Cloud, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Settings, Sun, Moon, ExternalLink } from 'lucide-react';
 import { useSidePanelStore } from '../stores/sidepanel.store';
 import { useTheme } from '@shared/hooks/useTheme';
 import AutoSaveBadge from './AutoSaveBadge';
+import type { LimitStatus } from '@core/types/limits.types';
 
 export default function Header() {
   const { currentView, navigationStack, activeNavBarTab, goBack, navigateTo } = useSidePanelStore();
   const { isDark, setTheme } = useTheme();
   const canGoBack = navigationStack.length > 1 || (currentView === 'home' && activeNavBarTab === 'dynamic');
-  const [syncSignedIn, setSyncSignedIn] = useState(false);
+  const [limitStatus, setLimitStatus] = useState<LimitStatus | null>(null);
 
   useEffect(() => {
     const load = () => {
-      chrome.storage.local.get('cloud_sync_status', (r) => {
-        const s = r['cloud_sync_status'] as { isAuthenticated?: boolean } | undefined;
-        setSyncSignedIn(s?.isAuthenticated ?? false);
+      chrome.runtime.sendMessage({ action: 'GET_LIMIT_STATUS', payload: {} }, (r) => {
+        void chrome.runtime.lastError; // acknowledge to suppress MV3 console warning when SW is inactive
+        if (r?.success && r.data) setLimitStatus(r.data as LimitStatus);
       });
     };
     load();
-    chrome.storage.onChanged.addListener(load);
-    return () => chrome.storage.onChanged.removeListener(load);
+    const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
+      if (changes.action_usage || changes.cached_plan) load();
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
   }, []);
 
   const toggleTheme = () => {
@@ -51,6 +55,9 @@ export default function Header() {
       </div>
       <div className="flex items-center gap-2">
         <AutoSaveBadge />
+        {limitStatus && (
+          <LimitPill status={limitStatus} />
+        )}
         <button
           onClick={() => chrome.tabs.create({ url: import.meta.env.VITE_SITE_URL as string ?? 'https://bh.mbari.de' })}
           className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -58,21 +65,6 @@ export default function Header() {
           title="Open web app"
         >
           <ExternalLink size={16} />
-        </button>
-        <button
-          onClick={() => navigateTo('cloud-sync')}
-          className={`relative p-1.5 rounded transition-colors ${
-            currentView === 'cloud-sync'
-              ? 'text-sky-500 bg-sky-50 dark:bg-sky-900/20'
-              : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-          }`}
-          aria-label="Cloud Sync"
-          title={syncSignedIn ? 'Cloud Sync (signed in)' : 'Cloud Sync (sign in)'}
-        >
-          <Cloud size={16} />
-          <span className={`absolute top-0.5 right-0.5 w-2 h-2 rounded-full ${
-            syncSignedIn ? 'bg-emerald-400' : 'bg-amber-400'
-          }`} style={{ border: '1.5px solid white' }} />
         </button>
         <button
           onClick={toggleTheme}
@@ -101,7 +93,25 @@ function viewTitle(view: string): string {
     'import-export': 'Import / Export',
     subscriptions: 'Subscriptions',
     prompts: 'Prompt Manager',
-    'cloud-sync': 'Cloud Sync',
   };
   return titles[view] ?? 'Browser Hub';
+}
+
+function LimitPill({ status }: { status: LimitStatus }) {
+  const pct = status.dailyLimit > 0 ? status.dailyUsed / status.dailyLimit : 0;
+  const color = status.dailyBlocked || status.monthlyBlocked
+    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+    : pct >= 0.9
+      ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+      : pct >= 0.7
+        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
+  return (
+    <span
+      className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${color}`}
+      title={`${status.dailyUsed}/${status.dailyLimit} actions today · ${status.monthlyUsed}/${status.monthlyLimit} this month`}
+    >
+      {status.dailyUsed}/{status.dailyLimit}
+    </span>
+  );
 }

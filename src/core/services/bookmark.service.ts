@@ -1,10 +1,10 @@
 import { newtabDB } from '@core/storage/newtab-storage';
 import { softDeleteNewTab, softDeleteNewTabMany } from '@core/storage/newtab-soft-delete';
-import { notifySyncMutation } from '@core/services/sync-trigger';
 import type { Board, BookmarkCategory, BookmarkEntry } from '@core/types/newtab.types';
 import { generateId } from '@core/utils/uuid';
 import { nowISO } from '@core/utils/date';
 import { getFaviconUrl } from '@core/utils/favicon';
+import { guardAction, trackAction } from '@core/services/limits/limit-guard';
 
 const db = newtabDB;
 
@@ -27,7 +27,6 @@ export async function saveBoard(
   const now = nowISO();
   const board: Board = { ...data, id: generateId(), createdAt: now, updatedAt: now };
   await db.put(BOARDS, board);
-  notifySyncMutation();
   return board;
 }
 
@@ -38,7 +37,6 @@ export async function updateBoard(
   const existing = await db.get<Board>(BOARDS, id);
   if (!existing) return;
   await db.put(BOARDS, { ...existing, ...updates, updatedAt: nowISO() });
-  notifySyncMutation();
 }
 
 export async function deleteBoard(id: string): Promise<void> {
@@ -52,7 +50,6 @@ export async function deleteBoard(id: string): Promise<void> {
   await softDeleteNewTabMany(ENTRIES, deletedEntryIds);
   // Boards themselves are not synced — hard delete is fine.
   await db.delete(BOARDS, id);
-  notifySyncMutation();
 }
 
 // ─── Categories ───────────────────────────────────────────────────────────────
@@ -71,6 +68,7 @@ export async function getCategories(boardId: string): Promise<BookmarkCategory[]
 export async function saveCategory(
   data: Omit<BookmarkCategory, 'id' | 'createdAt'>,
 ): Promise<BookmarkCategory> {
+  await guardAction();
   const cat: BookmarkCategory = { colSpan: 1, rowSpan: 1, ...data, id: generateId(), createdAt: nowISO() };
   await db.put(CATEGORIES, cat);
 
@@ -82,7 +80,7 @@ export async function saveCategory(
       updatedAt: nowISO(),
     });
   }
-  notifySyncMutation();
+  void trackAction();
   return cat;
 }
 
@@ -96,10 +94,10 @@ export async function updateCategory(
     await assertNoDuplicateName(updates.name, existing.boardId, existing.parentCategoryId, id);
   }
   await db.put(CATEGORIES, { ...existing, ...updates });
-  notifySyncMutation();
 }
 
 export async function deleteCategory(id: string): Promise<void> {
+  await guardAction();
   const entries = await db.getAllByIndex<BookmarkEntry>(ENTRIES, 'categoryId', id);
   const cat = await db.get<BookmarkCategory>(CATEGORIES, id);
   if (cat) {
@@ -114,7 +112,7 @@ export async function deleteCategory(id: string): Promise<void> {
   }
   await softDeleteNewTab(CATEGORIES, id);
   await softDeleteNewTabMany(ENTRIES, entries.map((e) => e.id));
-  notifySyncMutation();
+  void trackAction();
 }
 
 // ─── Entries ──────────────────────────────────────────────────────────────────
@@ -133,6 +131,7 @@ export async function getEntries(categoryId: string): Promise<BookmarkEntry[]> {
 export async function saveEntry(
   data: Omit<BookmarkEntry, 'id' | 'addedAt'>,
 ): Promise<BookmarkEntry> {
+  await guardAction();
   const entry: BookmarkEntry = { ...data, id: generateId(), addedAt: nowISO() };
   await db.put(ENTRIES, entry);
 
@@ -140,7 +139,7 @@ export async function saveEntry(
   if (cat) {
     await db.put(CATEGORIES, { ...cat, bookmarkIds: [...cat.bookmarkIds, entry.id] });
   }
-  notifySyncMutation();
+  void trackAction();
   return entry;
 }
 
@@ -148,13 +147,15 @@ export async function updateEntry(
   id: string,
   updates: Partial<Omit<BookmarkEntry, 'id' | 'addedAt'>>,
 ): Promise<void> {
+  await guardAction();
   const existing = await db.get<BookmarkEntry>(ENTRIES, id);
   if (!existing) return;
   await db.put(ENTRIES, { ...existing, ...updates });
-  notifySyncMutation();
+  void trackAction();
 }
 
 export async function deleteEntry(id: string): Promise<void> {
+  await guardAction();
   const entry = await db.get<BookmarkEntry>(ENTRIES, id);
   if (entry) {
     const cat = await db.get<BookmarkCategory>(CATEGORIES, entry.categoryId);
@@ -166,7 +167,7 @@ export async function deleteEntry(id: string): Promise<void> {
     }
   }
   await softDeleteNewTab(ENTRIES, id);
-  notifySyncMutation();
+  void trackAction();
 }
 
 /** Throws if a sibling folder at the same level already uses the same name (case-insensitive). */
@@ -210,7 +211,6 @@ export async function createTopLevelFolder(
     createdAt: nowISO(),
   };
   await db.put(CATEGORIES, cat);
-  notifySyncMutation();
   return cat;
 }
 
@@ -364,7 +364,6 @@ export async function createSubFolder(
     createdAt: nowISO(),
   };
   await db.put(CATEGORIES, cat);
-  notifySyncMutation();
   return cat;
 }
 
@@ -394,7 +393,6 @@ export async function deleteFolderRecursive(id: string): Promise<void> {
     }
   }
   await softDeleteNewTab(CATEGORIES, id);
-  notifySyncMutation();
 }
 
 // ─── Native Import ─────────────────────────────────────────────────────────────

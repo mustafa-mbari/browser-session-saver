@@ -9,7 +9,6 @@
 import type { BaseEntity, SyncableEntity } from '@core/types/base.types';
 import type { IRepository, IBulkRepository, ReadOptions } from './repository';
 import { ChromeLocalKeyAdapter } from './chrome-local-key-adapter';
-import { stampForWrite } from './sync-helpers';
 
 export class ChromeLocalArrayRepository<T extends BaseEntity>
   implements IRepository<T>, IBulkRepository<T>
@@ -43,7 +42,7 @@ export class ChromeLocalArrayRepository<T extends BaseEntity>
   }
 
   async save(entity: T): Promise<void> {
-    const stamped = stampForWrite(entity);
+    const stamped = entity;
     const all = await this.adapter.getAll();
     const idx = all.findIndex((item) => item.id === stamped.id);
     if (idx >= 0) {

@@ -10,45 +10,25 @@ type Plan = {
   name: string
   price_monthly: number
   price_yearly: number
-  sync_enabled: boolean
-  sessions_synced_limit: number | null
-  tabs_per_session_limit: number | null
-  folders_synced_limit: number | null
-  entries_per_folder_limit: number | null
-  prompts_access_limit: number | null
-  prompts_create_limit: number | null
-  notes_limit: number | null
-  todos_limit: number | null
-  subs_synced_limit: number | null
-  subs_initial_grant: number | null
-  subs_monthly_add: number | null
-  todos_synced_limit: number | null
-  dashboard_syncs_limit: number | null
+  daily_action_limit: number | null
+  monthly_action_limit: number | null
 }
 
-const QUOTA_FIELDS: { key: keyof Plan; label: string; type: 'number' | 'boolean' | 'price' }[] = [
-  { key: 'price_monthly',           label: 'Price (monthly $)',        type: 'price' },
-  { key: 'price_yearly',            label: 'Price (yearly $)',         type: 'price' },
-  { key: 'sync_enabled',            label: 'Sync enabled',             type: 'boolean' },
-  { key: 'sessions_synced_limit',   label: 'Sessions synced limit',    type: 'number' },
-  { key: 'tabs_per_session_limit',  label: 'Tabs per session',         type: 'number' },
-  { key: 'folders_synced_limit',    label: 'Folders synced limit',     type: 'number' },
-  { key: 'entries_per_folder_limit',label: 'Entries per folder',       type: 'number' },
-  { key: 'prompts_access_limit',    label: 'Prompts access limit',     type: 'number' },
-  { key: 'prompts_create_limit',    label: 'Prompts create limit',     type: 'number' },
-  { key: 'notes_limit',             label: 'Notes limit',              type: 'number' },
-  { key: 'todos_limit',             label: 'Todos limit',              type: 'number' },
-  { key: 'subs_synced_limit',       label: 'Subscriptions synced limit', type: 'number' },
-  { key: 'subs_initial_grant',      label: 'Subs initial grant (Free)', type: 'number' },
-  { key: 'subs_monthly_add',        label: 'Subs monthly add (Free)',   type: 'number' },
-  { key: 'todos_synced_limit',      label: 'Todos synced limit',        type: 'number' },
-  { key: 'dashboard_syncs_limit',   label: 'Dashboard syncs/month',     type: 'number' },
+const QUOTA_FIELDS: { key: keyof Plan; label: string; type: 'number' | 'price' }[] = [
+  { key: 'price_monthly',          label: 'Price (monthly $)',      type: 'price' },
+  { key: 'price_yearly',           label: 'Price (yearly $)',       type: 'price' },
+  { key: 'daily_action_limit',     label: 'Actions per day',        type: 'number' },
+  { key: 'monthly_action_limit',   label: 'Actions per month',      type: 'number' },
 ]
 
 async function getPlans() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return []
   const supabase = await createServiceClient()
-  const { data } = await supabase.from('plans').select('*').eq('is_active', true).order('sort_order')
+  const { data } = await supabase
+    .from('plans')
+    .select('id, name, price_monthly, price_yearly, daily_action_limit, monthly_action_limit')
+    .eq('is_active', true)
+    .order('sort_order')
   return (data ?? []) as Plan[]
 }
 
@@ -60,10 +40,10 @@ async function savePlan(formData: FormData) {
 
   function parseField(key: string, type: string) {
     const val = formData.get(`${planId}_${key}`) as string
-    if (type === 'boolean') return val === 'true'
     if (type === 'price') return parseFloat(val) || 0
     if (!val || val === '') return null
-    return parseInt(val)
+    const n = parseInt(val, 10)
+    return isNaN(n) ? null : n
   }
 
   const updates: Record<string, unknown> = {}
@@ -92,9 +72,10 @@ export default async function QuotasPage({
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-6">Quotas</h1>
+      <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-2">Quotas</h1>
       <p className="text-sm text-stone-500 dark:text-stone-400 mb-6">
-        Edit plan limits. Blank = unlimited. Changes apply immediately.
+        Edit per-plan action limits. Changes apply immediately to the extension.
+        Blank = unlimited.
       </p>
 
       {params.saved && (
@@ -142,7 +123,7 @@ export default async function QuotasPage({
                     <>
                       <TableHead className="text-center min-w-[140px]">Free</TableHead>
                       <TableHead className="text-center min-w-[140px]">Pro</TableHead>
-                      <TableHead className="text-center min-w-[140px]">Max</TableHead>
+                      <TableHead className="text-center min-w-[140px]">Lifetime</TableHead>
                     </>
                   )}
                 </TableRow>
@@ -157,28 +138,16 @@ export default async function QuotasPage({
                       const val = plan[field.key]
                       return (
                         <TableCell key={plan.id} className="text-center">
-                          {field.type === 'boolean' ? (
-                            <select
-                              form={`form-${plan.id}`}
-                              name={`${plan.id}_${field.key}`}
-                              defaultValue={val ? 'true' : 'false'}
-                              className="rounded-lg border border-stone-200 dark:border-[var(--dark-border)] bg-white dark:bg-[var(--dark-elevated)] px-2 py-1 text-xs text-stone-800 dark:text-stone-200"
-                            >
-                              <option value="true">Yes</option>
-                              <option value="false">No</option>
-                            </select>
-                          ) : (
-                            <input
-                              form={`form-${plan.id}`}
-                              name={`${plan.id}_${field.key}`}
-                              type="number"
-                              step={field.type === 'price' ? '0.01' : '1'}
-                              min="0"
-                              defaultValue={val != null ? String(val) : ''}
-                              placeholder="∞"
-                              className="w-24 text-center rounded-lg border border-stone-200 dark:border-[var(--dark-border)] bg-white dark:bg-[var(--dark-elevated)] px-2 py-1 text-sm text-stone-800 dark:text-stone-200"
-                            />
-                          )}
+                          <input
+                            form={`form-${plan.id}`}
+                            name={`${plan.id}_${field.key}`}
+                            type="number"
+                            step={field.type === 'price' ? '0.01' : '1'}
+                            min="0"
+                            defaultValue={val != null ? String(val) : ''}
+                            placeholder="∞"
+                            className="w-24 text-center rounded-lg border border-stone-200 dark:border-[var(--dark-border)] bg-white dark:bg-[var(--dark-elevated)] px-2 py-1 text-sm text-stone-800 dark:text-stone-200"
+                          />
                         </TableCell>
                       )
                     })}

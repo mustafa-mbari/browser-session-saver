@@ -10,6 +10,12 @@ import {
   syncTopSites,
 } from '@core/services/quicklinks.service';
 
+vi.mock('@core/services/limits/limit-guard', () => ({
+  guardAction: vi.fn().mockResolvedValue(undefined),
+  trackAction: vi.fn().mockResolvedValue(undefined),
+  ActionLimitError: class ActionLimitError extends Error {},
+}));
+
 // chrome.storage.local in-memory store for blocked URLs
 let chromeStore: Record<string, unknown> = {};
 

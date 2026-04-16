@@ -49,23 +49,7 @@ export type Message =
   | { action: 'UPDATE_SESSION_TABS'; payload: { sessionId: string } }
   | { action: 'OPEN_DOWNLOAD'; payload: { downloadId: number } }
   | { action: 'SHOW_DOWNLOAD'; payload: { downloadId: number } }
-  | { action: 'SYNC_GET_STATUS'; payload: Record<string, never> }
-  | { action: 'SYNC_SIGN_IN'; payload: { email: string; password: string } }
-  | { action: 'SYNC_SIGN_OUT'; payload: Record<string, never> }
-  | { action: 'SYNC_NOW'; payload: Record<string, never> }
-  | { action: 'SYNC_PUSH'; payload: Record<string, never> }
-  | { action: 'SYNC_DASHBOARD'; payload: { config: string } }
-  | { action: 'PULL_DASHBOARD'; payload: Record<string, never> }
-  | { action: 'SYNC_PULL_ALL'; payload: Record<string, never> }
-  | { action: 'SYNC_MUTATION'; payload: Record<string, never> }
-  | { action: 'SYNC_GET_SETTINGS'; payload: Record<string, never> }
-  | { action: 'SYNC_UPDATE_SETTINGS'; payload: { syncEnabled?: boolean; entities?: Record<string, boolean> } }
-  | { action: 'SYNC_PAUSE'; payload: { minutes: number; reason?: string } }
-  | { action: 'SYNC_CLEAR_PAUSE'; payload: Record<string, never> }
-  | { action: 'SYNC_GET_MASS_DELETE_TRIPS'; payload: Record<string, never> }
-  | { action: 'SYNC_CLEAR_MASS_DELETE_TRIP'; payload: { entity: string } }
-  | { action: 'SYNC_CLEAR_ALL_MASS_DELETE_TRIPS'; payload: Record<string, never> }
-  | { action: 'SYNC_GET_DIRTY_COUNTS'; payload: Record<string, never> };
+  | { action: 'GET_LIMIT_STATUS'; payload: Record<string, never> };
 
 export interface MessageResponse<T = unknown> {
   success: boolean;
@@ -97,25 +81,12 @@ export interface SaveSessionResponse {
   isDuplicate: boolean;
 }
 
-export interface SyncSignInResponse {
-  success: boolean;
-  email?: string;
-  error?: string;
-  pulled?: {
-    sessions: number;
-    prompts: number;
-    subs: number;
-    tabGroups: number;
-    folders: number;
-    todos: number;
-  };
-  hasDashboardConfig?: boolean;
-}
-
-export interface DashboardSyncResponse {
-  success: boolean;
-  syncsUsedThisMonth: number;
-  syncsLimit: number;
-  config?: string;
-  error?: string;
+export interface LimitStatusResponse {
+  tier: string;
+  dailyUsed: number;
+  dailyLimit: number;
+  monthlyUsed: number;
+  monthlyLimit: number;
+  dailyBlocked: boolean;
+  monthlyBlocked: boolean;
 }

@@ -2,6 +2,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PromptStorage } from '@core/storage/prompt-storage';
 import type { Prompt, PromptFolder } from '@core/types/prompt.types';
 
+vi.mock('@core/services/limits/limit-guard', () => ({
+  guardAction: vi.fn().mockResolvedValue(undefined),
+  trackAction: vi.fn().mockResolvedValue(undefined),
+  ActionLimitError: class ActionLimitError extends Error {},
+}));
+
+
+
 // Helper to build a minimal Prompt
 function makePrompt(id: string, overrides: Partial<Prompt> = {}): Prompt {
   return {

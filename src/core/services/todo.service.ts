@@ -1,9 +1,9 @@
 import { newtabDB } from '@core/storage/newtab-storage';
 import { softDeleteNewTab, softDeleteNewTabMany } from '@core/storage/newtab-soft-delete';
-import { notifySyncMutation } from '@core/services/sync-trigger';
 import type { TodoItem, TodoList, BookmarkCategory } from '@core/types/newtab.types';
 import { generateId } from '@core/utils/uuid';
 import { nowISO } from '@core/utils/date';
+import { guardAction, trackAction } from '@core/services/limits/limit-guard';
 
 const db = newtabDB;
 
@@ -24,7 +24,6 @@ export async function saveTodoList(
 ): Promise<TodoList> {
   const list: TodoList = { ...data, id: generateId(), createdAt: nowISO() };
   await db.put(LISTS, list);
-  notifySyncMutation();
   return list;
 }
 
@@ -35,7 +34,6 @@ export async function updateTodoList(
   const existing = await db.get<TodoList>(LISTS, id);
   if (!existing) return;
   await db.put(LISTS, { ...existing, ...updates });
-  notifySyncMutation();
 }
 
 export async function deleteTodoList(id: string): Promise<void> {
@@ -43,7 +41,6 @@ export async function deleteTodoList(id: string): Promise<void> {
   await Promise.all(items.map((item) => removeTodoFromCardNoteContent(item.id)));
   await softDeleteNewTabMany(ITEMS, items.map((i) => i.id));
   await softDeleteNewTab(LISTS, id);
-  notifySyncMutation();
 }
 
 // ─── TodoItem ──────────────────────────────────────────────────────────────────
@@ -58,9 +55,10 @@ export async function getTodoItems(listId: string): Promise<TodoItem[]> {
 export async function saveTodoItem(
   data: Omit<TodoItem, 'id' | 'createdAt'>,
 ): Promise<TodoItem> {
+  await guardAction();
   const item: TodoItem = { ...data, id: generateId(), createdAt: nowISO() };
   await db.put(ITEMS, item);
-  notifySyncMutation();
+  void trackAction();
   return item;
 }
 
@@ -68,18 +66,18 @@ export async function updateTodoItem(
   id: string,
   updates: Partial<Omit<TodoItem, 'id' | 'createdAt'>>,
 ): Promise<void> {
+  await guardAction();
   const existing = await db.get<TodoItem>(ITEMS, id);
   if (!existing) return;
   await db.put(ITEMS, { ...existing, ...updates });
-  notifySyncMutation();
+  void trackAction();
 }
 
 export async function deleteTodoItem(id: string): Promise<void> {
+  await guardAction();
   await softDeleteNewTab(ITEMS, id);
-  // Also remove from any dashboard card's noteContent so the sync
-  // harvester doesn't re-create the deleted item from stale JSON.
   await removeTodoFromCardNoteContent(id);
-  notifySyncMutation();
+  void trackAction();
 }
 
 export async function reorderTodoItems(
@@ -95,7 +93,6 @@ export async function reorderTodoItems(
       return Promise.resolve();
     }),
   );
-  notifySyncMutation();
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────

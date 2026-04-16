@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { Crown, Zap, Check, X, Calendar, CreditCard, CheckCircle2, ArrowRight } from 'lucide-react'
+import { Crown, Zap, Check, Calendar, CreditCard, CheckCircle2, ArrowRight, CalendarDays, CalendarClock } from 'lucide-react'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/services/auth'
 
@@ -8,18 +8,8 @@ type Plan = {
   id: string
   name: string
   price_monthly: number
-  sync_enabled: boolean
-  sessions_synced_limit: number | null
-  tabs_per_session_limit: number | null
-  total_tabs_limit: number | null
-  folders_synced_limit: number | null
-  tab_groups_synced_limit: number | null
-  entries_per_folder_limit: number | null
-  prompts_access_limit: number | null
-  prompts_create_limit: number | null
-  subs_synced_limit: number | null
-  notes_limit: number | null
-  todos_limit: number | null
+  daily_action_limit: number | null
+  monthly_action_limit: number | null
   [key: string]: string | number | boolean | null
 }
 
@@ -31,7 +21,7 @@ async function getBillingData(userId: string) {
       .select('plan_id, status, billing_cycle, current_period_end, stripe_subscription_id')
       .eq('user_id', userId)
       .single(),
-    supabase.from('plans').select('*').eq('is_active', true).order('sort_order'),
+    supabase.from('plans').select('id, name, price_monthly, daily_action_limit, monthly_action_limit').eq('is_active', true).order('sort_order'),
   ])
   return {
     userPlan: userPlanRes.data,
@@ -45,19 +35,9 @@ function fmt(val: number | null) {
   return `${val}`
 }
 
-const QUOTA_ROWS = [
-  { label: 'Sync across devices',      field: 'sync_enabled',             boolean: true },
-  { label: 'Synced sessions',          field: 'sessions_synced_limit' },
-  { label: 'Tabs per session',         field: 'tabs_per_session_limit' },
-  { label: 'Unique tabs (global)',     field: 'total_tabs_limit' },
-  { label: 'Synced folders',           field: 'folders_synced_limit' },
-  { label: 'Tab group templates',      field: 'tab_groups_synced_limit' },
-  { label: 'Entries per folder',       field: 'entries_per_folder_limit' },
-  { label: 'Prompt library access',    field: 'prompts_access_limit' },
-  { label: 'Create prompts',           field: 'prompts_create_limit' },
-  { label: 'Tracked subscriptions',    field: 'subs_synced_limit' },
-  { label: 'Notes widgets',            field: 'notes_limit' },
-  { label: 'Todo items',               field: 'todos_limit' },
+const QUOTA_ROWS: { label: string; field: keyof Plan; icon: typeof CalendarDays }[] = [
+  { label: 'Actions per day',   field: 'daily_action_limit',   icon: CalendarDays },
+  { label: 'Actions per month', field: 'monthly_action_limit', icon: CalendarClock },
 ]
 
 export default async function BillingPage() {
@@ -68,8 +48,8 @@ export default async function BillingPage() {
   const currentPlan = plans.find(p => p.id === currentPlanId)
 
   const headerBg =
-    currentPlanId === 'max' ? 'bg-purple-600' :
-    currentPlanId === 'pro' ? 'bg-indigo-600' : 'bg-stone-600'
+    currentPlanId === 'lifetime' ? 'bg-purple-600' :
+    currentPlanId === 'pro'      ? 'bg-indigo-600' : 'bg-stone-600'
 
   return (
     <div className="max-w-6xl animate-fade-in pb-12">
@@ -83,7 +63,7 @@ export default async function BillingPage() {
               <div className="flex justify-between items-start mb-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    {currentPlanId === 'max'
+                    {currentPlanId === 'lifetime'
                       ? <Crown className="h-4 w-4 opacity-80" />
                       : <Zap className="h-4 w-4 opacity-80" />}
                     <span className="text-xs font-bold uppercase tracking-widest opacity-80">Current Plan</span>
@@ -118,7 +98,7 @@ export default async function BillingPage() {
                   </div>
                 </div>
               </div>
-              {currentPlanId === 'free' && (
+              {(currentPlanId === 'free' || currentPlanId === 'guest') && (
                 <a
                   href="#plans"
                   className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors"
@@ -158,7 +138,7 @@ export default async function BillingPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-stone-100 dark:border-[var(--dark-border)]">
-                <th className="text-left p-4 font-semibold text-stone-500 dark:text-stone-400 w-2/5">Feature</th>
+                <th className="text-left p-4 font-semibold text-stone-500 dark:text-stone-400 w-2/5">Limits</th>
                 {plans.map(plan => (
                   <th key={plan.id} className="p-4 text-center">
                     <div className="flex flex-col items-center gap-1">
@@ -179,23 +159,34 @@ export default async function BillingPage() {
               </tr>
             </thead>
             <tbody>
-              {QUOTA_ROWS.map((row, i) => (
-                <tr key={row.field} className={i % 2 === 0 ? 'bg-stone-50/60 dark:bg-[var(--dark-elevated)]/40' : ''}>
-                  <td className="p-4 text-stone-600 dark:text-stone-400">{row.label}</td>
-                  {plans.map(plan => {
-                    const val = (plan as Plan)[row.field]
-                    return (
+              {QUOTA_ROWS.map((row, i) => {
+                const Icon = row.icon
+                return (
+                  <tr key={row.field as string} className={i % 2 === 0 ? 'bg-stone-50/60 dark:bg-[var(--dark-elevated)]/40' : ''}>
+                    <td className="p-4 text-stone-600 dark:text-stone-400">
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-4 w-4 text-stone-400" />
+                        {row.label}
+                      </div>
+                    </td>
+                    {plans.map(plan => (
                       <td key={plan.id} className="p-4 text-center font-medium text-stone-800 dark:text-stone-200">
-                        {row.boolean
-                          ? (val
-                            ? <Check className="h-4 w-4 text-emerald-500 mx-auto" />
-                            : <X className="h-4 w-4 text-stone-300 dark:text-stone-600 mx-auto" />)
-                          : fmt(val as number | null)}
+                        {fmt(plan[row.field] as number | null)}
                       </td>
-                    )
-                  })}
-                </tr>
-              ))}
+                    ))}
+                  </tr>
+                )
+              })}
+
+              {/* "All data stored locally" row */}
+              <tr className="bg-stone-50/60 dark:bg-[var(--dark-elevated)]/40">
+                <td className="p-4 text-stone-600 dark:text-stone-400">Local-only storage</td>
+                {plans.map(plan => (
+                  <td key={plan.id} className="p-4 text-center">
+                    <Check className="h-4 w-4 text-emerald-500 mx-auto" />
+                  </td>
+                ))}
+              </tr>
 
               {/* CTA Row */}
               <tr className="border-t border-stone-100 dark:border-[var(--dark-border)]">
@@ -220,7 +211,7 @@ export default async function BillingPage() {
           </table>
         </div>
         <p className="mt-3 text-xs text-stone-400 text-center">
-          Yearly billing saves up to 20%. Cancel anytime.
+          All data is stored locally on your device. Limits reset at midnight. Yearly billing saves up to 20%.
         </p>
       </div>
     </div>

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Copy, Check, ExternalLink, Share2 } from 'lucide-react';
 import type { Prompt } from '@core/types/prompt.types';
-import { getSyncDisplayName } from '@core/services/sync-auth.service';
 
 interface Props {
   prompt: Prompt;
@@ -25,9 +24,6 @@ export default function SharePromptModal({ prompt, onClose }: Props) {
 
     (async () => {
       try {
-        const displayName = await getSyncDisplayName();
-        const creatorName = prompt.source === 'app' ? 'Browser Hub' : displayName;
-
         const res = await fetch(`${SITE_URL}/api/prompts/share`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -37,8 +33,8 @@ export default function SharePromptModal({ prompt, onClose }: Props) {
             description: prompt.description ?? null,
             tags: prompt.tags,
             compatibleModels: prompt.compatibleModels ?? [],
-            sharedByName: displayName ?? null,
-            creatorName: creatorName ?? null,
+            sharedByName: null,
+            creatorName: prompt.source === 'app' ? 'Browser Hub' : null,
             sourcePromptId: prompt.id,
           }),
           signal: controller.signal,

@@ -8,7 +8,6 @@
 
 import type { BaseEntity, SyncableEntity } from '@core/types/base.types';
 import type { IIndexedRepository, IBulkRepository, ReadOptions } from './repository';
-import { stampForWrite } from './sync-helpers';
 
 export interface IndexedDBRepositoryConfig {
   dbName: string;
@@ -87,7 +86,7 @@ export class IndexedDBRepository<T extends BaseEntity>
   }
 
   async save(entity: T): Promise<void> {
-    const stamped = stampForWrite(entity);
+    const stamped = entity;
     const db = await this.open();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(this.config.storeName, 'readwrite');

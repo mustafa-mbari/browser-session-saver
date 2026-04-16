@@ -1,7 +1,7 @@
 import type { Subscription, CustomCategory } from '@core/types/subscription.types';
 import { ChromeLocalArrayRepository } from './chrome-local-array-repository';
 import { ChromeLocalKeyAdapter } from './chrome-local-key-adapter';
-import { notifySyncMutation } from '@core/services/sync-trigger';
+import { guardAction, trackAction } from '@core/services/limits/limit-guard';
 
 const subsRepo = new ChromeLocalArrayRepository<Subscription>('subscriptions');
 const catsAdapter = new ChromeLocalKeyAdapter<CustomCategory>('subscription_categories');
@@ -23,18 +23,21 @@ export const SubscriptionStorage = {
   },
 
   async save(sub: Subscription): Promise<void> {
+    await guardAction();
     await subsRepo.save(sub);
-    notifySyncMutation();
+    void trackAction();
   },
 
   async update(id: string, updates: Partial<Subscription>): Promise<void> {
+    await guardAction();
     await subsRepo.update(id, updates);
-    notifySyncMutation();
+    void trackAction();
   },
 
   async delete(id: string): Promise<void> {
+    await guardAction();
     await subsRepo.markDeleted(id);
-    notifySyncMutation();
+    void trackAction();
   },
 
   async deleteAll(): Promise<void> {
@@ -42,7 +45,6 @@ export const SubscriptionStorage = {
     for (const s of all) {
       await subsRepo.markDeleted(s.id);
     }
-    notifySyncMutation();
   },
 
   importMany: (subs: Subscription[]) => subsRepo.importMany(subs),

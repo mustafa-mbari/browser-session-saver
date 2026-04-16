@@ -9,7 +9,6 @@
 import type { BaseEntity, SyncableEntity } from '@core/types/base.types';
 import type { IIndexedRepository, IBulkRepository, ReadOptions } from './repository';
 import type { NewTabDB } from './newtab-storage';
-import { stampForWrite } from './sync-helpers';
 
 export class NewTabDBRepository<T extends { id: string }>
   implements IIndexedRepository<T & BaseEntity>, IBulkRepository<T & BaseEntity>
@@ -41,7 +40,7 @@ export class NewTabDBRepository<T extends { id: string }>
   }
 
   async save(entity: T & BaseEntity): Promise<void> {
-    const stamped = stampForWrite(entity);
+    const stamped = entity;
     await this.db.put(this.storeName, stamped);
   }
 

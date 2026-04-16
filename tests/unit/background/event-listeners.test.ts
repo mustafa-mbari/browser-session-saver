@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { registerEventListeners } from '@background/event-listeners';
 import type { Session } from '@core/types/session.types';
 import type { Settings } from '@core/types/settings.types';
+import { importFromJSON } from '@core/services/import.service';
+import { ActionLimitError } from '@core/services/limits/limit-guard';
 
 // ---------------------------------------------------------------------------
 // Mock: session service
@@ -77,23 +79,25 @@ vi.mock('@core/services/import.service', () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Mock: cloud sync services (prevent real Supabase calls in tests)
+// Mock: limit-guard (prevent real chrome.storage calls from action-tracker)
 // ---------------------------------------------------------------------------
-vi.mock('@core/services/sync-auth.service', () => ({
-  syncSignIn: vi.fn().mockResolvedValue({ success: false, error: 'Not configured' }),
-  syncSignOut: vi.fn().mockResolvedValue(undefined),
-  getSyncUserId: vi.fn().mockResolvedValue(null),
-  getSyncEmail: vi.fn().mockResolvedValue(null),
-  isSyncAuthenticated: vi.fn().mockResolvedValue(false),
-  getSyncSession: vi.fn().mockResolvedValue(null),
-}));
+const { mockGuardAction } = vi.hoisted(() => ({ mockGuardAction: vi.fn() }));
 
-vi.mock('@core/services/sync.service', () => ({
-  syncAll: vi.fn().mockResolvedValue({ success: false, synced: { sessions: 0, prompts: 0, subs: 0 } }),
-  getSyncStatus: vi.fn().mockResolvedValue({ isAuthenticated: false, userId: null, email: null, lastSyncAt: null, isSyncing: false, quota: null, usage: null, error: null }),
-  pushSession: vi.fn().mockResolvedValue(undefined),
-  deleteRemoteSession: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock('@core/services/limits/limit-guard', () => {
+  class ActionLimitError extends Error {
+    status: unknown;
+    constructor(status: unknown) {
+      super('Action limit reached');
+      this.name = 'ActionLimitError';
+      this.status = status;
+    }
+  }
+  return {
+    guardAction: mockGuardAction,
+    trackAction: vi.fn().mockResolvedValue(undefined),
+    ActionLimitError,
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -144,6 +148,9 @@ function dispatch(message: object): Promise<Record<string, unknown>> {
 beforeEach(() => {
   vi.clearAllMocks();
   for (const k of Object.keys(settingsStore)) delete settingsStore[k];
+
+  // Default: guardAction allows (no throw). Individual tests can override with mockRejectedValueOnce.
+  mockGuardAction.mockResolvedValue(undefined);
 
   // Register fresh listener each test (chrome.runtime.onMessage is cleared above)
   registerEventListeners();
@@ -284,6 +291,22 @@ describe('handleMessage', () => {
       expect(res.success).toBe(false);
       expect(res.error).toMatch(/at least 2/i);
     });
+
+    it('returns success: false when guardAction throws ActionLimitError', async () => {
+      const s1 = makeSession({ id: 'A' });
+      const s2 = makeSession({ id: 'B' });
+      mockGetSession.mockImplementation((id: string) =>
+        Promise.resolve(id === 'A' ? s1 : id === 'B' ? s2 : null),
+      );
+      mockGuardAction.mockRejectedValueOnce(new ActionLimitError({ tier: 'guest', dailyBlocked: true }));
+
+      const res = await dispatch({
+        action: 'MERGE_SESSIONS',
+        payload: { sessionIds: ['A', 'B'], targetName: 'Merged' },
+      });
+      expect(res.success).toBe(false);
+      expect(res.error).toBe('Action limit reached');
+    });
   });
 
   // ── DIFF_SESSIONS ─────────────────────────────────────────────────────────
@@ -333,6 +356,31 @@ describe('handleMessage', () => {
       const res = await dispatch({ action: 'UNDELETE_SESSION', payload: { session } });
       expect(res.success).toBe(true);
       expect((res.data as Session).id).toBe('restored');
+    });
+
+    it('returns success: false when guardAction throws ActionLimitError', async () => {
+      const session = makeSession({ id: 'restored' });
+      mockGuardAction.mockRejectedValueOnce(new ActionLimitError({ tier: 'guest', dailyBlocked: true }));
+
+      const res = await dispatch({ action: 'UNDELETE_SESSION', payload: { session } });
+      expect(res.success).toBe(false);
+      expect(res.error).toBe('Action limit reached');
+    });
+  });
+
+  // ── IMPORT_SESSIONS ───────────────────────────────────────────────────────
+  describe('IMPORT_SESSIONS', () => {
+    it('returns success: false when guardAction throws ActionLimitError', async () => {
+      // Return a valid session so the handler reaches guardAction (empty result exits early)
+      vi.mocked(importFromJSON).mockReturnValueOnce({ sessions: [makeSession()], errors: [] });
+      mockGuardAction.mockRejectedValueOnce(new ActionLimitError({ tier: 'guest', dailyBlocked: true }));
+
+      const res = await dispatch({
+        action: 'IMPORT_SESSIONS',
+        payload: { data: '[]', source: 'json' },
+      });
+      expect(res.success).toBe(false);
+      expect(res.error).toBe('Action limit reached');
     });
   });
 

@@ -118,12 +118,10 @@ export function useSession() {
   // Read directly from IndexedDB to avoid the SW round-trip which can fail
   // with "message port closed before a response was received" if the SW is sleeping.
   useEffect(() => {
-    const handler = async (changes: Record<string, chrome.storage.StorageChange>) => {
-      if (changes['_sessions_updated'] || changes['cloud_last_pull_at']) {
-        const updated = await SessionService.getAllSessions();
-        setSessions(updated);
-        setTotalCount(updated.length);
-      }
+    const handler = async () => {
+      const updated = await SessionService.getAllSessions();
+      setSessions(updated);
+      setTotalCount(updated.length);
     };
     chrome.storage.local.onChanged.addListener(handler);
     return () => chrome.storage.local.onChanged.removeListener(handler);

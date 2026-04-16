@@ -7,13 +7,11 @@ import { useNewTabDataStore } from '@newtab/stores/newtab-data.store';
 import { useKeyboardShortcuts } from '@newtab/hooks/useKeyboardShortcuts';
 import { newtabDB } from '@core/storage/newtab-storage';
 import { updateNewTabSettings, getNewTabSettings } from '@core/services/newtab-settings.service';
-import { DEFAULT_NEWTAB_SETTINGS, type SpanValue, type Board } from '@core/types/newtab.types';
+import { DEFAULT_NEWTAB_SETTINGS, type SpanValue } from '@core/types/newtab.types';
 import * as BookmarkService from '@core/services/bookmark.service';
 import * as QuickLinksService from '@core/services/quicklinks.service';
 import * as TodoService from '@core/services/todo.service';
 import { seedDefaultData } from '@core/services/seed.service';
-import { isSyncAuthenticated } from '@core/services/sync-auth.service';
-import { pullAll } from '@core/services/sync.service';
 import BackgroundLayer from '@newtab/components/BackgroundLayer';
 import MinimalLayout from '@newtab/layouts/MinimalLayout';
 import FocusLayout from '@newtab/layouts/FocusLayout';
@@ -23,7 +21,6 @@ import SessionRestoreReminder from '@newtab/components/SessionRestoreReminder';
 import OnboardingModal, { useOnboardingFlag } from '@shared/components/OnboardingModal';
 
 // Heavy overlays — loaded only when opened
-const DashboardRestoreModal = lazy(() => import('@newtab/components/DashboardRestoreModal'));
 const SettingsPanel = lazy(() => import('@newtab/components/SettingsPanel'));
 const WallpaperPicker = lazy(() => import('@newtab/components/WallpaperPicker'));
 const KeyboardHelpModal = lazy(() => import('@newtab/components/KeyboardHelpModal'));
@@ -33,30 +30,7 @@ export default function App() {
   useTheme();
   const { needsOnboarding, markComplete } = useOnboardingFlag();
 
-  // Incremented whenever the background SW completes a pull, triggering a data reload.
-  const [dataVersion, setDataVersion] = useState(0);
-  const [pendingDashboardConfig, setPendingDashboardConfig] = useState<string | null>(null);
-  const [isApplyingDashboard, setIsApplyingDashboard] = useState(false);
-
-  useEffect(() => {
-    const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
-      if (changes.cloud_last_pull_at) setDataVersion((v) => v + 1);
-      if (changes.pending_dashboard_restore) {
-        const newVal = changes.pending_dashboard_restore.newValue as string | undefined;
-        if (newVal) setPendingDashboardConfig(newVal);
-      }
-    };
-    chrome.storage.onChanged.addListener(listener);
-    return () => chrome.storage.onChanged.removeListener(listener);
-  }, []);
-
-  // Check for a pending dashboard restore config written by handleSyncSignIn on mount.
-  useEffect(() => {
-    chrome.storage.local.get('pending_dashboard_restore', (result) => {
-      const config = result['pending_dashboard_restore'] as string | undefined;
-      if (config) setPendingDashboardConfig(config);
-    });
-  }, []);
+  const [dataVersion] = useState(0);
 
   const uiStore = useNewTabUIStore();
   const dataStore = useNewTabDataStore();
@@ -96,7 +70,7 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const viewParam = params.get('view');
     if (!viewParam) return;
-    const mgmtViews = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions', 'settings', 'cloud-sync'];
+    const mgmtViews = ['sessions', 'auto-saves', 'tab-groups', 'import-export', 'subscriptions', 'settings'];
     uiStore.setActiveView(viewParam as Parameters<typeof uiStore.setActiveView>[0]);
     if (mgmtViews.includes(viewParam) && uiStore.settings.layoutMode !== 'dashboard') {
       uiStore.setLayoutMode('dashboard');
@@ -116,16 +90,8 @@ export default function App() {
         ]);
 
         // First launch: seed default boards, quick links, and a default todo list.
-        // If the user is already signed in, pull their cloud data first and skip
-        // the demo "Private"/"Work" cards — their real folders will come from sync.
-        // Guard with dataVersion === 0 so we never re-seed on subsequent reloads
-        // triggered by the cloud_last_pull_at signal.
         if (boards.length === 0 && dataVersion === 0) {
-          const isAuth = await isSyncAuthenticated();
-          if (isAuth) {
-            try { await pullAll(); } catch { /* ignore network errors — seeding still proceeds */ }
-          }
-          const seeded = await seedDefaultData({ skipSampleCards: isAuth });
+          const seeded = await seedDefaultData({ skipSampleCards: false });
           const [seededBoards, seededLinks, seededLists] = await Promise.all([
             BookmarkService.getBoards(),
             QuickLinksService.getQuickLinks(),
@@ -209,29 +175,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataVersion]);
 
-  const handleApplyDashboard = async (boards: Board[]) => {
-    setIsApplyingDashboard(true);
-    try {
-      const existingBoards = await BookmarkService.getBoards();
-      const existingIds = new Set(existingBoards.map((b) => b.id));
-      const toAdd = boards.filter((b) => !existingIds.has(b.id));
-      await Promise.all(toAdd.map((b) => newtabDB.put<Board>('boards', b)));
-      await chrome.storage.local.remove('pending_dashboard_restore');
-      setPendingDashboardConfig(null);
-      setDataVersion((v) => v + 1);
-    } catch {
-      setPendingDashboardConfig(null);
-      await chrome.storage.local.remove('pending_dashboard_restore');
-    } finally {
-      setIsApplyingDashboard(false);
-    }
-  };
-
-  const handleDismissDashboard = () => {
-    setPendingDashboardConfig(null);
-    void chrome.storage.local.remove('pending_dashboard_restore');
-  };
-
   if (isLoading) {
     return (
       <div
@@ -298,16 +241,6 @@ export default function App() {
         isOpen={needsOnboarding === true}
         onClose={() => void markComplete()}
       />
-      {pendingDashboardConfig && (
-        <Suspense fallback={null}>
-          <DashboardRestoreModal
-            configJson={pendingDashboardConfig}
-            onApply={handleApplyDashboard}
-            onDismiss={handleDismissDashboard}
-            isApplying={isApplyingDashboard}
-          />
-        </Suspense>
-      )}
     </div>
   );
 }

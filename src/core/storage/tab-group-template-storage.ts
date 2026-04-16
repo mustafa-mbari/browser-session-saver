@@ -1,6 +1,6 @@
 import type { TabGroupTemplate } from '@core/types/tab-group.types';
 import { ChromeLocalKeyAdapter } from './chrome-local-key-adapter';
-import { notifySyncMutation } from '@core/services/sync-trigger';
+import { guardAction, trackAction } from '@core/services/limits/limit-guard';
 
 const adapter = new ChromeLocalKeyAdapter<TabGroupTemplate>('tab_group_templates');
 
@@ -15,6 +15,7 @@ export class TabGroupTemplateStorage {
    * Preserves the original `savedAt` timestamp on update.
    */
   static async upsert(template: TabGroupTemplate): Promise<void> {
+    await guardAction();
     const all = await adapter.getAll();
     const idx = all.findIndex((t) => t.key === template.key);
     const now = new Date().toISOString();
@@ -30,15 +31,11 @@ export class TabGroupTemplateStorage {
       all.push(stamped);
     }
     await adapter.setAll(all);
-    notifySyncMutation();
+    void trackAction();
   }
 
-  /**
-   * Soft-delete by key. Flips `deletedAt` so the sync engine pushes the
-   * tombstone on the next cycle. The pg_cron sweep hard-deletes after 30
-   * days; local compaction cleans up confirmed-synced tombstones sooner.
-   */
   static async delete(key: string): Promise<void> {
+    await guardAction();
     const all = await adapter.getAll();
     const idx = all.findIndex((t) => t.key === key);
     if (idx < 0) return;
@@ -50,7 +47,7 @@ export class TabGroupTemplateStorage {
       dirty: true,
     };
     await adapter.setAll(all);
-    notifySyncMutation();
+    void trackAction();
   }
 
   static replaceAll(templates: TabGroupTemplate[]): Promise<void> {

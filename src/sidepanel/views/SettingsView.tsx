@@ -155,16 +155,6 @@ export default function SettingsView() {
         />
       </Section>
 
-      {/* Cloud Sync */}
-      <Section title="Cloud Sync">
-        <button
-          onClick={() => navigateTo('cloud-sync')}
-          className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-[var(--color-bg-secondary)] rounded transition-colors"
-        >
-          Manage Cloud Sync
-        </button>
-      </Section>
-
       {/* Data */}
       <Section title="Data">
         <button

@@ -2,6 +2,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SubscriptionStorage } from '@core/storage/subscription-storage';
 import type { Subscription, CustomCategory } from '@core/types/subscription.types';
 
+vi.mock('@core/services/limits/limit-guard', () => ({
+  guardAction: vi.fn().mockResolvedValue(undefined),
+  trackAction: vi.fn().mockResolvedValue(undefined),
+  ActionLimitError: class ActionLimitError extends Error {},
+}));
+
+
+
 // In-memory store that backs the callback-based chrome.storage.local mock
 let store: Record<string, unknown> = {};
 

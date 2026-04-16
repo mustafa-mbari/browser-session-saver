@@ -1,12 +1,12 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import {
   Download, Upload, FileJson, FileText, Table2, AlignLeft, FileCode,
-  Cloud, CloudDownload, CheckSquare, Square, type LucideIcon,
+  CheckSquare, Square, type LucideIcon,
 } from 'lucide-react';
 import Button from '@shared/components/Button';
 import { useSession } from '@shared/hooks/useSession';
 import { useMessaging } from '@shared/hooks/useMessaging';
-import type { ExportFormat, DashboardSyncResponse } from '@core/types/messages.types';
+import type { ExportFormat } from '@core/types/messages.types';
 import type {
   ImportExportTab,
   BackupModule,
@@ -79,26 +79,6 @@ export default function ImportExportView() {
   const [legacyImporting, setLegacyImporting] = useState(false);
   const [legacyImportResult, setLegacyImportResult] = useState<string | null>(null);
 
-  // ── Cloud tab ────────────────────────────────────────────────────────────────
-  const [syncingDashboard, setSyncingDashboard] = useState(false);
-  const [pullingDashboard, setPullingDashboard] = useState(false);
-  const [cloudSyncResult, setCloudSyncResult] = useState<string | null>(null);
-  const [cloudSyncQuota, setCloudSyncQuota] = useState<{ used: number; limit: number } | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    void (async () => {
-      const res = await sendMessage<{ isAuthenticated: boolean; quota: { dashboard_syncs_limit: number | null } | null }>({
-        action: 'SYNC_GET_STATUS',
-        payload: {},
-      });
-      if (res.success && res.data) {
-        setIsAuthenticated(res.data.isAuthenticated);
-        const limit = res.data.quota?.dashboard_syncs_limit ?? 0;
-        setCloudSyncQuota((prev) => prev ?? (res.data!.isAuthenticated ? { used: 0, limit } : null));
-      }
-    })();
-  }, [sendMessage]);
 
   // ── Export handlers ──────────────────────────────────────────────────────────
 
@@ -224,45 +204,6 @@ export default function ImportExportView() {
     if (legacyFileRef.current) legacyFileRef.current.value = '';
   }, [sendMessage]);
 
-  // ── Cloud handlers ───────────────────────────────────────────────────────────
-
-  const handleSyncDashboardToCloud = async () => {
-    setSyncingDashboard(true);
-    setCloudSyncResult(null);
-    try {
-      const { exportDashboardAsJSON } = await import('@core/services/newtab-export.service');
-      const config = await exportDashboardAsJSON();
-      const res = await sendMessage<DashboardSyncResponse>({ action: 'SYNC_DASHBOARD', payload: { config } });
-      if (res.success && res.data) {
-        const d = res.data;
-        setCloudSyncQuota({ used: d.syncsUsedThisMonth, limit: d.syncsLimit });
-        setCloudSyncResult(`Dashboard synced! (${d.syncsUsedThisMonth}/${d.syncsLimit} syncs used this month)`);
-      } else {
-        setCloudSyncResult(res.data?.error ?? res.error ?? 'Sync failed');
-      }
-    } catch {
-      setCloudSyncResult('Failed to sync dashboard');
-    }
-    setSyncingDashboard(false);
-  };
-
-  const handlePullDashboardFromCloud = async () => {
-    setPullingDashboard(true);
-    setCloudSyncResult(null);
-    try {
-      const res = await sendMessage<DashboardSyncResponse>({ action: 'PULL_DASHBOARD', payload: {} });
-      if (res.success && res.data?.config) {
-        triggerDownload(res.data.config, `browser-hub-dashboard-cloud-${dateStamp()}.json`, 'application/json');
-        setCloudSyncResult('Cloud backup downloaded. Use the Import tab to apply it.');
-      } else {
-        setCloudSyncResult(res.data?.error ?? res.error ?? 'No cloud backup found');
-      }
-    } catch {
-      setCloudSyncResult('Failed to fetch dashboard backup');
-    }
-    setPullingDashboard(false);
-  };
-
   // ── Render ───────────────────────────────────────────────────────────────────
 
   const anyModuleSelected = Object.values(moduleSelection).some(Boolean);
@@ -271,7 +212,7 @@ export default function ImportExportView() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Tab bar */}
       <div className="flex border-b border-[var(--color-border)] shrink-0">
-        {(['export', 'import', 'cloud'] as ImportExportTab[]).map((tab) => (
+        {(['export', 'import'] as ImportExportTab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -530,57 +471,6 @@ export default function ImportExportView() {
           </div>
         )}
 
-        {/* ── CLOUD TAB ───────────────────────────────────────────────────── */}
-        {activeTab === 'cloud' && (
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-              <Cloud size={15} />
-              Dashboard Cloud Sync
-            </h3>
-            {!isAuthenticated ? (
-              <p className="text-xs text-[var(--color-text-secondary)]">
-                Sign in to Cloud Sync to back up and restore your dashboard.
-              </p>
-            ) : cloudSyncQuota?.limit === 0 ? (
-              <p className="text-xs text-[var(--color-text-secondary)]">
-                Dashboard sync requires a Pro or Max plan.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                <Button
-                  icon={Cloud}
-                  size="sm"
-                  fullWidth
-                  loading={syncingDashboard}
-                  disabled={cloudSyncQuota != null && cloudSyncQuota.used >= cloudSyncQuota.limit}
-                  onClick={() => { void handleSyncDashboardToCloud(); }}
-                >
-                  Sync Dashboard to Cloud
-                </Button>
-                <Button
-                  icon={CloudDownload}
-                  size="sm"
-                  fullWidth
-                  loading={pullingDashboard}
-                  onClick={() => { void handlePullDashboardFromCloud(); }}
-                >
-                  Download Cloud Backup
-                </Button>
-                {cloudSyncQuota && (
-                  <p className="text-xs text-[var(--color-text-secondary)]">
-                    {cloudSyncQuota.used}/{cloudSyncQuota.limit} syncs used this month
-                    {cloudSyncQuota.used >= cloudSyncQuota.limit && ' — limit reached'}
-                  </p>
-                )}
-              </div>
-            )}
-            {cloudSyncResult && (
-              <p className={`text-xs ${cloudSyncResult.includes('synced') || cloudSyncResult.includes('downloaded') ? 'text-success' : 'text-error'}`}>
-                {cloudSyncResult}
-              </p>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

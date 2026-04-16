@@ -6,7 +6,6 @@ import SettingsView from '../views/SettingsView';
 import ImportExportView from '../views/ImportExportView';
 import SubscriptionsView from '../views/SubscriptionsView';
 import PromptsView from '../views/PromptsView';
-import CloudSyncView from '../views/CloudSyncView';
 
 export default function NavigationStack() {
   const { currentView } = useSidePanelStore();
@@ -24,8 +23,6 @@ export default function NavigationStack() {
       return <SubscriptionsView />;
     case 'prompts':
       return <PromptsView />;
-    case 'cloud-sync':
-      return <CloudSyncView />;
     case 'home':
     default:
       return <HomeView />;

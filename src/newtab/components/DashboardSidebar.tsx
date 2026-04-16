@@ -18,13 +18,14 @@ import {
   PanelLeft,
   Check,
   FolderOpen,
-  Cloud,
+  ExternalLink,
 } from 'lucide-react';
 import Tooltip from '@shared/components/Tooltip';
 import ContextMenu from '@shared/components/ContextMenu';
 import type { Board } from '@core/types/newtab.types';
 import type { SidebarControl } from '@core/types/newtab.types';
 import type { NewTabView } from '@newtab/stores/newtab.store';
+import type { LimitStatus } from '@core/types/limits.types';
 
 function SectionLabel({ label }: { label: string }) {
   return (
@@ -265,21 +266,7 @@ export default function DashboardSidebar({
   const [sessionsExpanded, setSessionsExpanded] = useState(true);
   const [isHovering, setIsHovering] = useState(false);
   const [controlOpen, setControlOpen] = useState(false);
-  const [isSignedIn, setIsSignedIn] = useState(false);
-  const [syncEmail, setSyncEmail] = useState<string | null>(null);
-
-  useEffect(() => {
-    const load = () => {
-      chrome.storage.local.get('cloud_sync_status', (r) => {
-        const s = r['cloud_sync_status'] as { isAuthenticated?: boolean; email?: string } | undefined;
-        setIsSignedIn(s?.isAuthenticated ?? false);
-        setSyncEmail(s?.email ?? null);
-      });
-    };
-    load();
-    chrome.storage.onChanged.addListener(load);
-    return () => chrome.storage.onChanged.removeListener(load);
-  }, []);
+  const [limitStatus, setLimitStatus] = useState<LimitStatus | null>(null);
   const controlBtnRef = useRef<HTMLButtonElement>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -287,6 +274,22 @@ export default function DashboardSidebar({
   const autoOpenActiveRef = useRef(false);
   // Tracks whether the mouse is currently physically over the sidebar
   const isMouseOverRef = useRef(false);
+
+  // Load limit status on mount and refresh when usage changes
+  useEffect(() => {
+    const load = () => {
+      chrome.runtime.sendMessage({ action: 'GET_LIMIT_STATUS', payload: {} }, (r) => {
+        void chrome.runtime.lastError; // acknowledge to suppress MV3 console warning when SW is inactive
+        if (r?.success && r.data) setLimitStatus(r.data as LimitStatus);
+      });
+    };
+    load();
+    const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
+      if (changes.action_usage || changes.cached_plan) load();
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
+  }, []);
 
   // Auto-open on mount for expand-on-hover mode, collapse after 2 s
   useEffect(() => {
@@ -426,19 +429,13 @@ export default function DashboardSidebar({
           </Tooltip>
         ))}
         <div className="mt-auto pt-2">
-          <Tooltip content={isSignedIn ? (syncEmail ?? 'Account') : 'Sign In'} position="right">
+          <Tooltip content="Open web app" position="right">
             <button
-              onClick={() => onViewChange('cloud-sync')}
-              className={`relative w-7 h-7 rounded-full flex items-center justify-center mx-auto transition-colors ${
-                activeView === 'cloud-sync' ? 'bg-white/20' : 'hover:bg-white/10'
-              }`}
-              style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.3)' }}
-              aria-label="Account"
+              onClick={() => chrome.tabs.create({ url: import.meta.env.VITE_SITE_URL as string ?? 'https://bh.mbari.de' })}
+              className="w-7 h-7 rounded-full flex items-center justify-center mx-auto transition-colors hover:bg-white/10"
+              aria-label="Open web app"
             >
               <User size={14} style={{ color: '#818cf8' }} />
-              <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full ${
-                isSignedIn ? 'bg-emerald-400' : 'bg-amber-400'
-              }`} style={{ border: '1px solid rgba(0,0,0,0.3)' }} />
             </button>
           </Tooltip>
         </div>
@@ -578,35 +575,31 @@ export default function DashboardSidebar({
 
       {/* ── ACCOUNT + SIDEBAR CONTROL ── */}
       <div className="border-t border-white/10 mt-auto shrink-0">
-        {/* Account row */}
+        {/* Account row — opens web app */}
         <button
-          onClick={() => onViewChange('cloud-sync')}
-          className={`flex items-center gap-2.5 px-4 py-3 w-full text-left transition-colors rounded-lg mx-1 ${
-            activeView === 'cloud-sync' ? 'bg-white/15' : 'hover:bg-white/10'
-          }`}
+          onClick={() => chrome.tabs.create({ url: import.meta.env.VITE_SITE_URL as string ?? 'https://bh.mbari.de' })}
+          className="flex items-center gap-2.5 px-4 py-3 w-full text-left transition-colors hover:bg-white/10 rounded-lg mx-1"
           style={{ width: 'calc(100% - 0.5rem)' }}
-          aria-label="Account"
+          aria-label="Open web app"
         >
           <div
-            className="relative w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
             style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.3)' }}
           >
-            {isSignedIn ? (
-              <Cloud size={15} style={{ color: '#818cf8' }} />
-            ) : (
-              <User size={15} style={{ color: '#818cf8' }} />
-            )}
-            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ${
-              isSignedIn ? 'bg-emerald-400' : 'bg-amber-400'
-            }`} style={{ border: '1px solid rgba(0,0,0,0.3)' }} />
+            <User size={15} style={{ color: '#818cf8' }} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-medium truncate" style={{ color: 'var(--newtab-text)' }}>
-              {isSignedIn && syncEmail ? syncEmail : 'Sign In'}
+              Account & Plans
             </div>
-            <div className="text-[10px] truncate" style={{ color: 'var(--newtab-text-secondary)' }}>
-              {isSignedIn ? 'Syncing active' : 'Cloud sync off'}
-            </div>
+            {limitStatus ? (
+              <LimitStatusRow status={limitStatus} />
+            ) : (
+              <div className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--newtab-text-secondary)' }}>
+                <ExternalLink size={9} />
+                <span>Open web app</span>
+              </div>
+            )}
           </div>
         </button>
 
@@ -636,6 +629,27 @@ export default function DashboardSidebar({
           onClose={() => setControlOpen(false)}
         />
       )}
+    </div>
+  );
+}
+
+function LimitStatusRow({ status }: { status: LimitStatus }) {
+  const pct = status.dailyLimit > 0 ? status.dailyUsed / status.dailyLimit : 0;
+  const colorStyle = status.dailyBlocked || status.monthlyBlocked || pct >= 0.9
+    ? { color: '#f87171' }
+    : pct >= 0.7
+      ? { color: '#fbbf24' }
+      : { color: 'var(--newtab-text-secondary)' };
+
+  return (
+    <div
+      className="flex items-center gap-1 text-[10px]"
+      style={colorStyle}
+      title={`${status.dailyUsed}/${status.dailyLimit} actions today · ${status.monthlyUsed}/${status.monthlyLimit} this month`}
+    >
+      <span>{status.dailyUsed}/{status.dailyLimit} today</span>
+      <span style={{ opacity: 0.4 }}>·</span>
+      <span style={{ color: 'var(--newtab-text-secondary)' }}>{status.tier}</span>
     </div>
   );
 }

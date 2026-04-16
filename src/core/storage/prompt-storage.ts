@@ -1,7 +1,7 @@
 import type { Prompt, PromptCategory, PromptFolder, PromptTag } from '@core/types/prompt.types';
 import { ChromeLocalKeyAdapter } from './chrome-local-key-adapter';
 import { ChromeLocalArrayRepository } from './chrome-local-array-repository';
-import { notifySyncMutation } from '@core/services/sync-trigger';
+import { guardAction, trackAction } from '@core/services/limits/limit-guard';
 
 const promptsRepo = new ChromeLocalArrayRepository<Prompt>('prompts');
 const foldersRepo = new ChromeLocalArrayRepository<PromptFolder>('prompt_folders');
@@ -28,25 +28,26 @@ export const PromptStorage = {
   },
 
   async save(prompt: Prompt): Promise<void> {
+    await guardAction();
     await promptsRepo.save(prompt);
-    notifySyncMutation();
+    void trackAction();
   },
 
   async update(id: string, updates: Partial<Prompt>): Promise<void> {
+    await guardAction();
     await promptsRepo.update(id, { ...updates, updatedAt: new Date().toISOString() } as Partial<Prompt>);
-    notifySyncMutation();
+    void trackAction();
   },
 
   async delete(id: string): Promise<void> {
+    await guardAction();
     const existing = await promptsRepo.getById(id);
-    // App-source prompts have no remote counterpart — hard-delete locally.
-    // Local-source prompts soft-delete so the engine pushes the tombstone.
     if (existing && existing.source === 'app') {
       await promptsRepo.delete(id);
     } else if (existing) {
       await promptsRepo.markDeleted(id);
     }
-    notifySyncMutation();
+    void trackAction();
   },
 
   async deleteAll(): Promise<void> {
@@ -58,7 +59,6 @@ export const PromptStorage = {
         await promptsRepo.markDeleted(p.id);
       }
     }
-    notifySyncMutation();
   },
 
   async trackUsage(id: string): Promise<void> {
@@ -84,11 +84,13 @@ export const PromptStorage = {
   },
 
   async saveFolder(folder: PromptFolder): Promise<void> {
+    await guardAction();
     await foldersRepo.save(folder);
-    notifySyncMutation();
+    void trackAction();
   },
 
   async deleteFolder(id: string): Promise<void> {
+    await guardAction();
     // Delete folder and move its child prompts to parent (or root).
     // Use per-record update()/markDeleted() so tombstones on siblings are
     // preserved — replaceAll() would silently drop them.
@@ -116,7 +118,7 @@ export const PromptStorage = {
     } else if (folder) {
       await foldersRepo.markDeleted(id);
     }
-    notifySyncMutation();
+    void trackAction();
   },
 
   // ── Categories ──────────────────────────────────────────────────────────

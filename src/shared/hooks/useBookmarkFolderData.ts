@@ -66,14 +66,6 @@ export function useBookmarkFolderData(): BookmarkFolderState & BookmarkFolderAct
     void reload();
   }, [reload]);
 
-  // Reload whenever the background SW completes a pull
-  useEffect(() => {
-    const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
-      if (changes.cloud_last_pull_at) void reload();
-    };
-    chrome.storage.onChanged.addListener(listener);
-    return () => chrome.storage.onChanged.removeListener(listener);
-  }, [reload]);
 
   // ── Tree builder (in-memory, no DB calls) ───────────────────────────────────
   const getFolderTreeForBoard = useCallback(

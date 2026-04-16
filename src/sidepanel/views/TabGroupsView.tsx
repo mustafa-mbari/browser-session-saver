@@ -56,9 +56,6 @@ async function restoreInCurrentWindow(template: TabGroupTemplate): Promise<void>
   }
 }
 
-function triggerCloudSync(): void {
-  void chrome.runtime.sendMessage({ action: 'SYNC_PUSH', payload: {} });
-}
 
 // ── Color Picker ───────────────────────────────────────────────────────────────
 
@@ -163,7 +160,6 @@ function LiveGroupRow({
         updatedAt: now,
         pinned: existing?.pinned ?? false,
       });
-      triggerCloudSync();
       const tabIds = group.tabs.map((t) => t.id!).filter(Boolean);
       if (tabIds.length > 0) await chrome.tabs.remove(tabIds);
       onRefresh();
@@ -193,7 +189,6 @@ function LiveGroupRow({
       const existing = all.find((t) => t.key === templateKey);
       if (existing?.pinned) {
         await TabGroupTemplateStorage.upsert({ ...existing, pinned: false, updatedAt: now });
-        triggerCloudSync();
         setBookmarked(false);
       } else {
         await TabGroupTemplateStorage.upsert({
@@ -209,7 +204,6 @@ function LiveGroupRow({
           updatedAt: now,
           pinned: true,
         });
-        triggerCloudSync();
         setBookmarked(true);
       }
       // Only reload the saved list — no need for a heavy live reload
@@ -637,14 +631,6 @@ export default function TabGroupsView() {
     void reloadSaved();
   }, [reloadSaved]);
 
-  // Reload saved templates when background SW completes a pull
-  useEffect(() => {
-    const listener = (changes: Record<string, chrome.storage.StorageChange>) => {
-      if (changes.cloud_last_pull_at) void reloadSaved();
-    };
-    chrome.storage.onChanged.addListener(listener);
-    return () => chrome.storage.onChanged.removeListener(listener);
-  }, [reloadSaved]);
 
   useEffect(() => {
     void loadLiveGroups();
@@ -667,7 +653,6 @@ export default function TabGroupsView() {
   const handleDeleteTemplate = useCallback(
     async (key: string) => {
       await TabGroupTemplateStorage.delete(key);
-      triggerCloudSync();
       await reloadSaved();
     },
     [reloadSaved],
@@ -681,7 +666,6 @@ export default function TabGroupsView() {
       const newKey = `${newTitle}-${existing.color}`;
       await TabGroupTemplateStorage.upsert({ ...existing, key: newKey, title: newTitle });
       if (newKey !== key) await TabGroupTemplateStorage.delete(key);
-      triggerCloudSync();
       await reloadSaved();
     },
     [reloadSaved],
@@ -694,7 +678,6 @@ export default function TabGroupsView() {
       if (!existing) return;
       const now = new Date().toISOString();
       await TabGroupTemplateStorage.upsert({ ...existing, pinned: !existing.pinned, updatedAt: now });
-      triggerCloudSync();
       await reloadSaved();
     },
     [reloadSaved],

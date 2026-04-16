@@ -1,4 +1,4 @@
-import type { Message, MessageResponse, SessionDiffResponse, SaveSessionResponse, GetSessionsResponse, SyncSignInResponse, DashboardSyncResponse } from '@core/types/messages.types';
+import type { Message, MessageResponse, SessionDiffResponse, SaveSessionResponse, GetSessionsResponse } from '@core/types/messages.types';
 import type { Session } from '@core/types/session.types';
 import type { Settings } from '@core/types/settings.types';
 import { STORAGE_KEYS } from '@core/types/storage.types';
@@ -12,27 +12,21 @@ import { importFromJSON, importFromHTML, importFromURLList } from '@core/service
 import { generateId } from '@core/utils/uuid';
 import { isValidUrl, isValidSession } from '@core/utils/validators';
 import { MAX_IMPORT_SIZE_BYTES } from '@core/constants/limits';
-import { syncSignIn, syncSignOut, getSyncUserId } from '@core/services/sync-auth.service';
-import { syncAll, getSyncStatus, pushSession, deleteRemoteSession, syncDashboard, pullDashboard, pullAll } from '@core/services/sync.service';
-import {
-  getSettings as getSelectiveSyncSettings,
-  updateSettings as updateSelectiveSyncSettings,
-  pauseSyncFor,
-  clearPause,
-} from '@core/sync/state/selective-sync-settings';
-import {
-  getTrips as getMassDeleteTrips,
-  clearTrip as clearMassDeleteTrip,
-  clearAllTrips as clearAllMassDeleteTrips,
-} from '@core/sync/state/mass-delete-guard';
-import { ALL_SYNC_ENTITY_KEYS, type SyncEntityKey } from '@core/sync/types/syncable';
-import { getSyncEngine } from '@core/sync/handlers';
+import { getLimitStatus } from '@core/services/limits/action-tracker';
+import { guardAction, trackAction, ActionLimitError } from '@core/services/limits/limit-guard';
 
 export function registerEventListeners(): void {
   chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
     handleMessage(message)
       .then(sendResponse)
-      .catch((err) => sendResponse({ success: false, error: String(err) }));
+      .catch((err) => {
+        // Return limit status in response so UI can show LimitReachedModal
+        if (err instanceof ActionLimitError) {
+          sendResponse({ success: false, error: 'Action limit reached', limitStatus: err.status });
+        } else {
+          sendResponse({ success: false, error: String(err) });
+        }
+      });
     return true; // keep message channel open for async response
   });
 }
@@ -75,80 +69,13 @@ async function handleMessage(message: Message): Promise<MessageResponse> {
       return handleOpenDownload(message.payload);
     case 'SHOW_DOWNLOAD':
       return handleShowDownload(message.payload);
-    case 'SYNC_GET_STATUS':
-      return handleSyncGetStatus();
-    case 'SYNC_SIGN_IN':
-      return handleSyncSignIn(message.payload);
-    case 'SYNC_SIGN_OUT':
-      return handleSyncSignOut();
-    case 'SYNC_NOW':
-      return handleSyncNow();
-    case 'SYNC_PUSH':
-      return handleSyncPush();
-    case 'SYNC_DASHBOARD':
-      return handleSyncDashboard(message.payload);
-    case 'PULL_DASHBOARD':
-      return handlePullDashboard();
-    case 'SYNC_PULL_ALL':
-      return handlePullAll();
-    case 'SYNC_MUTATION':
-      return handleSyncMutation();
-    case 'SYNC_GET_SETTINGS':
-      return handleSyncGetSettings();
-    case 'SYNC_UPDATE_SETTINGS':
-      return handleSyncUpdateSettings(message.payload);
-    case 'SYNC_PAUSE':
-      return handleSyncPause(message.payload);
-    case 'SYNC_CLEAR_PAUSE':
-      return handleSyncClearPause();
-    case 'SYNC_GET_MASS_DELETE_TRIPS':
-      return handleSyncGetMassDeleteTrips();
-    case 'SYNC_CLEAR_MASS_DELETE_TRIP':
-      return handleSyncClearMassDeleteTrip(message.payload);
-    case 'SYNC_CLEAR_ALL_MASS_DELETE_TRIPS':
-      return handleSyncClearAllMassDeleteTrips();
-    case 'SYNC_GET_DIRTY_COUNTS':
-      return handleSyncGetDirtyCounts();
+    case 'GET_LIMIT_STATUS':
+      return handleGetLimitStatus();
     default:
       return { success: false, error: 'Unknown action' };
   }
 }
 
-// ── Debounced mutation-triggered sync ───────────────────────────────────────
-// Coalesces bursts of deletes/updates (e.g. deleting 30 bookmarks in a row)
-// into a single sync a short while after the last mutation.
-
-let _mutationSyncTimer: ReturnType<typeof setTimeout> | null = null;
-const MUTATION_SYNC_DEBOUNCE_MS = 1500;
-
-function scheduleMutationSync(): void {
-  if (_mutationSyncTimer) clearTimeout(_mutationSyncTimer);
-  _mutationSyncTimer = setTimeout(() => {
-    _mutationSyncTimer = null;
-    void (async () => {
-      try {
-        const userId = await getSyncUserId();
-        if (!userId) return;
-        await syncAll();
-      } catch (err) {
-        try {
-          const stored = await chrome.storage.local.get('cloud_sync_status');
-          const current = (stored['cloud_sync_status'] as Record<string, unknown>) ?? {};
-          await chrome.storage.local.set({
-            cloud_sync_status: { ...current, error: `Mutation sync failed: ${String(err)}` },
-          });
-        } catch {
-          /* best-effort */
-        }
-      }
-    })();
-  }, MUTATION_SYNC_DEBOUNCE_MS);
-}
-
-async function handleSyncMutation(): Promise<MessageResponse> {
-  scheduleMutationSync();
-  return { success: true };
-}
 
 async function handleSaveSession(payload: {
   windowId?: number;
@@ -156,6 +83,8 @@ async function handleSaveSession(payload: {
   closeAfter?: boolean;
   allWindows?: boolean;
 }): Promise<MessageResponse<SaveSessionResponse>> {
+  await guardAction();
+
   if (payload.allWindows) {
     const windows = await chrome.windows.getAll({ populate: false });
     const sessions: Session[] = [];
@@ -171,6 +100,7 @@ async function handleSaveSession(payload: {
       });
       sessions.push(session);
     }
+    void trackAction();
     return { success: true, data: { session: sessions, isDuplicate: false } };
   }
 
@@ -196,9 +126,7 @@ async function handleSaveSession(payload: {
     }
   }
 
-  // Fire-and-forget sync — does not block the save response
-  void syncAfterMutation(session);
-
+  void trackAction();
   return { success: true, data: { session, isDuplicate } };
 }
 
@@ -305,10 +233,9 @@ async function handleRestoreSession(payload: {
 async function handleDeleteSession(payload: {
   sessionId: string;
 }): Promise<MessageResponse> {
+  await guardAction();
   const deleted = await SessionService.deleteSession(payload.sessionId);
-  if (deleted) {
-    void deleteRemoteSession(payload.sessionId);
-  }
+  if (deleted) void trackAction();
   return deleted
     ? { success: true }
     : { success: false, error: 'Session not found or locked' };
@@ -373,10 +300,9 @@ async function handleUpdateSession(payload: {
   sessionId: string;
   updates: Partial<Session>;
 }): Promise<MessageResponse<Session>> {
+  await guardAction();
   const updated = await SessionService.updateSession(payload.sessionId, payload.updates);
-  if (updated) {
-    void syncAfterMutation(updated);
-  }
+  if (updated) void trackAction();
   return updated
     ? { success: true, data: updated }
     : { success: false, error: 'Session not found' };
@@ -443,11 +369,17 @@ async function handleImportSessions(payload: {
     result.errors.push(`${invalidCount} session(s) failed schema validation and were skipped`);
   }
 
+  if (validSessions.length === 0) {
+    return { success: false, data: { imported: 0, errors: result.errors }, error: result.errors.join('; ') || 'No valid sessions to import' };
+  }
+
+  await guardAction();
   const repo = getSessionRepository();
   await Promise.all(validSessions.map(s => repo.save(s)));
+  void trackAction();
 
   return {
-    success: validSessions.length > 0,
+    success: true,
     data: { imported: validSessions.length, errors: result.errors },
     error: result.errors.length > 0 ? result.errors.join('; ') : undefined,
   };
@@ -459,8 +391,10 @@ async function handleUndeleteSession(payload: {
   if (!isValidSession(payload.session)) {
     return { success: false, error: 'Invalid session data' };
   }
+  await guardAction();
   const repo = getSessionRepository();
   await repo.save(payload.session);
+  void trackAction();
   return { success: true, data: payload.session };
 }
 
@@ -475,6 +409,8 @@ async function handleMergeSessions(payload: {
   }
   if (sessions.length < 2) return { success: false, error: 'Need at least 2 sessions to merge' };
 
+  await guardAction();
+
   // Deduplicate tabs by URL, preserving first occurrence; flatten tab groups
   const seenUrls = new Set<string>();
   const mergedTabs = sessions.flatMap((session) =>
@@ -488,6 +424,7 @@ async function handleMergeSessions(payload: {
   const merged = await SessionService.saveSession(mergedTabs, [], {
     name: payload.targetName,
   });
+  void trackAction();
   return { success: true, data: merged };
 }
 
@@ -645,226 +582,7 @@ async function getCurrentWindowId(): Promise<number> {
   return window.id;
 }
 
-// ─── Cloud Sync handlers ─────────────────────────────────────────────────────
-
-async function handleSyncGetStatus(): Promise<MessageResponse> {
-  const status = await getSyncStatus();
+async function handleGetLimitStatus(): Promise<MessageResponse> {
+  const status = await getLimitStatus();
   return { success: true, data: status };
-}
-
-async function handleSyncSignIn(payload: {
-  email: string;
-  password: string;
-}): Promise<MessageResponse<SyncSignInResponse>> {
-  const result = await syncSignIn(payload.email, payload.password);
-
-  if (!result.success) {
-    return { success: false, data: result, error: result.error };
-  }
-
-  const userId = await getSyncUserId();
-
-  if (!userId) {
-    // Session not yet readable — degrade gracefully (skip pulls).
-    await chrome.storage.local.set({ cloud_last_pull_at: Date.now() });
-    return { success: true, data: { success: true, email: result.email } };
-  }
-
-  // Run entity pull and dashboard config fetch in parallel.
-  const [pullOutcome, dashOutcome] = await Promise.allSettled([
-    pullAll(),
-    pullDashboard(userId),
-  ]);
-
-  const pull =
-    pullOutcome.status === 'fulfilled' && pullOutcome.value.success
-      ? pullOutcome.value.pulled
-      : null;
-
-  const dashValue = dashOutcome.status === 'fulfilled' ? dashOutcome.value : null;
-  const hasConfig = dashValue?.success === true && typeof dashValue.config === 'string';
-
-  if (hasConfig && dashValue?.config) {
-    try {
-      JSON.parse(dashValue.config); // validate before storing
-      await chrome.storage.local.set({ pending_dashboard_restore: dashValue.config });
-    } catch {
-      // malformed JSON — skip
-    }
-  }
-
-  // Signal newtab pages to reload. Written AFTER pending_dashboard_restore so the
-  // key is already in storage when the onChanged listener fires on open pages.
-  await chrome.storage.local.set({ cloud_last_pull_at: Date.now() });
-
-  return {
-    success: true,
-    data: {
-      success: true,
-      email: result.email,
-      pulled: pull ?? { sessions: 0, prompts: 0, subs: 0, tabGroups: 0, folders: 0, todos: 0 },
-      hasDashboardConfig: hasConfig,
-    },
-  };
-}
-
-async function handleSyncSignOut(): Promise<MessageResponse> {
-  await syncSignOut();
-  return { success: true };
-}
-
-async function handleSyncNow(): Promise<MessageResponse> {
-  // Bidirectional: pull remote changes down FIRST, then push local data up.
-  // Pull-first is critical: if local state is smaller than remote (e.g. local
-  // IDB was cleared, a previous sync truncated local, or this is a fresh
-  // install on a second device), pushing first would NOT delete remote rows
-  // (orphan-delete has been removed) but pulling first still ensures the user
-  // sees their cloud data immediately rather than waiting for the next pull
-  // tick. The push afterwards is a no-op if nothing changed locally.
-  const pullResult = await pullAll();
-  if (pullResult.success) {
-    try { await chrome.storage.local.set({ cloud_last_pull_at: Date.now() }); } catch {}
-  }
-  const syncResult = await syncAll();
-  if (!syncResult.success) return { success: false, error: syncResult.error };
-  const status = await getSyncStatus();
-  return { success: true, data: status };
-}
-
-async function handleSyncPush(): Promise<MessageResponse> {
-  // Push-only: upload local changes without pulling remote data back.
-  // Used by mutation handlers to avoid a full data reload overwriting
-  // the optimistic UI update that was already applied.
-  const syncResult = await syncAll();
-  return { success: syncResult.success, error: syncResult.error };
-}
-
-async function handleSyncDashboard(payload: { config: string }): Promise<MessageResponse<DashboardSyncResponse>> {
-  const userId = await getSyncUserId();
-  if (!userId) {
-    return { success: false, error: 'Not authenticated', data: { success: false, syncsUsedThisMonth: 0, syncsLimit: 0, error: 'Not authenticated' } };
-  }
-  const result = await syncDashboard(payload.config, userId);
-  return { success: result.success, data: result, error: result.error };
-}
-
-async function handlePullDashboard(): Promise<MessageResponse<DashboardSyncResponse>> {
-  const userId = await getSyncUserId();
-  if (!userId) {
-    return { success: false, error: 'Not authenticated', data: { success: false, syncsUsedThisMonth: 0, syncsLimit: 0, error: 'Not authenticated' } };
-  }
-  const result = await pullDashboard(userId);
-  return { success: result.success, data: result, error: result.error };
-}
-
-async function handlePullAll(): Promise<MessageResponse> {
-  const userId = await getSyncUserId();
-  if (!userId) return { success: false, error: 'Not authenticated' };
-  // Pull first so that deletions made on other devices are applied locally before
-  // we push. This prevents a stale device from reviving remotely-deleted items.
-  // SYNC_PUSH (fired on every mutation) ensures our own deletions are already on
-  // Supabase by the time the user triggers a manual Restore.
-  const result = await pullAll();
-  if (result.success) {
-    try { await chrome.storage.local.set({ cloud_last_pull_at: Date.now() }); } catch {}
-  }
-  // Push after pull so any new local items/changes reach Supabase.
-  // Best-effort: a push failure (e.g. free-plan quota) must not mask the
-  // successful pull that already wrote data to local storage.
-  try { await syncAll(); } catch { /* non-fatal — pull already succeeded */ }
-  return { success: result.success, data: result, error: result.error };
-}
-
-// ─── Phase 2: Selective sync + mass-delete handlers ─────────────────────────
-
-async function handleSyncGetSettings(): Promise<MessageResponse> {
-  const settings = await getSelectiveSyncSettings();
-  return { success: true, data: settings };
-}
-
-async function handleSyncUpdateSettings(payload: {
-  syncEnabled?: boolean;
-  entities?: Record<string, boolean>;
-}): Promise<MessageResponse> {
-  // Only allow known entity keys through.
-  const filteredEntities: Partial<Record<SyncEntityKey, boolean>> = {};
-  if (payload.entities) {
-    for (const key of ALL_SYNC_ENTITY_KEYS) {
-      if (key in payload.entities) filteredEntities[key] = !!payload.entities[key];
-    }
-  }
-  const next = await updateSelectiveSyncSettings({
-    syncEnabled: payload.syncEnabled,
-    entities: filteredEntities as Record<SyncEntityKey, boolean>,
-  });
-  return { success: true, data: next };
-}
-
-async function handleSyncPause(payload: {
-  minutes: number;
-  reason?: string;
-}): Promise<MessageResponse> {
-  const minutes = Math.max(1, Math.min(payload.minutes | 0, 60 * 24 * 7));
-  await pauseSyncFor(minutes, payload.reason);
-  const settings = await getSelectiveSyncSettings();
-  return { success: true, data: settings };
-}
-
-async function handleSyncClearPause(): Promise<MessageResponse> {
-  await clearPause();
-  const settings = await getSelectiveSyncSettings();
-  return { success: true, data: settings };
-}
-
-async function handleSyncGetMassDeleteTrips(): Promise<MessageResponse> {
-  const trips = await getMassDeleteTrips();
-  return { success: true, data: trips };
-}
-
-async function handleSyncClearMassDeleteTrip(payload: {
-  entity: string;
-}): Promise<MessageResponse> {
-  if (!(ALL_SYNC_ENTITY_KEYS as readonly string[]).includes(payload.entity)) {
-    return { success: false, error: 'Unknown entity key' };
-  }
-  await clearMassDeleteTrip(payload.entity as SyncEntityKey);
-  return { success: true };
-}
-
-async function handleSyncClearAllMassDeleteTrips(): Promise<MessageResponse> {
-  await clearAllMassDeleteTrips();
-  return { success: true };
-}
-
-async function handleSyncGetDirtyCounts(): Promise<MessageResponse> {
-  try {
-    const engine = getSyncEngine();
-    const counts = await engine.getDirtyCounts();
-    return { success: true, data: counts };
-  } catch (err) {
-    return { success: false, error: String(err) };
-  }
-}
-
-/**
- * Fire-and-forget helper: push a single session to Supabase after a local mutation.
- * Does NOT block the caller. On failure, writes the error to the persisted sync
- * status so CloudSyncView can surface it next time the user opens the panel.
- */
-async function syncAfterMutation(session: Session): Promise<void> {
-  try {
-    const userId = await getSyncUserId();
-    if (!userId) return;
-    await pushSession(session, userId);
-  } catch (err) {
-    try {
-      const stored = await chrome.storage.local.get('cloud_sync_status');
-      const current = (stored['cloud_sync_status'] as Record<string, unknown>) ?? {};
-      await chrome.storage.local.set({
-        cloud_sync_status: { ...current, error: `Background sync failed: ${String(err)}` },
-      });
-    } catch {
-      // Best-effort — don't crash the service worker over a status write
-    }
-  }
 }

@@ -2,6 +2,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
 import type { TabGroupTemplate } from '@core/types/tab-group.types';
 
+vi.mock('@core/services/limits/limit-guard', () => ({
+  guardAction: vi.fn().mockResolvedValue(undefined),
+  trackAction: vi.fn().mockResolvedValue(undefined),
+  ActionLimitError: class ActionLimitError extends Error {},
+}));
+
+
+
 let store: Record<string, unknown> = {};
 
 function setupStorage(initial: Record<string, unknown> = {}) {

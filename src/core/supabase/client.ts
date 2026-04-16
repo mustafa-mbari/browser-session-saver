@@ -14,7 +14,7 @@ const chromeAuthStorage = {
     new Promise((resolve) => chrome.storage.local.remove(key, resolve)),
 };
 
-// Singleton client instance — shared by sync-auth.service and sync.service.
+// Singleton client instance — shared by auth.service and limit-guard.
 // VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are injected at build time.
 // Placeholder values are used when env vars are absent (e.g. in tests) so the
 // module can be imported without throwing — API calls will simply fail gracefully.

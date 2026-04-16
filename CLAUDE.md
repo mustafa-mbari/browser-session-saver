@@ -53,21 +53,13 @@ Services (business logic)
   ├── ChromeLocalKeyAdapter<T>        (subscriptions, tab-group templates)
   │
   └── NewTabDB singleton (newtabDB)   (bookmarks, todos, quick links, wallpapers)
-  │
-  ▼
-Sync Layer (src/core/services/sync/)
-  ├── sync-orchestrator.ts   (push/pull/status coordination)
-  ├── sync-adapter.ts        (generic SyncAdapter<T> for Supabase push/pull)
-  ├── types.ts               (UserQuota, SyncStatus, SyncResult, etc.)
-  ├── quota.ts               (shared enforceQuota utility)
-  ├── url-filter.ts          (isExcludedUrl, collectAllSyncableUrls)
-  └── row-mappers/           (per-entity camelCase↔snake_case mappers)
 ```
+
+All data is stored **locally only** — `chrome.storage.local` and IndexedDB. No cloud sync.
 
 - **`IRepository<T>`** (`src/core/storage/repository.ts`) — unified CRUD interface for persistable entities; extended by `IIndexedRepository<T>` (secondary index queries) and `IBulkRepository<T>` (importMany/replaceAll)
 - **`IndexedDBRepository<T>`** (`src/core/storage/indexeddb-repository.ts`) — implements `IIndexedRepository` + `IBulkRepository`; used for sessions via `getSessionRepository()` in `storage-factory.ts`
 - **Bookmark/todo/quicklinks services** import `newtabDB` singleton directly — no `db` parameter on public functions
-- **`sync.service.ts`** is a thin barrel re-export; all logic lives in `src/core/services/sync/`
 
 ## Key Conventions
 
@@ -77,7 +69,7 @@ Sync Layer (src/core/services/sync/)
 - **Messaging**: Typed discriminated union `Message` type between service worker and UI via `chrome.runtime.sendMessage`; 19 action types defined in `messages.types.ts`
 - **Styling**: Tailwind CSS with CSS custom properties for theme tokens, dark mode via `class` strategy. Glassmorphism utilities (`.glass`, `.glass-panel`, `.glass-dark`, `.glass-hover`, `.vignette`) defined in `@layer utilities` in `globals.css`
 - **Components**: All shared components support dark mode and include ARIA attributes
-- **Tests**: Vitest with jsdom, Chrome API mocked in `tests/setup.ts`; 665 tests across 65 files in `tests/unit/`
+- **Tests**: Vitest with jsdom, Chrome API mocked in `tests/setup.ts`; 661 tests across 64 files in `tests/unit/`
 - **i18n**: `_locales/en/messages.json` (~282 keys), `_locales/ar/messages.json`, `_locales/de/messages.json`; `t()` wrapper at `src/shared/utils/i18n.ts`
 - **Virtual scrolling**: `@tanstack/react-virtual` v3 used in `SessionsPanel` (3-column `lanes` grid) and `AutoSavesPanel` (flat list with headers); threshold ≤30 items uses plain DOM, >30 uses virtualizer
 - **Error boundaries**: `src/shared/components/ErrorBoundary.tsx` wraps all major UI sections; reports via `errorBoundaryTitle/Desc/Reload` i18n keys
@@ -86,10 +78,11 @@ Sync Layer (src/core/services/sync/)
 - **ContextMenu accessibility**: keyboard navigation (Enter/Space to open, Escape, ArrowUp/Down, Home/End, Tab to close); roving tabindex pattern; `requestAnimationFrame` deferred focus
 - **Widget config**: `src/core/config/widget-config.ts` — `WIDGET_CONFIG` registry with per-type min/max/default sizes, `getDefaultSize()`, `clampSize()` utilities
 - **View unions**:
-  - `SidePanelView`: `'home' | 'session-detail' | 'tab-groups' | 'settings' | 'import-export' | 'subscriptions' | 'prompts' | 'cloud-sync'`
-  - `NewTabView`: `'bookmarks' | 'folder-explorer' | 'sessions' | 'auto-saves' | 'tab-groups' | 'import-export' | 'subscriptions' | 'prompts' | 'cloud-sync' | 'settings'`
+  - `SidePanelView`: `'home' | 'session-detail' | 'tab-groups' | 'settings' | 'import-export' | 'subscriptions' | 'prompts'`
+  - `NewTabView`: `'bookmarks' | 'folder-explorer' | 'sessions' | 'auto-saves' | 'tab-groups' | 'import-export' | 'subscriptions' | 'prompts' | 'settings'`
   - `CardType`: `'bookmark' | 'clock' | 'note' | 'todo' | 'subscription' | 'tab-groups' | 'prompt-manager'`
-- **Cloud sync**: `@supabase/supabase-js` with custom `chrome.storage.local` auth adapter; no `@supabase/ssr` (no cookies in extensions). Env vars `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` injected at build time; placeholder fallbacks prevent test-time throws.
+- **Supabase**: `@supabase/supabase-js` retained for auth only (sign-in, sign-out, plan tier fetch). No sync. `chrome.storage.local` used as the auth storage adapter. Env vars `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` injected at build time; placeholder fallbacks prevent test-time throws.
+- **Action-based limits**: All mutations are guarded by `guardAction()` and tracked by `trackAction()` in `src/core/services/limits/limit-guard.ts`. Tiers: Guest (3/day, 20/month), Free (6/day, 30/month), Pro (50/day, 500/month), Lifetime (90/day, 900/month). Counts stored in `action_usage` key in `chrome.storage.local`; plan tier cached in `cached_plan` key.
 
 ## Important Files
 
@@ -99,14 +92,11 @@ Sync Layer (src/core/services/sync/)
 - `src/core/types/messages.types.ts` — Message protocol between SW and UI (19 action types)
 - `src/core/types/prompt.types.ts` — Prompt, PromptFolder, PromptCategory, PromptTag, PromptSectionKey, PromptFilterOptions, PromptSortField
 - `src/core/supabase/client.ts` — Singleton Supabase client using `chrome.storage.local` as auth storage adapter
-- `src/core/services/sync-auth.service.ts` — Supabase auth wrapper: `syncSignIn`, `syncSignOut`, `getSyncSession`, `getSyncUserId`, `isSyncAuthenticated`
-- `src/core/services/sync.service.ts` — Barrel re-export for the sync layer; all consumers import from this path
-- `src/core/services/sync/sync-orchestrator.ts` — Cloud sync orchestrator: `syncAll`, `pushSession`, `deleteRemoteSession`, `getSyncStatus`, `getUserQuota`, `syncDashboard`, `pullDashboard`, `pullAll`; coordinates `SyncAdapter` instances and direct Supabase calls; quota-aware (sessions/prompts/subs/tab-groups/bookmarks/todos); status persisted to `cloud_sync_status` key
-- `src/core/services/sync/types.ts` — `UserQuota`, `SyncUsage`, `SyncStatus`, `SyncResult`, `PullResult`, `DashboardSyncResult`, `SyncAdapterConfig`
-- `src/core/services/sync/sync-adapter.ts` — Generic `SyncAdapter<T>` for Supabase push/pull per entity type
-- `src/core/services/sync/row-mappers/` — Per-entity camelCase↔snake_case mappers (session, prompt, subscription, tab-group, bookmark, todo)
-- `src/core/services/sync/quota.ts` — `enforceQuota()` shared sort-slice utility
-- `src/core/services/sync/url-filter.ts` — `isExcludedUrl()`, `collectAllSyncableUrls()` for URL dedup
+- `src/core/services/auth.service.ts` — Supabase auth wrapper: `signIn`, `signOut`, `getSession`, `getUserId`, `isAuthenticated`, `getEmail`; on sign-in fetches plan tier via `get_user_plan_tier` RPC and calls `cachePlanTier()`
+- `src/core/types/limits.types.ts` — `PlanTier`, `PLAN_LIMITS`, `ActionUsage`, `LimitStatus`
+- `src/core/services/limits/action-tracker.ts` — `getActionUsage`, `incrementAction`, `getCachedPlanTier`, `cachePlanTier`, `getLimitStatus`, `canPerformAction`; storage keys: `action_usage`, `cached_plan`
+- `src/core/services/limits/limit-guard.ts` — `guardAction()` (throws `ActionLimitError` when blocked), `trackAction()` (increments counter + fire-and-forget Supabase upsert for signed-in users)
+- `src/shared/components/LimitReachedModal.tsx` — Modal shown when `ActionLimitError` is caught; displays usage bars and tier-appropriate CTA
 - `src/core/types/subscription.types.ts` — Subscription, SubscriptionTemplate, BillingCycle, DueUrgency, SUPPORTED_CURRENCIES, SUBSCRIPTION_TEMPLATES (22 presets)
 - `src/core/types/tab-group.types.ts` — TabGroupTemplate, TabGroupTemplateTab
 - `src/core/config/widget-config.ts` — Widget sizing configuration registry: `WidgetSizeConfig` interface, `WIDGET_CONFIG` (per-CardType min/max/default), `getDefaultSize()`, `clampSize()`
@@ -121,7 +111,7 @@ Sync Layer (src/core/services/sync/)
 - `src/core/services/subscription.service.ts` — Urgency calculation, monthly normalization, analytics, CSV import/export, currency formatting
 - `src/core/storage/prompt-storage.ts` — chrome.storage.local adapter; keys: `prompts`, `prompt_categories`, `prompt_tags`, `prompt_folders`; includes `source` field migration
 - `src/core/services/prompt.service.ts` — `extractVariables`, `applyVariables`, `filterPrompts`, `filterBySection`, `buildFolderTree`, `sortPrompts`, `getRecentPrompts`, `getPinnedPrompts`
-- `src/background/event-listeners.ts` — Central message dispatcher (19 handlers); after session save/update: calls `syncAfterMutation` (fire-and-forget); after delete: calls `deleteRemoteSession`
+- `src/background/event-listeners.ts` — Central message dispatcher; session mutation handlers (SAVE/UPDATE/DELETE) call `guardAction()` before and `trackAction()` after each operation; returns `{ success: false, limitStatus }` when `ActionLimitError` is thrown
 - `src/background/auto-save-engine.ts` — Auto-save trigger management; calls `upsertAutoSaveSession` so each trigger type maintains exactly one pinned entry (updated in place)
 - `src/sidepanel/views/HomeView.tsx` — Slim orchestrator (~250 LOC) for sessions, current tabs, and tab groups tabs
 - `src/sidepanel/components/CurrentTabsPanel.tsx` — Current browser tabs panel (extracted from HomeView)
@@ -131,7 +121,6 @@ Sync Layer (src/core/services/sync/)
 - `src/sidepanel/views/SubscriptionsView.tsx` — Subscription management with List/Calendar/Analytics tabs
 - `src/sidepanel/views/TabGroupsView.tsx` — Live and saved tab groups management
 - `src/sidepanel/views/PromptsView.tsx` — Two-pane prompt manager: left=PromptSectionNav (sections + nested folder tree), right=PromptList or StartPageContent
-- `src/sidepanel/views/CloudSyncView.tsx` — Sign-in form (not authenticated) or quota bars + Sync Now button (authenticated); uses `SYNC_*` messages to background SW
 - `src/newtab/App.tsx` — Start-tab root component: data loading, layout selection, overlay management
 - `src/newtab/stores/newtab-ui.store.ts` — UI state store (settings, layoutMode, activeView, modals, loading)
 - `src/newtab/stores/newtab-data.store.ts` — Data state store (boards, categories, entries, quickLinks, todoLists, todoItems)
@@ -154,7 +143,7 @@ Sync Layer (src/core/services/sync/)
 `src/newtab/layouts/DashboardLayout.tsx` splits the scrollable content area into two branches based on `isSessionView` (defined as any view that is NOT the bookmarks board):
 
 - **Non-session views** (bookmarks): rendered inside `overflow-y-auto px-[6%] pb-6` — centred with generous side padding, scrollable
-- **Session/management views** (prompts, sessions, subscriptions, tab-groups, import-export, settings, folder-explorer, cloud-sync): rendered inside `overflow-hidden h-full p-[5%]` — full remaining width with uniform 5% inset padding on all sides, no scroll wrapper
+- **Session/management views** (prompts, sessions, subscriptions, tab-groups, import-export, settings, folder-explorer): rendered inside `overflow-hidden h-full p-[5%]` — full remaining width with uniform 5% inset padding on all sides, no scroll wrapper
 
 **Do not add `px-[6%]` or side-padding to the `isSessionView` branch** — these panels are full-page and provide their own internal layout. Putting them inside the padded scroll container causes the content to be severely squeezed (wastes ~12% of width on each side).
 
@@ -197,27 +186,17 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - Start-tab panel: `src/newtab/components/PromptsPanel.tsx` (lazy-loaded)
 - `SidePanelView` includes `'prompts'`; `CardType` includes `'prompt-manager'`
 
-## Cloud Sync Feature Notes
+## Action Limits Feature Notes
 
-- Package: `@supabase/supabase-js` (NOT `@supabase/ssr` — no cookies in Chrome extensions)
-- Auth storage: custom adapter wrapping `chrome.storage.local` in `src/core/supabase/client.ts`
-- Env vars: `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` in root `.env`; placeholder fallbacks prevent test-time module throws
-- Sync strategy: push-first "full snapshot" — reads ALL local data and upserts to Supabase on each cycle, up to quota limits
-- Triggers: 15-minute `chrome.alarms` alarm (`cloud-sync`) + fire-and-forget after each session save/update/delete
-- Alarm registered synchronously in `src/background/index.ts` (MV3 requirement — before any `await`)
-- Tables: `sessions`, `prompts`, `prompt_folders`, `tracked_subscriptions`, `tab_group_templates`, `bookmark_folders`, `bookmark_entries`; two RPCs: `get_user_quota(p_user_id)` = plan limits (cached 5 min), `get_user_usage(p_user_id)` = current synced counts (used by web dashboard)
-- `SyncStatus`, `UserQuota` (includes `tab_groups_synced_limit`, `total_tabs_limit`), and `SyncUsage` (includes `tabGroups`, `tabs`, `folders`) types in `src/core/services/sync/types.ts` (re-exported from `sync.service.ts`)
-- Status persisted to `cloud_sync_status` key in `chrome.storage.local`
-- Sidepanel view: `'cloud-sync'` in `SidePanelView` union — Cloud icon button in Header
-- Test mocking: `vi.mock('@core/services/sync-auth.service', ...)` and `vi.mock('@core/services/sync.service', ...)` added to `event-listeners.test.ts` to prevent real API calls
-- Supabase migrations: `supabase/migrations/` contains 16 SQL files (001–016):
-  - 001–008: auth/profiles, plans, user_plans, promo_codes, sessions, prompts, tracked_subscriptions, bookmark_folders
-  - 009–011: admin_tables, triggers, quota_functions (`get_user_quota`, `get_user_usage`, `can_add_tracked_subscription`, `get_admin_overview`)
-  - 012: `tab_group_templates` table with RLS
-  - 013: adds `total_tabs_limit` to plans; updates `get_user_quota`; adds `board_id`/`is_native`/`native_id` columns to bookmark tables
-  - 014: adds `synced_tabs` (unique-URL dedup across sessions + tab-group tabs + bookmark entries) to `get_user_usage`; adds `total_tab_groups` to `get_admin_overview`
-  - 015: adds `tab_groups_synced_limit` to plans; updates `get_user_quota`
-  - 016: adds `synced_tab_groups` count to `get_user_usage`
+- **Plan tiers**: `PlanTier` = `'guest' | 'free' | 'pro' | 'lifetime'`; limits in `PLAN_LIMITS` in `src/core/types/limits.types.ts`
+- **Guard+track pattern**: every mutation service calls `await guardAction()` before the operation and `void trackAction()` after; `guardAction` throws `ActionLimitError` when the daily or monthly limit is reached
+- **Services with guard+track**: `bookmark.service.ts`, `quicklinks.service.ts`, `todo.service.ts`, `prompt-storage.ts`, `subscription-storage.ts`, `tab-group-template-storage.ts`; also `SAVE_SESSION`, `UPDATE_SESSION`, `DELETE_SESSION` handlers in `event-listeners.ts`
+- **Storage keys**: `action_usage` (daily/monthly counts with auto-reset), `cached_plan` (plan tier string) — both in `chrome.storage.local`
+- **Plan tier caching**: `auth.service.ts` fetches tier via `get_user_plan_tier()` Supabase RPC on sign-in and resets to `'guest'` on sign-out
+- **Remote tracking**: `trackAction()` fire-and-forgets an upsert to `user_action_usage` Supabase table for signed-in users (local counter is source of truth)
+- **UI**: `LimitReachedModal` in `src/shared/components/LimitReachedModal.tsx`; limit pill in `Header.tsx` (sidepanel); `LimitStatusRow` in `DashboardSidebar.tsx` (start-tab)
+- **Test mocking**: services that call `guardAction`/`trackAction` must mock `@core/services/limits/limit-guard` in their tests: `vi.mock('@core/services/limits/limit-guard', () => ({ guardAction: vi.fn().mockResolvedValue(undefined), trackAction: vi.fn().mockResolvedValue(undefined), ActionLimitError: class ActionLimitError extends Error {} }))`
+- **Supabase migrations**: `supabase/migrations/029_action_limits.sql` adds `daily_action_limit`/`monthly_action_limit` to plans + `user_action_usage` table + `upsert_action_usage` and `get_user_plan_tier` RPCs; `030_rename_max_to_lifetime.sql` renames plan; `031_drop_sync_tables.sql` drops old sync tables (run last after all installs migrated)
 
 ## Tab Groups Feature Notes
 
@@ -234,8 +213,8 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - Chrome APIs are mocked globally in `tests/setup.ts`
 - Unit tests in `tests/unit/` organized by module (utils, services, storage, contexts, config, components, hooks, stores, background)
   - `tests/unit/utils/` — uuid, date, validators, debounce, favicon, safe-open
-  - `tests/unit/services/` — search, export, import, session-count, session.service, subscription.service, prompt.service, bookmark.service, todo.service, quicklinks.service, seed.service, sync.service, newtab-export.service, weather.service, tab-group.service, migration.service, newtab-settings.service, sync-auth.service
-  - `tests/unit/services/sync/` — quota, url-filter, row-mappers
+  - `tests/unit/services/` — search, export, import, session-count, session.service, subscription.service, prompt.service, bookmark.service, todo.service, quicklinks.service, seed.service, newtab-export.service, weather.service, tab-group.service, migration.service, newtab-settings.service, auth.service
+  - `tests/unit/services/limits/` — action-tracker, limit-guard
   - `tests/unit/storage/` — chrome-local-key-adapter, chrome-local-array-repository, newtab-storage, prompt-storage, subscription-storage, tab-group-template-storage, indexeddb, chrome-storage, storage-factory
   - `tests/unit/contexts/` — bookmark-board-context
   - `tests/unit/components/` — ErrorBoundary, Modal, Button, Badge, Toast, ContextMenu, EmptyState
@@ -243,9 +222,9 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
   - `tests/unit/stores/` — sidepanel.store, newtab-ui.store, newtab-data.store
   - `tests/unit/background/` — auto-save-engine, event-listeners, alarms, tab-group-restore
   - `tests/unit/config/` — widget-config
-- 664 tests across 65 test files
+- 661 tests across 64 test files
 - Run `npm test` before committing
-- Sync services must be mocked in `event-listeners.test.ts` to prevent real Supabase calls: `vi.mock('@core/services/sync-auth.service', ...)` + `vi.mock('@core/services/sync.service', ...)`
+- Services that call `guardAction`/`trackAction` must mock `@core/services/limits/limit-guard` in their tests (see Action Limits Feature Notes above)
 
 ## Do Not
 
@@ -301,7 +280,7 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - **Sidebar**: shadcn `SidebarProvider` + `SidebarLockProvider` with 3 modes (expanded/collapsed/hover)
 - **Theme**: Cookie-based light/dark/system with FOUC prevention via inline `<script>`
 - **Auth**: Supabase SSR client, middleware redirects unauthenticated users to `/login`
-- **Pages**: Dashboard (quota + usage stats via `get_user_quota` + `get_user_usage` RPCs), Billing (plan comparison + Checkout), Settings (Profile/Appearance/Security tabs), Support, Suggestions
+- **Pages**: Dashboard (daily/monthly action usage bars via `get_user_plan_tier` + `user_action_usage` table), Billing (plan comparison with action limits + Checkout), Settings (Profile/Appearance/Security tabs), Support, Suggestions
 - **Auth pages**: Login (email/password + Google OAuth), Register (with password strength), Forgot Password, Reset Password, Verify Email
 - **API routes**: `api/auth/sign-in`, `api/auth/sign-up`, `api/auth/forgot-password`, `api/auth/resend-verification`, `api/auth/password-changed`, `api/auth/google`, `api/auth/session`, `api/support`, `api/suggestions`, `api/billing/upgrade`
 - **Auth callbacks**: `auth/callback` (OAuth), `auth/confirm` (email verification)
