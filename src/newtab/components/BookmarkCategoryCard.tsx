@@ -22,6 +22,8 @@ import PromptCardBody from '@newtab/components/PromptCardBody';
 interface Props {
   category: BookmarkCategory;
   entries: BookmarkEntry[];
+  allCategories?: BookmarkCategory[];
+  allEntries?: BookmarkEntry[];
   density: CardDensity;
   colSpan: SpanValue;
   rowSpan: SpanValue;
@@ -30,6 +32,8 @@ interface Props {
 export default function BookmarkCategoryCard({
   category,
   entries,
+  allCategories = [],
+  allEntries = [],
   density,
   colSpan,
   rowSpan,
@@ -54,6 +58,7 @@ export default function BookmarkCategoryCard({
 
   const cardType = category.cardType ?? 'bookmark';
   const sizeConfig = WIDGET_CONFIG[cardType];
+  const subFolders = allCategories.filter((c) => c.parentCategoryId === category.id && !c.deletedAt);
 
   const [isRenaming, setIsRenaming] = useState(false);
   const [draftName, setDraftName] = useState(category.name);
@@ -75,7 +80,10 @@ export default function BookmarkCategoryCard({
   }, []);
 
   const badge = useMemo(() => {
-    if (cardType === 'bookmark') return `${entries.length}`;
+    if (cardType === 'bookmark') {
+      const total = entries.length + subFolders.length;
+      return `${total}`;
+    }
     if (cardType === 'todo') {
       try {
         const items = JSON.parse(category.noteContent || '[]') as { done: boolean }[];
@@ -83,7 +91,7 @@ export default function BookmarkCategoryCard({
       } catch { return '0/0'; }
     }
     return null;
-  }, [cardType, entries.length, category.noteContent]);
+  }, [cardType, entries.length, subFolders.length, category.noteContent]);
 
   const menuItems = [
     { label: 'Rename',    icon: Pencil, onClick: () => { setDraftName(category.name); setIsRenaming(true); } },
@@ -199,6 +207,9 @@ export default function BookmarkCategoryCard({
             <BookmarkCardBody
               category={category}
               entries={entries}
+              subFolders={subFolders}
+              allCategories={allCategories}
+              allEntries={allEntries}
               density={density}
               onAddEntry={onAddEntry}
               onDeleteEntry={onDeleteEntry}

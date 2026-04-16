@@ -75,6 +75,38 @@ const CARD_TYPES: CardTypeOption[] = [
 
 type BookmarkSubOption = 'create-new' | 'link-existing';
 
+interface FlatTreeItem {
+  folder: BookmarkCategory;
+  depth: number;
+}
+
+/** Builds a depth-first flat list with depth info from a flat BookmarkCategory[]. */
+function buildFlatTree(folders: BookmarkCategory[]): FlatTreeItem[] {
+  const folderIds = new Set(folders.map((f) => f.id));
+  // Group by parent; a node is a root if it has no parentCategoryId or its parent isn't in the list
+  const byParent = new Map<string, BookmarkCategory[]>();
+  for (const f of folders) {
+    const key = f.parentCategoryId && folderIds.has(f.parentCategoryId)
+      ? f.parentCategoryId
+      : '__root__';
+    if (!byParent.has(key)) byParent.set(key, []);
+    byParent.get(key)!.push(f);
+  }
+
+  const result: FlatTreeItem[] = [];
+
+  function visit(parentKey: string, depth: number) {
+    const children = byParent.get(parentKey) ?? [];
+    for (const folder of children) {
+      result.push({ folder, depth });
+      visit(folder.id, depth + 1);
+    }
+  }
+
+  visit('__root__', 0);
+  return result;
+}
+
 interface Props {
   isOpen: boolean;
   boardId: string;
@@ -134,9 +166,10 @@ export default function AddCardModal({
     subOption === 'link-existing' &&
     (!selectedFolderId || linkedFolderIds.includes(selectedFolderId));
 
-  // Split folders into unlinked (selectable) and already-on-board (informational)
-  const unlinkedFolders = availableFolders.filter((f) => !linkedFolderIds.includes(f.id));
-  const linkedFolders = availableFolders.filter((f) => linkedFolderIds.includes(f.id));
+  // Build tree-ordered flat list and split into selectable / already-on-board
+  const flatTree = buildFlatTree(availableFolders);
+  const unlinkedTree = flatTree.filter(({ folder }) => !linkedFolderIds.includes(folder.id));
+  const linkedTree = flatTree.filter(({ folder }) => linkedFolderIds.includes(folder.id));
 
   return (
     <Modal
@@ -230,27 +263,31 @@ export default function AddCardModal({
             </div>
           </button>
 
-          {/* Folder picker (shown when Link Existing is selected) */}
+          {/* Folder picker — shown when Link Existing is selected */}
           {subOption === 'link-existing' && availableFolders.length > 0 && (
             <div className="mt-1 max-h-52 overflow-y-auto rounded-xl border border-[var(--color-border)] divide-y divide-[var(--color-border)]">
-              {/* Unlinked folders — selectable */}
-              {unlinkedFolders.map((folder) => (
+              {/* Unlinked folders — selectable, indented by depth */}
+              {unlinkedTree.map(({ folder, depth }) => (
                 <button
                   key={folder.id}
                   onClick={() => setSelectedFolderId(folder.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                  style={{ paddingLeft: `${depth * 16 + 16}px` }}
+                  className={`w-full flex items-center gap-3 pr-4 py-2.5 text-left transition-colors ${
                     selectedFolderId === folder.id
                       ? 'bg-blue-50 dark:bg-blue-900/20'
                       : 'hover:bg-[var(--color-bg-secondary)]'
                   }`}
                 >
+                  {depth > 0 && (
+                    <span className="text-[var(--color-text-secondary)] opacity-40 text-xs shrink-0">└</span>
+                  )}
                   <span
                     className="w-6 h-6 rounded-md flex items-center justify-center text-sm shrink-0"
                     style={{ backgroundColor: `${folder.color}22` }}
                   >
                     {folder.icon}
                   </span>
-                  <span className="text-sm text-[var(--color-text)] truncate">{folder.name}</span>
+                  <span className="text-sm text-[var(--color-text)] truncate flex-1">{folder.name}</span>
                   {selectedFolderId === folder.id && (
                     <span className="ml-auto text-blue-500 text-xs shrink-0">✓</span>
                   )}
@@ -258,33 +295,37 @@ export default function AddCardModal({
               ))}
 
               {/* Already-linked folders — informational, not selectable */}
-              {linkedFolders.length > 0 && (
+              {linkedTree.length > 0 && (
                 <>
-                  {unlinkedFolders.length > 0 && (
+                  {unlinkedTree.length > 0 && (
                     <div className="px-4 py-1.5 text-xs text-[var(--color-text-secondary)] bg-[var(--color-bg-secondary)]">
                       Already on this board
                     </div>
                   )}
-                  {linkedFolders.map((folder) => (
+                  {linkedTree.map(({ folder, depth }) => (
                     <div
                       key={folder.id}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 opacity-40 cursor-not-allowed"
+                      style={{ paddingLeft: `${depth * 16 + 16}px` }}
+                      className="w-full flex items-center gap-3 pr-4 py-2.5 opacity-40 cursor-not-allowed"
                     >
+                      {depth > 0 && (
+                        <span className="text-xs shrink-0">└</span>
+                      )}
                       <span
                         className="w-6 h-6 rounded-md flex items-center justify-center text-sm shrink-0"
                         style={{ backgroundColor: `${folder.color}22` }}
                       >
                         {folder.icon}
                       </span>
-                      <span className="text-sm text-[var(--color-text)] truncate">{folder.name}</span>
-                      <span className="ml-auto text-xs text-[var(--color-text-secondary)] shrink-0">On board</span>
+                      <span className="text-sm text-[var(--color-text)] truncate flex-1">{folder.name}</span>
+                      <span className="text-xs text-[var(--color-text-secondary)] shrink-0">On board</span>
                     </div>
                   ))}
                 </>
               )}
 
               {/* Empty state: all folders are already on the board */}
-              {unlinkedFolders.length === 0 && linkedFolders.length > 0 && (
+              {unlinkedTree.length === 0 && linkedTree.length > 0 && (
                 <div className="px-4 py-3 text-xs text-center text-[var(--color-text-secondary)]">
                   All your folders are already on this board
                 </div>

@@ -50,7 +50,7 @@ export default function DashboardLayout() {
   // Folders-page folders (created via "My Folders" +) are not.
   const allWidgetIds = new Set(boards.flatMap((b) => b.categoryIds));
   const availableFolders = categories.filter(
-    (c) => !c.parentCategoryId && (c.cardType === 'bookmark' || !c.cardType) && !allWidgetIds.has(c.id)
+    (c) => (c.cardType === 'bookmark' || !c.cardType) && !allWidgetIds.has(c.id)
   );
 
   // Reload ALL categories (across every board) on every activeView change and on mount.
@@ -329,6 +329,7 @@ export default function DashboardLayout() {
     ? {
         board: activeBoard,
         categories: boardCategories,
+        allCategories: categories,
         entries,
         density: settings.cardDensity,
         isMain: boards[0]?.id === activeBoard.id,

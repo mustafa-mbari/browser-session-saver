@@ -24,6 +24,7 @@ import { BookmarkBoardContext, type BookmarkBoardActions } from '@newtab/context
 interface Props extends BookmarkBoardActions {
   board: Board;
   categories: BookmarkCategory[];
+  allCategories?: BookmarkCategory[];
   entries: BookmarkEntry[];
   density: CardDensity;
   isMain?: boolean;
@@ -40,6 +41,7 @@ interface Props extends BookmarkBoardActions {
 export default function BookmarkBoard({
   board,
   categories,
+  allCategories,
   entries,
   density,
   isMain = false,
@@ -155,6 +157,8 @@ export default function BookmarkBoard({
                       key={cat.id}
                       category={cat}
                       entries={catEntries}
+                      allCategories={allCategories ?? categories}
+                      allEntries={entries}
                       density={density}
                       colSpan={colSpan}
                       rowSpan={rowSpan}
