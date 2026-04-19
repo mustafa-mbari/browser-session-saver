@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { withStorageLock } from '@core/storage/storage-mutex';
 
 // ── Mock cachePlanTier from action-tracker ────────────────────────────────────
 vi.mock('@core/services/limits/action-tracker', () => ({
@@ -9,6 +10,7 @@ vi.mock('@core/services/limits/action-tracker', () => ({
     daily:   { date: new Date().toISOString().slice(0, 10), count: 0 },
     monthly: { month: new Date().toISOString().slice(0, 7), count: 0 },
   })),
+  USAGE_KEY: 'action_usage',
 }));
 
 // ── Mock guest.service ────────────────────────────────────────────────────────
@@ -356,6 +358,62 @@ describe('syncUsageFromServer local-wins', () => {
         monthly: expect.objectContaining({ count: 40 }),  // server wins
       }),
     );
+  });
+});
+
+// ── syncUsageFromServer — lock compliance (Bug #3) ───────────────────────────
+
+describe('syncUsageFromServer — lock compliance', () => {
+  const TODAY = new Date().toISOString().slice(0, 10);
+  const MONTH = new Date().toISOString().slice(0, 7);
+
+  it('waits for in-flight locked operations on action_usage', async () => {
+    mockSupabase.from.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: {
+            daily_date:    TODAY,
+            daily_count:   5,
+            monthly_month: MONTH,
+            monthly_count: 20,
+          },
+          error: null,
+        }),
+      }),
+    });
+
+    mockSupabase.auth.signInWithPassword.mockResolvedValueOnce({
+      data: { user: { id: 'user-123', email: 'test@example.com' }, session: null },
+      error: null,
+    });
+
+    let releaseLock!: () => void;
+    const lockBarrier = new Promise<void>((res) => { releaseLock = res; });
+
+    const lockHolder = withStorageLock('action_usage', async () => {
+      await lockBarrier;
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // signIn fires syncUsageFromServer as fire-and-forget
+    await signIn('test@example.com', 'password123');
+    // Allow Supabase mock to resolve + syncUsageFromServer to reach the lock attempt
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // FAILS before fix: setActionUsage called immediately (no lock)
+    expect(setActionUsage).not.toHaveBeenCalled();
+
+    releaseLock();
+    await lockHolder;
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(setActionUsage).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -1,7 +1,8 @@
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@core/supabase/client';
 import type { PlanTier, ActionUsage } from '@core/types/limits.types';
-import { cachePlanTier, setActionUsage, getActionUsage } from '@core/services/limits/action-tracker';
+import { cachePlanTier, setActionUsage, getActionUsage, USAGE_KEY } from '@core/services/limits/action-tracker';
+import { withStorageLock } from '@core/storage/storage-mutex';
 import { getGuestId, clearGuestId } from '@core/services/guest.service';
 
 export interface SignInResult {
@@ -92,12 +93,14 @@ async function syncUsageFromServer(userId: string | undefined): Promise<void> {
       .select('daily_date, daily_count, monthly_month, monthly_count')
       .single();
     if (error || !data) return;
-    const local = await getActionUsage();
-    const usage: ActionUsage = {
-      daily:   { date: data.daily_date,     count: Math.max(local.daily.count,   data.daily_count) },
-      monthly: { month: data.monthly_month, count: Math.max(local.monthly.count, data.monthly_count) },
-    };
-    await setActionUsage(usage);
+    await withStorageLock(USAGE_KEY, async () => {
+      const local = await getActionUsage();
+      const usage: ActionUsage = {
+        daily:   { date: data.daily_date,     count: Math.max(local.daily.count,   data.daily_count) },
+        monthly: { month: data.monthly_month, count: Math.max(local.monthly.count, data.monthly_count) },
+      };
+      await setActionUsage(usage);
+    });
   } catch {
     // Non-critical — local counts remain unchanged
   }

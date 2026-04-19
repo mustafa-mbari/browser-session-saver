@@ -12,7 +12,7 @@ export class ActionLimitError extends Error {
   }
 }
 
-const USAGE_KEY = 'action_usage';
+export const USAGE_KEY = 'action_usage';
 const PLAN_KEY = 'cached_plan';
 const GUEST_LIMITS_KEY = 'cached_guest_limits';
 
