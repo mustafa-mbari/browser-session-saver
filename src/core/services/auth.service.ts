@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@core/supabase/client';
 import type { PlanTier, ActionUsage } from '@core/types/limits.types';
 import { cachePlanTier, setActionUsage } from '@core/services/limits/action-tracker';
+import { getGuestId, clearGuestId } from '@core/services/guest.service';
 
 export interface SignInResult {
   success: boolean;
@@ -21,6 +22,8 @@ export async function signIn(email: string, password: string): Promise<SignInRes
   // Cache plan tier and sync server-side usage counts so resets take effect immediately
   void fetchAndCachePlanTier(data.user?.id);
   void syncUsageFromServer(data.user?.id);
+  // Transfer any guest action counts to the user's server record
+  if (data.session?.access_token) void mergeGuestOnSignIn(data.session.access_token);
   return { success: true, email: data.user?.email ?? email };
 }
 
@@ -96,6 +99,23 @@ async function syncUsageFromServer(userId: string | undefined): Promise<void> {
     await setActionUsage(usage);
   } catch {
     // Non-critical — local counts remain unchanged
+  }
+}
+
+async function mergeGuestOnSignIn(jwt: string): Promise<void> {
+  try {
+    const guestId = await getGuestId();
+    if (!guestId) return;
+    const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)
+      ?? 'https://placeholder.supabase.co';
+    const res = await fetch(`${supabaseUrl}/functions/v1/merge-guest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
+      body: JSON.stringify({ guest_id: guestId }),
+    });
+    if (res.ok) await clearGuestId();
+  } catch {
+    // Non-critical — guest_id is preserved for retry on next sign-in
   }
 }
 

@@ -7,6 +7,12 @@ vi.mock('@core/services/limits/action-tracker', () => ({
   setActionUsage:    vi.fn(async () => undefined),
 }));
 
+// ── Mock guest.service ────────────────────────────────────────────────────────
+vi.mock('@core/services/guest.service', () => ({
+  getGuestId:   vi.fn(async () => null),
+  clearGuestId: vi.fn(async () => undefined),
+}));
+
 // ── Mock Supabase client ──────────────────────────────────────────────────────
 const mockSession = vi.hoisted(() => ({
   user: { id: 'user-123', email: 'test@example.com' },
@@ -37,6 +43,7 @@ import {
   getEmail,
 } from '@core/services/auth.service';
 import { cachePlanTier } from '@core/services/limits/action-tracker';
+import { getGuestId, clearGuestId } from '@core/services/guest.service';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -85,6 +92,63 @@ describe('signIn', () => {
     // cachePlanTier should not be called synchronously on failure
     // (fire-and-forget is only started on success)
     expect(cachePlanTier).not.toHaveBeenCalled();
+  });
+
+  it('calls merge-guest when session has access_token and a guest_id exists', async () => {
+    vi.mocked(getGuestId).mockResolvedValueOnce('some-guest-uuid');
+    vi.mocked(fetch).mockResolvedValueOnce(new Response('{}', { status: 200 }));
+    mockSupabase.auth.signInWithPassword.mockResolvedValueOnce({
+      data: {
+        user:    { id: 'user-123', email: 'test@example.com' },
+        session: { access_token: 'jwt-abc123' },
+      },
+      error: null,
+    });
+
+    await signIn('test@example.com', 'password123');
+    // Allow fire-and-forget microtasks to settle
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/functions/v1/merge-guest'),
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('does not call merge-guest when there is no guest_id', async () => {
+    vi.mocked(getGuestId).mockResolvedValueOnce(null);
+    mockSupabase.auth.signInWithPassword.mockResolvedValueOnce({
+      data: {
+        user:    { id: 'user-123', email: 'test@example.com' },
+        session: { access_token: 'jwt-abc123' },
+      },
+      error: null,
+    });
+
+    await signIn('test@example.com', 'password123');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('clears guest_id after successful merge', async () => {
+    vi.mocked(getGuestId).mockResolvedValueOnce('some-guest-uuid');
+    vi.mocked(fetch).mockResolvedValueOnce(new Response('{}', { status: 200 }));
+    mockSupabase.auth.signInWithPassword.mockResolvedValueOnce({
+      data: {
+        user:    { id: 'user-123', email: 'test@example.com' },
+        session: { access_token: 'jwt-abc123' },
+      },
+      error: null,
+    });
+
+    await signIn('test@example.com', 'password123');
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(clearGuestId).toHaveBeenCalledTimes(1);
   });
 });
 

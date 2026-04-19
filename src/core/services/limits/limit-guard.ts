@@ -37,15 +37,26 @@ async function reportActionToSupabase(): Promise<void> {
   try {
     const { supabase } = await import('@core/supabase/client');
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
 
-    const now = new Date();
-    const dailyDate = now.toISOString().slice(0, 10);
-    const monthlyMonth = now.toISOString().slice(0, 7);
+    const dailyDate    = new Date().toISOString().slice(0, 10);
+    const monthlyMonth = new Date().toISOString().slice(0, 7);
 
-    await supabase.rpc('upsert_action_usage', {
-      p_user_id:      session.user.id,
-      p_daily_date:   dailyDate,
+    if (session?.user) {
+      await supabase.rpc('upsert_action_usage', {
+        p_user_id:       session.user.id,
+        p_daily_date:    dailyDate,
+        p_monthly_month: monthlyMonth,
+      });
+      return;
+    }
+
+    // Guest path: track usage so counts can be merged when the user later signs in.
+    // Uses getGuestId (non-creating) — if no guest_id exists yet this is a no-op.
+    const { getOrCreateGuestId } = await import('@core/services/guest.service');
+    const guestId = await getOrCreateGuestId();
+    await supabase.rpc('upsert_guest_action_usage', {
+      p_guest_id:      guestId,
+      p_daily_date:    dailyDate,
       p_monthly_month: monthlyMonth,
     });
   } catch {

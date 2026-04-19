@@ -31,6 +31,11 @@ chrome.runtime.onStartup.addListener(() => {
   try {
     await migrateIfNeeded();
 
+    // Fetch dynamic guest limits from Supabase plans table so admins can adjust
+    // them without a new extension release. Falls back to PLAN_LIMITS.guest if offline.
+    const { fetchAndCacheGuestLimits } = await import('@core/services/limits/action-tracker');
+    void fetchAndCacheGuestLimits();
+
     const storage = getSettingsStorage();
     const settings = (await storage.get<Settings>(STORAGE_KEYS.SETTINGS)) ?? DEFAULT_SETTINGS;
 

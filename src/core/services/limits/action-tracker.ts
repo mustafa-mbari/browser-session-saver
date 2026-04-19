@@ -3,6 +3,7 @@ import { PLAN_LIMITS } from '@core/types/limits.types';
 
 const USAGE_KEY = 'action_usage';
 const PLAN_KEY = 'cached_plan';
+const GUEST_LIMITS_KEY = 'cached_guest_limits';
 
 function todayDate(): string {
   return new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
@@ -54,7 +55,16 @@ export async function cachePlanTier(tier: PlanTier): Promise<void> {
 
 export async function getLimitStatus(): Promise<LimitStatus> {
   const [usage, tier] = await Promise.all([getActionUsage(), getCachedPlanTier()]);
-  const limits = PLAN_LIMITS[tier];
+  let limits = PLAN_LIMITS[tier];
+
+  // For the guest tier, prefer dynamically cached limits fetched from Supabase at startup.
+  // This allows the admin to adjust guest limits without a new extension release.
+  if (tier === 'guest') {
+    const cached = await chrome.storage.local.get(GUEST_LIMITS_KEY);
+    const dynamic = cached[GUEST_LIMITS_KEY] as { daily: number; monthly: number } | undefined;
+    if (dynamic?.daily && dynamic?.monthly) limits = dynamic;
+  }
+
   return {
     tier,
     dailyUsed:      usage.daily.count,
@@ -64,6 +74,27 @@ export async function getLimitStatus(): Promise<LimitStatus> {
     dailyBlocked:   usage.daily.count   >= limits.daily,
     monthlyBlocked: usage.monthly.count >= limits.monthly,
   };
+}
+
+/**
+ * Fetches dynamic guest action limits from the Supabase plans table and caches them.
+ * Called once at service worker startup. Falls back to PLAN_LIMITS.guest if offline.
+ */
+export async function fetchAndCacheGuestLimits(): Promise<void> {
+  try {
+    const { supabase } = await import('@core/supabase/client');
+    const { data, error } = await supabase.rpc('get_guest_limits');
+    if (error || !data?.length) return;
+    const { daily_action_limit, monthly_action_limit } = data[0] as {
+      daily_action_limit: number;
+      monthly_action_limit: number;
+    };
+    await chrome.storage.local.set({
+      [GUEST_LIMITS_KEY]: { daily: daily_action_limit, monthly: monthly_action_limit },
+    });
+  } catch {
+    // Non-critical — PLAN_LIMITS.guest is the fallback
+  }
 }
 
 export async function canPerformAction(): Promise<boolean> {
