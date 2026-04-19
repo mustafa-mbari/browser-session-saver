@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useSession } from '@shared/hooks/useSession';
 import { useMessaging } from '@shared/hooks/useMessaging';
+import { useIsPremium } from '@shared/hooks/useIsPremium';
 import { PromptStorage } from '@core/storage/prompt-storage';
 import type { ExportFormat } from '@core/types/messages.types';
 import type {
@@ -54,6 +55,7 @@ const BACKUP_MODULE_ORDER: BackupModule[] = [
 export default function ImportExportPanel() {
   const { sessions, refreshSessions } = useSession();
   const { sendMessage } = useMessaging();
+  const { isPremium, loading: planLoading } = useIsPremium();
 
   // ── Tab routing ──────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<ImportExportTab>('export');
@@ -250,8 +252,20 @@ export default function ImportExportPanel() {
         ))}
       </div>
 
+      {/* ── Premium gate ─────────────────────────────────────────────────── */}
+      {!planLoading && !isPremium && (
+        <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+          <p className="text-sm font-semibold" style={{ color: 'var(--newtab-text)' }}>
+            Import &amp; Export is a PRO feature
+          </p>
+          <p className="text-xs" style={{ color: 'var(--newtab-text-secondary)' }}>
+            Upgrade to PRO or Lifetime to back up and restore all your data.
+          </p>
+        </div>
+      )}
+
       {/* ── EXPORT TAB ──────────────────────────────────────────────────── */}
-      {activeTab === 'export' && (
+      {isPremium && activeTab === 'export' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Full Backup */}
           <div className="glass-panel rounded-xl p-5 flex flex-col gap-3">
@@ -389,7 +403,7 @@ export default function ImportExportPanel() {
       )}
 
       {/* ── IMPORT TAB ──────────────────────────────────────────────────── */}
-      {activeTab === 'import' && (
+      {isPremium && activeTab === 'import' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* JSON full backup import */}
           <div className="glass-panel rounded-xl p-5 flex flex-col gap-4">

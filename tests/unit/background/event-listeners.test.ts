@@ -79,6 +79,23 @@ vi.mock('@core/services/import.service', () => ({
 }));
 
 // ---------------------------------------------------------------------------
+// Mock: action-tracker (plan tier lookup)
+// ---------------------------------------------------------------------------
+const { mockGetCachedPlanTier } = vi.hoisted(() => ({
+  mockGetCachedPlanTier: vi.fn<[], Promise<string>>(),
+}));
+
+vi.mock('@core/services/limits/action-tracker', () => ({
+  getCachedPlanTier: mockGetCachedPlanTier,
+  isPremiumTier: (tier: string) => tier === 'pro' || tier === 'lifetime',
+  getLimitStatus: vi.fn().mockResolvedValue({
+    tier: 'pro', dailyUsed: 0, dailyLimit: 50,
+    monthlyUsed: 0, monthlyLimit: 500,
+    dailyBlocked: false, monthlyBlocked: false,
+  }),
+}));
+
+// ---------------------------------------------------------------------------
 // Mock: limit-guard (prevent real chrome.storage calls from action-tracker)
 // ---------------------------------------------------------------------------
 const { mockGuardAction } = vi.hoisted(() => ({ mockGuardAction: vi.fn() }));
@@ -148,6 +165,9 @@ function dispatch(message: object): Promise<Record<string, unknown>> {
 beforeEach(() => {
   vi.clearAllMocks();
   for (const k of Object.keys(settingsStore)) delete settingsStore[k];
+
+  // Default: pro tier (premium) so existing tests pass without change.
+  mockGetCachedPlanTier.mockResolvedValue('pro');
 
   // Default: guardAction allows (no throw). Individual tests can override with mockRejectedValueOnce.
   mockGuardAction.mockResolvedValue(undefined);
@@ -370,17 +390,60 @@ describe('handleMessage', () => {
 
   // ── IMPORT_SESSIONS ───────────────────────────────────────────────────────
   describe('IMPORT_SESSIONS', () => {
-    it('returns success: false when guardAction throws ActionLimitError', async () => {
-      // Return a valid session so the handler reaches guardAction (empty result exits early)
-      vi.mocked(importFromJSON).mockReturnValueOnce({ sessions: [makeSession()], errors: [] });
-      mockGuardAction.mockRejectedValueOnce(new ActionLimitError({ tier: 'guest', dailyBlocked: true }));
-
+    it('blocks guest users with upgrade_required', async () => {
+      mockGetCachedPlanTier.mockResolvedValueOnce('guest');
       const res = await dispatch({
         action: 'IMPORT_SESSIONS',
         payload: { data: '[]', source: 'json' },
       });
       expect(res.success).toBe(false);
-      expect(res.error).toBe('Action limit reached');
+      expect(res.error).toBe('upgrade_required');
+    });
+
+    it('blocks free users with upgrade_required', async () => {
+      mockGetCachedPlanTier.mockResolvedValueOnce('free');
+      const res = await dispatch({
+        action: 'IMPORT_SESSIONS',
+        payload: { data: '[]', source: 'json' },
+      });
+      expect(res.success).toBe(false);
+      expect(res.error).toBe('upgrade_required');
+    });
+
+    it('allows pro users and does not call guardAction', async () => {
+      mockGetCachedPlanTier.mockResolvedValueOnce('pro');
+      vi.mocked(importFromJSON).mockReturnValueOnce({ sessions: [makeSession()], errors: [] });
+
+      const res = await dispatch({
+        action: 'IMPORT_SESSIONS',
+        payload: { data: JSON.stringify([makeSession()]), source: 'json' },
+      });
+      expect(res.success).toBe(true);
+      expect(mockGuardAction).not.toHaveBeenCalled();
+    });
+
+    it('allows lifetime users', async () => {
+      mockGetCachedPlanTier.mockResolvedValueOnce('lifetime');
+      vi.mocked(importFromJSON).mockReturnValueOnce({ sessions: [makeSession()], errors: [] });
+
+      const res = await dispatch({
+        action: 'IMPORT_SESSIONS',
+        payload: { data: JSON.stringify([makeSession()]), source: 'json' },
+      });
+      expect(res.success).toBe(true);
+    });
+
+    it('import does not increment action usage counter (no trackAction)', async () => {
+      mockGetCachedPlanTier.mockResolvedValueOnce('pro');
+      vi.mocked(importFromJSON).mockReturnValueOnce({ sessions: [makeSession()], errors: [] });
+
+      await dispatch({
+        action: 'IMPORT_SESSIONS',
+        payload: { data: JSON.stringify([makeSession()]), source: 'json' },
+      });
+      // trackAction is mocked in limit-guard; it must never be called for imports
+      const { trackAction } = await import('@core/services/limits/limit-guard');
+      expect(vi.mocked(trackAction)).not.toHaveBeenCalled();
     });
   });
 
@@ -394,6 +457,47 @@ describe('handleMessage', () => {
       });
       expect(res.success).toBe(true);
       expect(typeof res.data).toBe('string');
+    });
+
+    it('blocks guest users with upgrade_required', async () => {
+      mockGetCachedPlanTier.mockResolvedValueOnce('guest');
+      const res = await dispatch({
+        action: 'EXPORT_SESSIONS',
+        payload: { sessionIds: ['s1'], format: 'json' },
+      });
+      expect(res.success).toBe(false);
+      expect(res.error).toBe('upgrade_required');
+    });
+
+    it('blocks free users with upgrade_required', async () => {
+      mockGetCachedPlanTier.mockResolvedValueOnce('free');
+      const res = await dispatch({
+        action: 'EXPORT_SESSIONS',
+        payload: { sessionIds: ['s1'], format: 'json' },
+      });
+      expect(res.success).toBe(false);
+      expect(res.error).toBe('upgrade_required');
+    });
+
+    it('allows lifetime users', async () => {
+      mockGetCachedPlanTier.mockResolvedValueOnce('lifetime');
+      mockGetSession.mockResolvedValue(makeSession());
+      const res = await dispatch({
+        action: 'EXPORT_SESSIONS',
+        payload: { sessionIds: ['s1'], format: 'json' },
+      });
+      expect(res.success).toBe(true);
+    });
+
+    it('export does not call guardAction or trackAction', async () => {
+      mockGetSession.mockResolvedValue(makeSession());
+      await dispatch({
+        action: 'EXPORT_SESSIONS',
+        payload: { sessionIds: ['s1'], format: 'json' },
+      });
+      expect(mockGuardAction).not.toHaveBeenCalled();
+      const { trackAction } = await import('@core/services/limits/limit-guard');
+      expect(vi.mocked(trackAction)).not.toHaveBeenCalled();
     });
   });
 

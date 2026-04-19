@@ -6,6 +6,7 @@ import {
 import Button from '@shared/components/Button';
 import { useSession } from '@shared/hooks/useSession';
 import { useMessaging } from '@shared/hooks/useMessaging';
+import { useIsPremium } from '@shared/hooks/useIsPremium';
 import type { ExportFormat } from '@core/types/messages.types';
 import type {
   ImportExportTab,
@@ -54,6 +55,7 @@ const BACKUP_MODULE_ORDER: BackupModule[] = [
 export default function ImportExportView() {
   const { sessions } = useSession();
   const { sendMessage } = useMessaging();
+  const { isPremium, loading: planLoading } = useIsPremium();
 
   // ── Tab routing ──────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<ImportExportTab>('export');
@@ -228,8 +230,20 @@ export default function ImportExportView() {
       </div>
 
       <div className="flex-1 overflow-auto p-3">
+        {/* ── Premium gate ─────────────────────────────────────────────────── */}
+        {!planLoading && !isPremium && (
+          <div className="flex flex-col items-center gap-3 py-10 text-center px-4">
+            <p className="text-sm font-semibold text-[var(--color-text)]">
+              Import &amp; Export is a PRO feature
+            </p>
+            <p className="text-xs text-[var(--color-text)] opacity-60">
+              Upgrade to PRO or Lifetime to back up and restore all your data.
+            </p>
+          </div>
+        )}
+
         {/* ── EXPORT TAB ──────────────────────────────────────────────────── */}
-        {activeTab === 'export' && (
+        {isPremium && activeTab === 'export' && (
           <div className="space-y-5">
             {/* Full Backup */}
             <section>
@@ -356,7 +370,7 @@ export default function ImportExportView() {
         )}
 
         {/* ── IMPORT TAB ──────────────────────────────────────────────────── */}
-        {activeTab === 'import' && (
+        {isPremium && activeTab === 'import' && (
           <div className="space-y-5">
             {/* Result state */}
             {importResult ? (

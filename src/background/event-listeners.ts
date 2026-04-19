@@ -12,8 +12,9 @@ import { importFromJSON, importFromHTML, importFromURLList } from '@core/service
 import { generateId } from '@core/utils/uuid';
 import { isValidUrl, isValidSession } from '@core/utils/validators';
 import { MAX_IMPORT_SIZE_BYTES } from '@core/constants/limits';
-import { getLimitStatus } from '@core/services/limits/action-tracker';
+import { getLimitStatus, getCachedPlanTier } from '@core/services/limits/action-tracker';
 import { guardAction, trackAction, ActionLimitError } from '@core/services/limits/limit-guard';
+import { assertImportExportAccess } from '@core/access/import-export-access';
 
 export function registerEventListeners(): void {
   chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
@@ -318,6 +319,10 @@ async function handleExportSessions(payload: {
   sessionIds: string[];
   format: string;
 }): Promise<MessageResponse<string>> {
+  const tier = await getCachedPlanTier();
+  const accessError = assertImportExportAccess(tier);
+  if (accessError) return accessError;
+
   const sessions: Session[] = [];
   for (const id of payload.sessionIds) {
     const session = await SessionService.getSession(id);
@@ -351,6 +356,10 @@ async function handleImportSessions(payload: {
   data: string;
   source: string;
 }): Promise<MessageResponse> {
+  const tier = await getCachedPlanTier();
+  const accessError = assertImportExportAccess(tier);
+  if (accessError) return accessError;
+
   if (payload.data.length > MAX_IMPORT_SIZE_BYTES) {
     return { success: false, error: 'Import data too large (max 5 MB)' };
   }
@@ -379,10 +388,8 @@ async function handleImportSessions(payload: {
     return { success: false, data: { imported: 0, errors: result.errors }, error: result.errors.join('; ') || 'No valid sessions to import' };
   }
 
-  await guardAction(validSessions.length);
   const repo = getSessionRepository();
   await Promise.all(validSessions.map(s => repo.save(s)));
-  void trackAction();
 
   return {
     success: true,

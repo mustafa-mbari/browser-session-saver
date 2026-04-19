@@ -154,3 +154,7 @@ export async function canPerformAction(): Promise<boolean> {
   const status = await getLimitStatus();
   return !status.dailyBlocked && !status.monthlyBlocked;
 }
+
+export function isPremiumTier(tier: PlanTier): boolean {
+  return tier === 'pro' || tier === 'lifetime';
+}
