@@ -1,4 +1,6 @@
 import { checkAndIncrementAction } from './action-tracker';
+import { supabase } from '@core/supabase/client';
+import { getOrCreateGuestId } from '@core/services/guest.service';
 
 // Re-exported so call sites that import ActionLimitError from this module continue to work.
 export { ActionLimitError } from './action-tracker';
@@ -22,7 +24,6 @@ export async function trackAction(_count = 1): Promise<void> {
 
 async function reportActionToSupabase(): Promise<void> {
   try {
-    const { supabase } = await import('@core/supabase/client');
     const { data: { session } } = await supabase.auth.getSession();
 
     const dailyDate    = new Date().toISOString().slice(0, 10);
@@ -39,7 +40,6 @@ async function reportActionToSupabase(): Promise<void> {
 
     // Guest path: track usage so counts can be merged when the user later signs in.
     // Uses getOrCreateGuestId — creates a guest_id on first tracked action.
-    const { getOrCreateGuestId } = await import('@core/services/guest.service');
     const guestId = await getOrCreateGuestId();
     await supabase.rpc('upsert_guest_action_usage', {
       p_guest_id:      guestId,

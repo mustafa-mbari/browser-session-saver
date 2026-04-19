@@ -1,6 +1,7 @@
 import type { PlanTier, ActionUsage, LimitStatus } from '@core/types/limits.types';
 import { PLAN_LIMITS } from '@core/types/limits.types';
 import { withStorageLock } from '@core/storage/storage-mutex';
+import { supabase } from '@core/supabase/client';
 
 export class ActionLimitError extends Error {
   readonly status: LimitStatus;
@@ -135,7 +136,6 @@ export async function getLimitStatus(): Promise<LimitStatus> {
  */
 export async function fetchAndCacheGuestLimits(): Promise<void> {
   try {
-    const { supabase } = await import('@core/supabase/client');
     const { data, error } = await supabase.rpc('get_guest_limits');
     if (error || !data?.length) return;
     const { daily_action_limit, monthly_action_limit } = data[0] as {

@@ -1,8 +1,10 @@
+import './polyfills';
 import { registerEventListeners } from './event-listeners';
 import { setupSidePanelController } from './side-panel-controller';
 import { initAutoSaveEngine, updateSettings, checkPendingShutdownSave } from './auto-save-engine';
 import { restoreTabGroupNamesOnStartup } from './tab-group-restore';
 import { migrateIfNeeded } from '@core/services/migration.service';
+import { fetchAndCacheGuestLimits } from '@core/services/limits/action-tracker';
 import { getSettingsStorage } from '@core/storage/storage-factory';
 import { STORAGE_KEYS } from '@core/types/storage.types';
 import { DEFAULT_SETTINGS } from '@core/types/settings.types';
@@ -34,7 +36,6 @@ chrome.runtime.onStartup.addListener(() => {
 
     // Fetch dynamic guest limits from Supabase plans table so admins can adjust
     // them without a new extension release. Falls back to PLAN_LIMITS.guest if offline.
-    const { fetchAndCacheGuestLimits } = await import('@core/services/limits/action-tracker');
     void fetchAndCacheGuestLimits();
 
     const storage = getSettingsStorage();
