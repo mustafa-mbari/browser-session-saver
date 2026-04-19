@@ -38,6 +38,10 @@ export async function incrementAction(count = 1): Promise<void> {
   await chrome.storage.local.set({ [USAGE_KEY]: updated });
 }
 
+export async function setActionUsage(usage: ActionUsage): Promise<void> {
+  await chrome.storage.local.set({ [USAGE_KEY]: usage });
+}
+
 export async function getCachedPlanTier(): Promise<PlanTier> {
   const result = await chrome.storage.local.get(PLAN_KEY);
   const tier = result[PLAN_KEY] as PlanTier | undefined;

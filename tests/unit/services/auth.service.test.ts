@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // ── Mock cachePlanTier from action-tracker ────────────────────────────────────
 vi.mock('@core/services/limits/action-tracker', () => ({
-  cachePlanTier:   vi.fn(async () => undefined),
+  cachePlanTier:     vi.fn(async () => undefined),
   getCachedPlanTier: vi.fn(async () => 'guest'),
+  setActionUsage:    vi.fn(async () => undefined),
 }));
 
 // ── Mock Supabase client ──────────────────────────────────────────────────────
@@ -18,6 +19,11 @@ const mockSupabase = vi.hoisted(() => ({
     getSession: vi.fn(async () => ({ data: { session: mockSession } })),
   },
   rpc: vi.fn(async () => ({ data: [{ tier: 'pro' }], error: null })),
+  from: vi.fn(() => ({
+    select: vi.fn(() => ({
+      single: vi.fn(async () => ({ data: null, error: { message: 'no row' } })),
+    })),
+  })),
 }));
 
 vi.mock('@core/supabase/client', () => ({ supabase: mockSupabase }));

@@ -1,7 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@core/supabase/client';
-import type { PlanTier } from '@core/types/limits.types';
-import { cachePlanTier } from '@core/services/limits/action-tracker';
+import type { PlanTier, ActionUsage } from '@core/types/limits.types';
+import { cachePlanTier, setActionUsage } from '@core/services/limits/action-tracker';
 
 export interface SignInResult {
   success: boolean;
@@ -18,8 +18,9 @@ export async function signIn(email: string, password: string): Promise<SignInRes
   if (error) {
     return { success: false, error: error.message };
   }
-  // Cache plan tier so the extension can enforce limits without network round-trips
+  // Cache plan tier and sync server-side usage counts so resets take effect immediately
   void fetchAndCachePlanTier(data.user?.id);
+  void syncUsageFromServer(data.user?.id);
   return { success: true, email: data.user?.email ?? email };
 }
 
@@ -77,6 +78,24 @@ async function fetchAndCachePlanTier(userId: string | undefined): Promise<void> 
     await cachePlanTier(tier);
   } catch {
     // Non-critical — keep existing cached tier
+  }
+}
+
+async function syncUsageFromServer(userId: string | undefined): Promise<void> {
+  if (!userId) return;
+  try {
+    const { data, error } = await supabase
+      .from('user_action_usage')
+      .select('daily_date, daily_count, monthly_month, monthly_count')
+      .single();
+    if (error || !data) return;
+    const usage: ActionUsage = {
+      daily:   { date: data.daily_date,     count: data.daily_count },
+      monthly: { month: data.monthly_month, count: data.monthly_count },
+    };
+    await setActionUsage(usage);
+  } catch {
+    // Non-critical — local counts remain unchanged
   }
 }
 
