@@ -2,6 +2,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { createServiceClient } from '@/lib/supabase/server'
+import { planBadgeClass } from '@/lib/plans'
 
 type UserRow = {
   id: string
@@ -10,12 +11,6 @@ type UserRow = {
   role: string
   created_at: string
   user_plans: { plan_id: string; status: string; billing_cycle: string | null }[]
-}
-
-const PLAN_COLOR: Record<string, string> = {
-  free: 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300',
-  pro:  'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
-  max:  'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -97,7 +92,7 @@ export default async function UsersPage({
                           <p className="text-xs text-stone-400">{user.email}</p>
                         </TableCell>
                         <TableCell>
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${PLAN_COLOR[planId] ?? PLAN_COLOR.free}`}>
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${planBadgeClass(planId)}`}>
                             {planId}
                           </span>
                         </TableCell>

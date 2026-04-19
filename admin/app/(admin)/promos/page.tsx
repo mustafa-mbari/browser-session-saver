@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { createServiceClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { getAssignablePlans, planBadgeClass } from '@/lib/plans'
 
 type PromoCode = {
   id: string
@@ -66,14 +67,10 @@ async function deactivatePromo(formData: FormData) {
   }
 }
 
-const PLAN_COLOR: Record<string, string> = {
-  free: 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300',
-  pro:  'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
-  max:  'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-}
-
 export default async function PromosPage() {
-  const { promos } = await getPromos()
+  const [{ promos }, assignablePlans] = await Promise.all([getPromos(), getAssignablePlans()])
+  // Promos are only useful for paid plans — exclude 'free' and 'guest'
+  const promoPlanOptions = assignablePlans.filter(p => p.id !== 'free')
   const activeCount = promos.filter(p => p.is_active).length
 
   return (
@@ -104,8 +101,9 @@ export default async function PromosPage() {
                   required
                   className="w-full rounded-lg border border-stone-200 dark:border-[var(--dark-border)] bg-white dark:bg-[var(--dark-elevated)] px-3 py-2 text-sm text-stone-800 dark:text-stone-200"
                 >
-                  <option value="pro">Pro</option>
-                  <option value="max">Max</option>
+                  {promoPlanOptions.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1.5">
@@ -165,7 +163,7 @@ export default async function PromosPage() {
                           {promo.code}
                         </TableCell>
                         <TableCell>
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${PLAN_COLOR[promo.plan_id] ?? PLAN_COLOR.pro}`}>
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${planBadgeClass(promo.plan_id)}`}>
                             {promo.plan_id}
                           </span>
                         </TableCell>

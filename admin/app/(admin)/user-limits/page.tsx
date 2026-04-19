@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { planBadgeClass } from '@/lib/plans'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -180,12 +181,6 @@ export default function UserLimitsPage() {
     refreshAllOverrides()
   }
 
-  const planBadgeColor: Record<string, string> = {
-    free:     'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300',
-    pro:      'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
-    lifetime: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-  }
-
   return (
     <div className="animate-fade-in">
       <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-2">User Limits</h1>
@@ -223,7 +218,7 @@ export default function UserLimitsPage() {
           <CardContent className="pt-6 space-y-4">
             <div className="flex items-center gap-3 flex-wrap">
               <span className="font-semibold text-stone-900 dark:text-stone-100">{lookupResult.email}</span>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${planBadgeColor[lookupResult.plan] ?? planBadgeColor.free}`}>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${planBadgeClass(lookupResult.plan)}`}>
                 {lookupResult.plan}
               </span>
               {(lookupResult.override_daily != null || lookupResult.override_monthly != null) && (
@@ -371,7 +366,7 @@ export default function UserLimitsPage() {
                     <TableRow key={row.user_id}>
                       <TableCell className="text-sm font-medium">{row.email}</TableCell>
                       <TableCell>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${planBadgeColor[row.plan] ?? planBadgeColor.free}`}>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${planBadgeClass(row.plan)}`}>
                           {row.plan}
                         </span>
                       </TableCell>

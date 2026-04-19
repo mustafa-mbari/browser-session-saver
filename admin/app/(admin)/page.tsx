@@ -3,12 +3,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { Users, Crown, Zap, Layers, Sparkles, UserPlus, LayoutGrid } from 'lucide-react'
 import { createServiceClient } from '@/lib/supabase/server'
+import { planBadgeClass } from '@/lib/plans'
 
 type Overview = {
   total_users: number
   free_users: number
   pro_users: number
-  max_users: number
+  lifetime_users: number
   total_sessions: number
   total_prompts: number
   total_tab_groups: number
@@ -39,18 +40,12 @@ async function getOverviewData() {
   }
 }
 
-const PLAN_COLOR: Record<string, string> = {
-  free: 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300',
-  pro:  'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
-  max:  'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-}
-
 export default async function AdminOverviewPage() {
   const { overview, recentUsers } = await getOverviewData()
 
   const stats = [
     { label: 'Total Users',   value: overview?.total_users?.toString() ?? '—',   icon: Users,    iconBg: 'bg-indigo-100 dark:bg-indigo-900/30',  iconColor: 'text-indigo-600 dark:text-indigo-400' },
-    { label: 'Max Users',     value: overview?.max_users?.toString() ?? '—',     icon: Crown,    iconBg: 'bg-purple-100 dark:bg-purple-900/30',  iconColor: 'text-purple-600 dark:text-purple-400' },
+    { label: 'Lifetime Users', value: overview?.lifetime_users?.toString() ?? '—', icon: Crown,    iconBg: 'bg-purple-100 dark:bg-purple-900/30',  iconColor: 'text-purple-600 dark:text-purple-400' },
     { label: 'Pro Users',     value: overview?.pro_users?.toString() ?? '—',     icon: Zap,      iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400' },
     { label: 'Free Users',    value: overview?.free_users?.toString() ?? '—',    icon: UserPlus, iconBg: 'bg-stone-100 dark:bg-stone-800',         iconColor: 'text-stone-600 dark:text-stone-400' },
     { label: 'Sessions',      value: overview?.total_sessions?.toString()   ?? '—', icon: Layers,      iconBg: 'bg-amber-100 dark:bg-amber-900/30',    iconColor: 'text-amber-600 dark:text-amber-400' },
@@ -105,7 +100,7 @@ export default async function AdminOverviewPage() {
                         <p className="text-xs text-stone-400">{user.email}</p>
                       </TableCell>
                       <TableCell>
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${PLAN_COLOR[planId] ?? PLAN_COLOR.free}`}>
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${planBadgeClass(planId)}`}>
                           {planId}
                         </span>
                       </TableCell>

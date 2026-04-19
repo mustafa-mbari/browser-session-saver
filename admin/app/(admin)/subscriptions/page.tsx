@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { createServiceClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { getPlans, getAssignablePlans, planBadgeClass } from '@/lib/plans'
 
 type UserPlanRow = {
   id: string
@@ -17,12 +18,6 @@ type UserPlanRow = {
   profiles: { email: string | null; display_name: string | null } | null
 }
 
-const PLAN_COLOR: Record<string, string> = {
-  free: 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300',
-  pro:  'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
-  max:  'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-}
-
 const STATUS_COLOR: Record<string, string> = {
   active:   'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   canceled: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
@@ -31,7 +26,7 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 async function getSubscriptions(planFilter?: string) {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return { rows: [], counts: { total: 0, pro: 0, max: 0, free: 0 } }
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return { rows: [], counts: {} as Record<string, number> }
   const supabase = await createServiceClient()
 
   const [allRes, rowsRes] = await Promise.all([
@@ -48,15 +43,11 @@ async function getSubscriptions(planFilter?: string) {
   ])
 
   const all = allRes.data ?? []
-  return {
-    rows: (rowsRes.data as UserPlanRow[] | null) ?? [],
-    counts: {
-      total: all.length,
-      free:  all.filter(r => r.plan_id === 'free').length,
-      pro:   all.filter(r => r.plan_id === 'pro').length,
-      max:   all.filter(r => r.plan_id === 'max').length,
-    },
+  const counts: Record<string, number> = { total: all.length }
+  for (const row of all) {
+    counts[row.plan_id] = (counts[row.plan_id] ?? 0) + 1
   }
+  return { rows: (rowsRes.data as UserPlanRow[] | null) ?? [], counts }
 }
 
 async function grantSubscription(formData: FormData) {
@@ -95,13 +86,15 @@ export default async function SubscriptionsPage({
 }) {
   const params = await searchParams
   const planFilter = params.plan
-  const { rows, counts } = await getSubscriptions(planFilter)
+  const [{ rows, counts }, allPlans, assignablePlans] = await Promise.all([
+    getSubscriptions(planFilter),
+    getPlans(),
+    getAssignablePlans(),
+  ])
 
   const FILTER_OPTIONS = [
     { value: '', label: 'All' },
-    { value: 'free', label: 'Free' },
-    { value: 'pro', label: 'Pro' },
-    { value: 'max', label: 'Max' },
+    ...allPlans.filter(p => p.id !== 'guest').map(p => ({ value: p.id, label: p.name })),
   ]
 
   return (
@@ -136,9 +129,11 @@ export default async function SubscriptionsPage({
                   required
                   className="w-full rounded-lg border border-stone-200 dark:border-[var(--dark-border)] bg-white dark:bg-[var(--dark-elevated)] px-3 py-2 text-sm text-stone-800 dark:text-stone-200"
                 >
-                  <option value="pro">Pro</option>
-                  <option value="max">Max</option>
-                  <option value="free">Free (downgrade)</option>
+                  {assignablePlans.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}{p.id === 'free' ? ' (downgrade)' : ''}
+                    </option>
+                  ))}
                 </select>
               </div>
               <Button type="submit">Grant Access</Button>
@@ -147,14 +142,10 @@ export default async function SubscriptionsPage({
             {/* Summary */}
             <div className="mt-6 space-y-2 pt-5 border-t border-stone-100 dark:border-[var(--dark-border)]">
               <h3 className="text-sm font-semibold text-stone-700 dark:text-stone-300 mb-3">Plan Summary</h3>
-              {[
-                { label: 'Free users', count: counts.free, color: 'bg-stone-400' },
-                { label: 'Pro users',  count: counts.pro,  color: 'bg-indigo-500' },
-                { label: 'Max users',  count: counts.max,  color: 'bg-purple-500' },
-              ].map(item => (
-                <div key={item.label} className="flex justify-between text-sm">
-                  <span className="text-stone-500 dark:text-stone-400">{item.label}</span>
-                  <span className="font-semibold text-stone-800 dark:text-stone-100">{item.count}</span>
+              {allPlans.filter(p => p.id !== 'guest').map(p => (
+                <div key={p.id} className="flex justify-between text-sm">
+                  <span className="text-stone-500 dark:text-stone-400">{p.name} users</span>
+                  <span className="font-semibold text-stone-800 dark:text-stone-100">{counts[p.id] ?? 0}</span>
                 </div>
               ))}
             </div>
@@ -207,7 +198,7 @@ export default async function SubscriptionsPage({
                           <p className="text-xs text-stone-400">{row.profiles?.email}</p>
                         </TableCell>
                         <TableCell>
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${PLAN_COLOR[row.plan_id] ?? PLAN_COLOR.free}`}>
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${planBadgeClass(row.plan_id)}`}>
                             {row.plan_id}
                           </span>
                         </TableCell>
