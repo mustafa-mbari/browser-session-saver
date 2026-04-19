@@ -94,3 +94,21 @@ describe('clearGuestId', () => {
     expect(await getGuestId()).toBeNull();
   });
 });
+
+// ── Concurrency (regression for storage race) ─────────────────────────────────
+
+describe('getOrCreateGuestId concurrency', () => {
+  it('two concurrent calls both return the same ID', async () => {
+    const [id1, id2] = await Promise.all([getOrCreateGuestId(), getOrCreateGuestId()]);
+    expect(id1).toBe('test-uuid-1234');
+    expect(id2).toBe('test-uuid-1234');
+    expect(id1).toBe(id2);
+  });
+
+  it('generateId is called exactly once even when two calls race', async () => {
+    await Promise.all([getOrCreateGuestId(), getOrCreateGuestId()]);
+    // Without a lock both calls see no existing ID and both call generateId.
+    // With a lock the second call finds the ID already written by the first.
+    expect(generateId).toHaveBeenCalledTimes(1);
+  });
+});

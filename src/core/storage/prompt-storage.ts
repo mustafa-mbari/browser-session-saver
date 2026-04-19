@@ -2,6 +2,7 @@ import type { Prompt, PromptCategory, PromptFolder, PromptTag } from '@core/type
 import { ChromeLocalKeyAdapter } from './chrome-local-key-adapter';
 import { ChromeLocalArrayRepository } from './chrome-local-array-repository';
 import { guardAction, trackAction } from '@core/services/limits/limit-guard';
+import { withStorageLock } from './storage-mutex';
 
 const promptsRepo = new ChromeLocalArrayRepository<Prompt>('prompts');
 const foldersRepo = new ChromeLocalArrayRepository<PromptFolder>('prompt_folders');
@@ -128,19 +129,23 @@ export const PromptStorage = {
   },
 
   async saveCategory(category: PromptCategory): Promise<void> {
-    const all = await categoriesAdapter.getAll();
-    const idx = all.findIndex((c) => c.id === category.id);
-    if (idx >= 0) {
-      all[idx] = category;
-    } else {
-      all.push(category);
-    }
-    await categoriesAdapter.setAll(all);
+    return withStorageLock('prompt_categories', async () => {
+      const all = await categoriesAdapter.getAll();
+      const idx = all.findIndex((c) => c.id === category.id);
+      if (idx >= 0) {
+        all[idx] = category;
+      } else {
+        all.push(category);
+      }
+      await categoriesAdapter.setAll(all);
+    });
   },
 
   async deleteCategory(id: string): Promise<void> {
-    const all = await categoriesAdapter.getAll();
-    await categoriesAdapter.setAll(all.filter((c) => c.id !== id));
+    return withStorageLock('prompt_categories', async () => {
+      const all = await categoriesAdapter.getAll();
+      await categoriesAdapter.setAll(all.filter((c) => c.id !== id));
+    });
   },
 
   // ── Tags ────────────────────────────────────────────────────────────────
@@ -150,19 +155,23 @@ export const PromptStorage = {
   },
 
   async saveTag(tag: PromptTag): Promise<void> {
-    const all = await tagsAdapter.getAll();
-    const idx = all.findIndex((t) => t.id === tag.id);
-    if (idx >= 0) {
-      all[idx] = tag;
-    } else {
-      all.push(tag);
-    }
-    await tagsAdapter.setAll(all);
+    return withStorageLock('prompt_tags', async () => {
+      const all = await tagsAdapter.getAll();
+      const idx = all.findIndex((t) => t.id === tag.id);
+      if (idx >= 0) {
+        all[idx] = tag;
+      } else {
+        all.push(tag);
+      }
+      await tagsAdapter.setAll(all);
+    });
   },
 
   async deleteTag(id: string): Promise<void> {
-    const all = await tagsAdapter.getAll();
-    await tagsAdapter.setAll(all.filter((t) => t.id !== id));
+    return withStorageLock('prompt_tags', async () => {
+      const all = await tagsAdapter.getAll();
+      await tagsAdapter.setAll(all.filter((t) => t.id !== id));
+    });
   },
 
   // ── Bulk helpers (used by import service) ─────────────────────────────
@@ -176,17 +185,21 @@ export const PromptStorage = {
   },
 
   async mergeCategories(incoming: PromptCategory[]): Promise<void> {
-    const existing = await categoriesAdapter.getAll();
-    const map = new Map(existing.map((c) => [c.id, c]));
-    incoming.forEach((c) => map.set(c.id, c));
-    await categoriesAdapter.setAll(Array.from(map.values()));
+    return withStorageLock('prompt_categories', async () => {
+      const existing = await categoriesAdapter.getAll();
+      const map = new Map(existing.map((c) => [c.id, c]));
+      incoming.forEach((c) => map.set(c.id, c));
+      await categoriesAdapter.setAll(Array.from(map.values()));
+    });
   },
 
   async mergeTags(incoming: PromptTag[]): Promise<void> {
-    const existing = await tagsAdapter.getAll();
-    const map = new Map(existing.map((t) => [t.id, t]));
-    incoming.forEach((t) => map.set(t.id, t));
-    await tagsAdapter.setAll(Array.from(map.values()));
+    return withStorageLock('prompt_tags', async () => {
+      const existing = await tagsAdapter.getAll();
+      const map = new Map(existing.map((t) => [t.id, t]));
+      incoming.forEach((t) => map.set(t.id, t));
+      await tagsAdapter.setAll(Array.from(map.values()));
+    });
   },
 
   // ── App Folders Seed ───────────────────────────────────────────────────

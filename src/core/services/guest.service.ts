@@ -1,4 +1,5 @@
 import { generateId } from '@core/utils/uuid';
+import { withStorageLock } from '@core/storage/storage-mutex';
 
 const GUEST_ID_KEY = 'guest_id';
 
@@ -7,13 +8,15 @@ const GUEST_ID_KEY = 'guest_id';
  * creating and persisting a new one if none exists.
  * Safe to call multiple times — always returns the same ID until clearGuestId() is called.
  */
-export async function getOrCreateGuestId(): Promise<string> {
-  const result = await chrome.storage.local.get(GUEST_ID_KEY);
-  const existing = result[GUEST_ID_KEY] as string | undefined;
-  if (existing) return existing;
-  const id = generateId();
-  await chrome.storage.local.set({ [GUEST_ID_KEY]: id });
-  return id;
+export function getOrCreateGuestId(): Promise<string> {
+  return withStorageLock(GUEST_ID_KEY, async () => {
+    const result = await chrome.storage.local.get(GUEST_ID_KEY);
+    const existing = result[GUEST_ID_KEY] as string | undefined;
+    if (existing) return existing;
+    const id = generateId();
+    await chrome.storage.local.set({ [GUEST_ID_KEY]: id });
+    return id;
+  });
 }
 
 /**

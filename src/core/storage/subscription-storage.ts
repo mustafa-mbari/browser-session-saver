@@ -2,6 +2,7 @@ import type { Subscription, CustomCategory } from '@core/types/subscription.type
 import { ChromeLocalArrayRepository } from './chrome-local-array-repository';
 import { ChromeLocalKeyAdapter } from './chrome-local-key-adapter';
 import { guardAction, trackAction } from '@core/services/limits/limit-guard';
+import { withStorageLock } from './storage-mutex';
 
 const subsRepo = new ChromeLocalArrayRepository<Subscription>('subscriptions');
 const catsAdapter = new ChromeLocalKeyAdapter<CustomCategory>('subscription_categories');
@@ -11,15 +12,19 @@ export const SubscriptionStorage = {
   getCustomCategories: () => catsAdapter.getAll(),
 
   async addCustomCategory(cat: CustomCategory): Promise<void> {
-    const all = await catsAdapter.getAll();
-    if (!all.find((c) => c.value === cat.value)) {
-      await catsAdapter.setAll([...all, cat]);
-    }
+    return withStorageLock('subscription_categories', async () => {
+      const all = await catsAdapter.getAll();
+      if (!all.find((c) => c.value === cat.value)) {
+        await catsAdapter.setAll([...all, cat]);
+      }
+    });
   },
 
   async deleteCustomCategory(value: string): Promise<void> {
-    const all = await catsAdapter.getAll();
-    await catsAdapter.setAll(all.filter((c) => c.value !== value));
+    return withStorageLock('subscription_categories', async () => {
+      const all = await catsAdapter.getAll();
+      await catsAdapter.setAll(all.filter((c) => c.value !== value));
+    });
   },
 
   async save(sub: Subscription): Promise<void> {
@@ -54,10 +59,12 @@ export const SubscriptionStorage = {
   },
 
   async mergeCustomCategories(incoming: CustomCategory[]): Promise<void> {
-    const existing = await catsAdapter.getAll();
-    const map = new Map(existing.map((c) => [c.value, c]));
-    incoming.forEach((c) => map.set(c.value, c));
-    await catsAdapter.setAll(Array.from(map.values()));
+    return withStorageLock('subscription_categories', async () => {
+      const existing = await catsAdapter.getAll();
+      const map = new Map(existing.map((c) => [c.value, c]));
+      incoming.forEach((c) => map.set(c.value, c));
+      await catsAdapter.setAll(Array.from(map.values()));
+    });
   },
 };
 

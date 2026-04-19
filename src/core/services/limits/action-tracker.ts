@@ -1,5 +1,6 @@
 import type { PlanTier, ActionUsage, LimitStatus } from '@core/types/limits.types';
 import { PLAN_LIMITS } from '@core/types/limits.types';
+import { withStorageLock } from '@core/storage/storage-mutex';
 
 const USAGE_KEY = 'action_usage';
 const PLAN_KEY = 'cached_plan';
@@ -30,13 +31,15 @@ export async function getActionUsage(): Promise<ActionUsage> {
   return { daily, monthly };
 }
 
-export async function incrementAction(count = 1): Promise<void> {
-  const usage = await getActionUsage();
-  const updated: ActionUsage = {
-    daily:   { ...usage.daily,   count: usage.daily.count + count },
-    monthly: { ...usage.monthly, count: usage.monthly.count + count },
-  };
-  await chrome.storage.local.set({ [USAGE_KEY]: updated });
+export function incrementAction(count = 1): Promise<void> {
+  return withStorageLock(USAGE_KEY, async () => {
+    const usage = await getActionUsage();
+    const updated: ActionUsage = {
+      daily:   { ...usage.daily,   count: usage.daily.count + count },
+      monthly: { ...usage.monthly, count: usage.monthly.count + count },
+    };
+    await chrome.storage.local.set({ [USAGE_KEY]: updated });
+  });
 }
 
 export async function setActionUsage(usage: ActionUsage): Promise<void> {

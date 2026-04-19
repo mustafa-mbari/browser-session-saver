@@ -113,7 +113,13 @@ async function mergeGuestOnSignIn(jwt: string): Promise<void> {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
       body: JSON.stringify({ guest_id: guestId }),
     });
-    if (res.ok) await clearGuestId();
+    if (res.ok) {
+      try {
+        await clearGuestId();
+      } catch {
+        // clearGuestId failed; guest_id preserved — Edge Function is idempotent on retry
+      }
+    }
   } catch {
     // Non-critical — guest_id is preserved for retry on next sign-in
   }

@@ -1,6 +1,7 @@
 import type { TabGroupTemplate } from '@core/types/tab-group.types';
 import { ChromeLocalKeyAdapter } from './chrome-local-key-adapter';
 import { guardAction, trackAction } from '@core/services/limits/limit-guard';
+import { withStorageLock } from './storage-mutex';
 
 const adapter = new ChromeLocalKeyAdapter<TabGroupTemplate>('tab_group_templates');
 
@@ -16,37 +17,41 @@ export class TabGroupTemplateStorage {
    */
   static async upsert(template: TabGroupTemplate): Promise<void> {
     await guardAction();
-    const all = await adapter.getAll();
-    const idx = all.findIndex((t) => t.key === template.key);
-    const now = new Date().toISOString();
-    const stamped: TabGroupTemplate = {
-      ...template,
-      updatedAt: now,
-      dirty: true,
-      deletedAt: null,
-    };
-    if (idx >= 0) {
-      all[idx] = { ...stamped, savedAt: all[idx].savedAt };
-    } else {
-      all.push(stamped);
-    }
-    await adapter.setAll(all);
+    await withStorageLock('tab_group_templates', async () => {
+      const all = await adapter.getAll();
+      const idx = all.findIndex((t) => t.key === template.key);
+      const now = new Date().toISOString();
+      const stamped: TabGroupTemplate = {
+        ...template,
+        updatedAt: now,
+        dirty: true,
+        deletedAt: null,
+      };
+      if (idx >= 0) {
+        all[idx] = { ...stamped, savedAt: all[idx].savedAt };
+      } else {
+        all.push(stamped);
+      }
+      await adapter.setAll(all);
+    });
     void trackAction();
   }
 
   static async delete(key: string): Promise<void> {
-    const all = await adapter.getAll();
-    const idx = all.findIndex((t) => t.key === key);
-    if (idx < 0) return;
-    await guardAction();
-    const now = new Date().toISOString();
-    all[idx] = {
-      ...all[idx],
-      deletedAt: now,
-      updatedAt: now,
-      dirty: true,
-    };
-    await adapter.setAll(all);
+    await withStorageLock('tab_group_templates', async () => {
+      const all = await adapter.getAll();
+      const idx = all.findIndex((t) => t.key === key);
+      if (idx < 0) return;
+      await guardAction();
+      const now = new Date().toISOString();
+      all[idx] = {
+        ...all[idx],
+        deletedAt: now,
+        updatedAt: now,
+        dirty: true,
+      };
+      await adapter.setAll(all);
+    });
     void trackAction();
   }
 

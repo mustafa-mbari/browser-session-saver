@@ -228,3 +228,31 @@ describe('getEmail', () => {
     expect(await getEmail()).toBeNull();
   });
 });
+
+// ── mergeGuestOnSignIn clearGuestId failure (1B-01) ───────────────────────────
+
+describe('mergeGuestOnSignIn clearGuestId safety', () => {
+  it('does not throw when clearGuestId fails after a successful merge', async () => {
+    vi.mocked(getGuestId).mockResolvedValueOnce('some-guest-uuid');
+    vi.mocked(fetch).mockResolvedValueOnce(new Response('{}', { status: 200 }));
+    vi.mocked(clearGuestId).mockRejectedValueOnce(new Error('storage error'));
+    mockSupabase.auth.signInWithPassword.mockResolvedValueOnce({
+      data: {
+        user:    { id: 'user-123', email: 'test@example.com' },
+        session: { access_token: 'jwt-abc123' },
+      },
+      error: null,
+    });
+
+    // signIn must resolve successfully even if clearGuestId throws
+    await expect(signIn('test@example.com', 'password123')).resolves.toMatchObject({ success: true });
+
+    // Allow the fire-and-forget merge to settle
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // clearGuestId was attempted once (the throw came from within the merge)
+    expect(clearGuestId).toHaveBeenCalledTimes(1);
+  });
+});

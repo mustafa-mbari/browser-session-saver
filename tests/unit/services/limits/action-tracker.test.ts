@@ -246,3 +246,16 @@ describe('canPerformAction', () => {
     expect(await canPerformAction()).toBe(false);
   });
 });
+
+// ── Concurrency (regression for storage race) ─────────────────────────────────
+
+describe('incrementAction concurrency', () => {
+  it('two concurrent calls each increment by 1 (final count = 2)', async () => {
+    // Without a lock both calls read count=0, both write count=1 → count stays at 1.
+    // With a lock the second call reads the already-incremented count=1 → count reaches 2.
+    await Promise.all([incrementAction(), incrementAction()]);
+    const usage = await getActionUsage();
+    expect(usage.daily.count).toBe(2);
+    expect(usage.monthly.count).toBe(2);
+  });
+});
