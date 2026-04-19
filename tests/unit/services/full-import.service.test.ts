@@ -10,9 +10,10 @@ import type { FullBackupEnvelope, ImportPreview, ModuleSelection } from '@core/t
 // Mocks
 // ---------------------------------------------------------------------------
 
-const mockReplaceAll   = vi.fn().mockResolvedValue(undefined);
-const mockImportMany   = vi.fn().mockResolvedValue(undefined);
-const mockRepoSave     = vi.fn().mockResolvedValue(undefined);
+const mockReplaceAll         = vi.fn().mockResolvedValue(undefined);
+const mockImportMany         = vi.fn().mockResolvedValue(undefined);
+const mockRepoSave           = vi.fn().mockResolvedValue(undefined);
+const mockPromptImportMany   = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('@core/storage/storage-factory', () => ({
   getSessionRepository: vi.fn(() => ({
@@ -34,15 +35,18 @@ vi.mock('@core/storage/storage-factory', () => ({
 
 vi.mock('@core/storage/prompt-storage', () => ({
   PromptStorage: {
-    deleteAll:      vi.fn().mockResolvedValue(undefined),
-    setFolders:     vi.fn().mockResolvedValue(undefined),
-    setCategories:  vi.fn().mockResolvedValue(undefined),
-    setTags:        vi.fn().mockResolvedValue(undefined),
-    save:           vi.fn().mockResolvedValue(undefined),
-    mergeFolders:   vi.fn().mockResolvedValue(undefined),
-    mergeCategories:vi.fn().mockResolvedValue(undefined),
-    mergeTags:      vi.fn().mockResolvedValue(undefined),
+    deleteAll:       vi.fn().mockResolvedValue(undefined),
+    setFolders:      vi.fn().mockResolvedValue(undefined),
+    setCategories:   vi.fn().mockResolvedValue(undefined),
+    setTags:         vi.fn().mockResolvedValue(undefined),
+    save:            vi.fn().mockResolvedValue(undefined),
+    mergeFolders:    vi.fn().mockResolvedValue(undefined),
+    mergeCategories: vi.fn().mockResolvedValue(undefined),
+    mergeTags:       vi.fn().mockResolvedValue(undefined),
   },
+  getPromptRepository: vi.fn(() => ({
+    importMany: mockPromptImportMany,
+  })),
 }));
 
 vi.mock('@core/storage/subscription-storage', () => ({
@@ -85,6 +89,7 @@ vi.mock('@core/services/full-export.service', () => ({
 
 // ---------------------------------------------------------------------------
 import { executeImport } from '@core/services/full-import.service';
+import { PromptStorage } from '@core/storage/prompt-storage';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -130,6 +135,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockExportFullBackup.mockResolvedValue('"backup-json"');
   mockReplaceAll.mockResolvedValue(undefined);
+  mockPromptImportMany.mockResolvedValue(undefined);
 });
 
 // ---------------------------------------------------------------------------
@@ -286,5 +292,80 @@ describe('executeImport — moduleStatus in result (3A-03)', () => {
     const result = await executeImport(rawText, preview, selection, 'merge');
 
     expect(result.moduleStatus?.prompts).toBe('skipped');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Bug #1 — importPrompts must use bulk importMany, not per-item save()
+// ---------------------------------------------------------------------------
+
+function makePrompt(index: number) {
+  return {
+    id: `p${index}`,
+    title: `Prompt ${index}`,
+    content: `Content ${index}`,
+    source: 'local' as const,
+    isFavorite: false,
+    isPinned: false,
+    usageCount: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+describe('importPrompts — bulk write path (Bug #1)', () => {
+  it('REPLACE mode: PromptStorage.save() is never called — importMany is used', async () => {
+    const prompts = Array.from({ length: 5 }, (_, i) => makePrompt(i));
+    const envelope = makeEnvelope({ prompts: prompts as never });
+    const rawText  = JSON.stringify(envelope);
+    const preview  = makePreview(['prompts']);
+    const selection = makeSelection({ prompts: true });
+
+    const result = await executeImport(rawText, preview, selection, 'replace');
+
+    // FAILS before fix: save() is called 5 times instead of importMany.
+    expect(vi.mocked(PromptStorage.save)).not.toHaveBeenCalled();
+    expect(mockPromptImportMany).toHaveBeenCalledTimes(1);
+    expect(mockPromptImportMany).toHaveBeenCalledWith(prompts);
+    expect(result.moduleStatus?.prompts).toBe('success');
+    expect(result.success).toBe(true);
+  });
+
+  it('MERGE mode: PromptStorage.save() is never called — importMany is used', async () => {
+    const prompts = Array.from({ length: 5 }, (_, i) => makePrompt(i));
+    const envelope = makeEnvelope({ prompts: prompts as never });
+    const rawText  = JSON.stringify(envelope);
+    const preview  = makePreview(['prompts']);
+    const selection = makeSelection({ prompts: true });
+
+    const result = await executeImport(rawText, preview, selection, 'merge');
+
+    // FAILS before fix: save() is called 5 times instead of importMany.
+    expect(vi.mocked(PromptStorage.save)).not.toHaveBeenCalled();
+    expect(mockPromptImportMany).toHaveBeenCalledTimes(1);
+    expect(result.moduleStatus?.prompts).toBe('success');
+  });
+
+  it('REPLACE mode: save() throwing mid-loop would cause partial write — regression guard', async () => {
+    // Simulates the pre-fix scenario: save() throws on the 4th call.
+    // After the fix, save() is never called at all so this can never happen.
+    let callCount = 0;
+    vi.mocked(PromptStorage.save).mockImplementation(async () => {
+      if (++callCount > 3) throw new Error('ActionLimitError: limit reached');
+    });
+
+    const prompts = Array.from({ length: 5 }, (_, i) => makePrompt(i));
+    const envelope = makeEnvelope({ prompts: prompts as never });
+    const rawText  = JSON.stringify(envelope);
+    const preview  = makePreview(['prompts']);
+    const selection = makeSelection({ prompts: true });
+
+    const result = await executeImport(rawText, preview, selection, 'replace');
+
+    // After fix: save() is NEVER called, so the mid-loop throw cannot occur.
+    // The import must succeed fully via importMany.
+    expect(vi.mocked(PromptStorage.save)).not.toHaveBeenCalled();
+    expect(result.moduleStatus?.prompts).toBe('success');
+    expect(result.success).toBe(true);
   });
 });

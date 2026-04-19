@@ -177,8 +177,10 @@ export const PromptStorage = {
   // ── Bulk helpers (used by import service) ─────────────────────────────
 
   setFolders: (folders: PromptFolder[]): Promise<void> => foldersRepo.replaceAll(folders),
-  setCategories: (categories: PromptCategory[]): Promise<void> => categoriesAdapter.setAll(categories),
-  setTags: (tags: PromptTag[]): Promise<void> => tagsAdapter.setAll(tags),
+  setCategories: (categories: PromptCategory[]): Promise<void> =>
+    withStorageLock('prompt_categories', async () => { await categoriesAdapter.setAll(categories); }),
+  setTags: (tags: PromptTag[]): Promise<void> =>
+    withStorageLock('prompt_tags', async () => { await tagsAdapter.setAll(tags); }),
 
   async mergeFolders(incoming: PromptFolder[]): Promise<void> {
     await foldersRepo.importMany(incoming);

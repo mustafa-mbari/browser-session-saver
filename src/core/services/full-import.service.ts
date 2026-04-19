@@ -1,5 +1,5 @@
 import { getSessionRepository, getSettingsStorage } from '@core/storage/storage-factory';
-import { PromptStorage } from '@core/storage/prompt-storage';
+import { PromptStorage, getPromptRepository } from '@core/storage/prompt-storage';
 import { SubscriptionStorage } from '@core/storage/subscription-storage';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
 import { newtabDB } from '@core/storage/newtab-storage';
@@ -382,17 +382,21 @@ async function importPrompts(
   tags: import('@core/types/prompt.types').PromptTag[],
   mode: ImportMode,
 ): Promise<number> {
+  // Use the repository directly to avoid calling guardAction per item.
+  // Import is a data-restoration operation — consistent with importSessions,
+  // importSubscriptions, and importTabGroupTemplates which all bypass per-item guards.
+  const promptsRepo = getPromptRepository();
   if (mode === 'replace') {
     await PromptStorage.deleteAll();
     await PromptStorage.setFolders(folders);
     await PromptStorage.setCategories(categories);
     await PromptStorage.setTags(tags);
-    for (const p of prompts) await PromptStorage.save(p);
+    await promptsRepo.importMany(prompts);
   } else {
     await PromptStorage.mergeFolders(folders);
     await PromptStorage.mergeCategories(categories);
     await PromptStorage.mergeTags(tags);
-    for (const p of prompts) await PromptStorage.save(p);
+    await promptsRepo.importMany(prompts);
   }
   return prompts.length;
 }

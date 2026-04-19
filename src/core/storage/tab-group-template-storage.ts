@@ -56,6 +56,8 @@ export class TabGroupTemplateStorage {
   }
 
   static replaceAll(templates: TabGroupTemplate[]): Promise<void> {
-    return adapter.setAll(templates);
+    return withStorageLock('tab_group_templates', async () => {
+      await adapter.setAll(templates);
+    });
   }
 }

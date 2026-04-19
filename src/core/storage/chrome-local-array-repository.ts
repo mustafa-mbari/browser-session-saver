@@ -97,7 +97,9 @@ export class ChromeLocalArrayRepository<T extends BaseEntity>
   }
 
   async replaceAll(entities: T[]): Promise<void> {
-    await this.adapter.setAll(entities);
+    return withStorageLock(this.storageKey, async () => {
+      await this.adapter.setAll(entities);
+    });
   }
 
   // ─── SyncableRepository ──────────────────────────────────────────────────
@@ -251,6 +253,8 @@ export class ChromeLocalKeyedRepository<T extends Record<string, unknown>>
   }
 
   async replaceAll(entities: (T & BaseEntity)[]): Promise<void> {
-    await this.adapter.setAll(entities as T[]);
+    return withStorageLock(this.storageKey, async () => {
+      await this.adapter.setAll(entities as T[]);
+    });
   }
 }

@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ChromeLocalArrayRepository } from '@core/storage/chrome-local-array-repository';
+import { withStorageLock } from '@core/storage/storage-mutex';
 
 interface TestEntity {
   id: string;
@@ -149,6 +150,47 @@ describe('ChromeLocalArrayRepository', () => {
       await repo.replaceAll([entity('3', 'Charlie')]);
       expect(stored).toHaveLength(1);
       expect(stored[0].id).toBe('3');
+    });
+
+    it('Bug #2 — replaceAll waits for in-flight locked operations on the same key', async () => {
+      // This test confirms replaceAll respects the per-key mutex.
+      // Before the fix replaceAll bypasses the lock, so it runs BEFORE the
+      // held lock is released — producing an incorrect execution order.
+      const order: string[] = [];
+
+      let releaseLock!: () => void;
+      const lockBarrier = new Promise<void>((res) => { releaseLock = res; });
+
+      // Hold the lock for KEY — simulates a concurrent save() in progress.
+      const lockHolder = withStorageLock(KEY, async () => {
+        order.push('lock_acquired');
+        await lockBarrier;
+        order.push('lock_released');
+      });
+
+      // Yield so the lock holder above starts and acquires the lock.
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // replaceAll should queue behind the held lock.
+      const replaceAllDone = repo.replaceAll([entity('x', 'X')]).then(() => {
+        order.push('replaceAll_done');
+      });
+
+      // Yield — give replaceAll a chance to run (it will if it ignores the lock).
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // FAILS before fix: replaceAll_done appears here, before lock_released.
+      // PASSES after fix: replaceAll is still pending.
+      expect(order).not.toContain('replaceAll_done');
+
+      // Release the lock and wait for both to settle.
+      releaseLock();
+      await Promise.all([lockHolder, replaceAllDone]);
+
+      // After fix: lock must be fully released before replaceAll executes.
+      expect(order).toEqual(['lock_acquired', 'lock_released', 'replaceAll_done']);
     });
   });
 });

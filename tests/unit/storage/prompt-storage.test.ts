@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PromptStorage } from '@core/storage/prompt-storage';
-import type { Prompt, PromptFolder } from '@core/types/prompt.types';
+import { withStorageLock } from '@core/storage/storage-mutex';
+import type { Prompt, PromptFolder, PromptCategory, PromptTag } from '@core/types/prompt.types';
 
 vi.mock('@core/services/limits/limit-guard', () => ({
   guardAction: vi.fn().mockResolvedValue(undefined),
@@ -257,5 +258,85 @@ describe('PromptStorage — source migration', () => {
     setupStorage({ prompts: [makePrompt('a', { source: 'app' })] });
     const result = await PromptStorage.getAll();
     expect(result[0].source).toBe('app');
+  });
+
+  // ── setCategories lock compliance ───────────────────────────────────────
+
+  describe('setCategories — lock compliance', () => {
+    function makeCategory(id: string): PromptCategory {
+      return { id, name: `Cat ${id}`, icon: '📁', color: '#000', createdAt: '2025-01-01T00:00:00.000Z' };
+    }
+
+    it('setCategories waits for in-flight locked operations on prompt_categories', async () => {
+      setupStorage({ prompt_categories: [] });
+      const order: string[] = [];
+
+      let releaseLock!: () => void;
+      const lockBarrier = new Promise<void>((res) => { releaseLock = res; });
+
+      const lockHolder = withStorageLock('prompt_categories', async () => {
+        order.push('lock_acquired');
+        await lockBarrier;
+        order.push('lock_released');
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const setCatDone = PromptStorage.setCategories([makeCategory('new')]).then(() => {
+        order.push('setCategories_done');
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // FAILS before fix: setCategories bypasses the lock and runs immediately.
+      expect(order).not.toContain('setCategories_done');
+
+      releaseLock();
+      await Promise.all([lockHolder, setCatDone]);
+
+      expect(order).toEqual(['lock_acquired', 'lock_released', 'setCategories_done']);
+    });
+  });
+
+  // ── setTags lock compliance ─────────────────────────────────────────────
+
+  describe('setTags — lock compliance', () => {
+    function makeTag(id: string): PromptTag {
+      return { id, name: `tag-${id}`, color: '#000' };
+    }
+
+    it('setTags waits for in-flight locked operations on prompt_tags', async () => {
+      setupStorage({ prompt_tags: [] });
+      const order: string[] = [];
+
+      let releaseLock!: () => void;
+      const lockBarrier = new Promise<void>((res) => { releaseLock = res; });
+
+      const lockHolder = withStorageLock('prompt_tags', async () => {
+        order.push('lock_acquired');
+        await lockBarrier;
+        order.push('lock_released');
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const setTagDone = PromptStorage.setTags([makeTag('new')]).then(() => {
+        order.push('setTags_done');
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // FAILS before fix: setTags bypasses the lock and runs immediately.
+      expect(order).not.toContain('setTags_done');
+
+      releaseLock();
+      await Promise.all([lockHolder, setTagDone]);
+
+      expect(order).toEqual(['lock_acquired', 'lock_released', 'setTags_done']);
+    });
   });
 });

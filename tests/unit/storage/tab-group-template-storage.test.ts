@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
+import { withStorageLock } from '@core/storage/storage-mutex';
 import type { TabGroupTemplate } from '@core/types/tab-group.types';
 
 vi.mock('@core/services/limits/limit-guard', () => ({
@@ -120,5 +121,39 @@ describe('TabGroupTemplateStorage', () => {
     setupStorage({ tab_group_templates: [makeTemplate()] });
     await TabGroupTemplateStorage.delete('no-such-key');
     expect(await TabGroupTemplateStorage.getAll()).toHaveLength(1);
+  });
+
+  // ── replaceAll (Bug #2 — lock compliance) ────────────────────────────────
+
+  it('Bug #2 — replaceAll waits for in-flight locked operations on tab_group_templates', async () => {
+    setupStorage({ tab_group_templates: [makeTemplate({ key: 'original' })] });
+    const order: string[] = [];
+
+    let releaseLock!: () => void;
+    const lockBarrier = new Promise<void>((res) => { releaseLock = res; });
+
+    const lockHolder = withStorageLock('tab_group_templates', async () => {
+      order.push('lock_acquired');
+      await lockBarrier;
+      order.push('lock_released');
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const replaceAllDone = TabGroupTemplateStorage.replaceAll([makeTemplate({ key: 'replaced' })]).then(() => {
+      order.push('replaceAll_done');
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // FAILS before fix: replaceAll bypasses the lock and runs immediately.
+    expect(order).not.toContain('replaceAll_done');
+
+    releaseLock();
+    await Promise.all([lockHolder, replaceAllDone]);
+
+    expect(order).toEqual(['lock_acquired', 'lock_released', 'replaceAll_done']);
   });
 });
