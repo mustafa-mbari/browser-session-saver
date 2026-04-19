@@ -2,6 +2,16 @@ import type { PlanTier, ActionUsage, LimitStatus } from '@core/types/limits.type
 import { PLAN_LIMITS } from '@core/types/limits.types';
 import { withStorageLock } from '@core/storage/storage-mutex';
 
+export class ActionLimitError extends Error {
+  readonly status: LimitStatus;
+
+  constructor(status: LimitStatus) {
+    super('Action limit reached');
+    this.name = 'ActionLimitError';
+    this.status = status;
+  }
+}
+
 const USAGE_KEY = 'action_usage';
 const PLAN_KEY = 'cached_plan';
 const GUEST_LIMITS_KEY = 'cached_guest_limits';
@@ -34,6 +44,46 @@ export async function getActionUsage(): Promise<ActionUsage> {
 export function incrementAction(count = 1): Promise<void> {
   return withStorageLock(USAGE_KEY, async () => {
     const usage = await getActionUsage();
+    const updated: ActionUsage = {
+      daily:   { ...usage.daily,   count: usage.daily.count + count },
+      monthly: { ...usage.monthly, count: usage.monthly.count + count },
+    };
+    await chrome.storage.local.set({ [USAGE_KEY]: updated });
+  });
+}
+
+/**
+ * Atomically checks the limit and increments the counter in a single lock.
+ * Throws ActionLimitError if incrementing by `count` would exceed the daily
+ * or monthly limit. Called by guardAction — do NOT call incrementAction separately.
+ */
+export function checkAndIncrementAction(count = 1): Promise<void> {
+  return withStorageLock(USAGE_KEY, async () => {
+    const usage = await getActionUsage();
+    const tier = await getCachedPlanTier();
+    let limits = PLAN_LIMITS[tier];
+
+    if (tier === 'guest') {
+      const cached = await chrome.storage.local.get(GUEST_LIMITS_KEY);
+      const dynamic = cached[GUEST_LIMITS_KEY] as { daily: number; monthly: number } | undefined;
+      if (dynamic?.daily && dynamic?.monthly) limits = dynamic;
+    }
+
+    const dailyBlocked   = usage.daily.count + count > limits.daily;
+    const monthlyBlocked = usage.monthly.count + count > limits.monthly;
+
+    if (dailyBlocked || monthlyBlocked) {
+      throw new ActionLimitError({
+        tier,
+        dailyUsed:    usage.daily.count,
+        dailyLimit:   limits.daily,
+        monthlyUsed:  usage.monthly.count,
+        monthlyLimit: limits.monthly,
+        dailyBlocked,
+        monthlyBlocked,
+      });
+    }
+
     const updated: ActionUsage = {
       daily:   { ...usage.daily,   count: usage.daily.count + count },
       monthly: { ...usage.monthly, count: usage.monthly.count + count },

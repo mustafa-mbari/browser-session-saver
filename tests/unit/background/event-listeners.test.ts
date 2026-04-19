@@ -397,6 +397,37 @@ describe('handleMessage', () => {
     });
   });
 
+  // ── UPDATE_SESSION_TABS ───────────────────────────────────────────────────
+  describe('UPDATE_SESSION_TABS', () => {
+    it('calls guardAction when the session exists', async () => {
+      const session = makeSession({ id: 's1' });
+      mockGetSession.mockResolvedValueOnce(session);
+      // chrome.windows.getCurrent, chrome.tabs.query, chrome.tabGroups.query
+      // all default to returning valid empty results (see setup.ts global mocks).
+
+      await dispatch({ action: 'UPDATE_SESSION_TABS', payload: { sessionId: 's1' } });
+
+      // handleUpdateSessionTabs currently has NO guardAction call → this FAILS before fix.
+      expect(mockGuardAction).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns success: false when guardAction throws ActionLimitError', async () => {
+      const session = makeSession({ id: 's1' });
+      mockGetSession.mockResolvedValueOnce(session);
+      mockGuardAction.mockRejectedValueOnce(
+        new ActionLimitError({ tier: 'guest', dailyBlocked: true }),
+      );
+
+      const res = await dispatch({
+        action: 'UPDATE_SESSION_TABS',
+        payload: { sessionId: 's1' },
+      });
+
+      expect(res.success).toBe(false);
+      expect(res.error).toBe('Action limit reached');
+    });
+  });
+
   // ── Unknown action ────────────────────────────────────────────────────────
   describe('unknown action', () => {
     it('returns success: false with an error for an unrecognised action', async () => {

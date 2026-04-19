@@ -83,26 +83,32 @@ async function handleSaveSession(payload: {
   closeAfter?: boolean;
   allWindows?: boolean;
 }): Promise<MessageResponse<SaveSessionResponse>> {
-  await guardAction();
-
   if (payload.allWindows) {
     const windows = await chrome.windows.getAll({ populate: false });
-    const sessions: Session[] = [];
+    type WinData = { id: number; tabs: chrome.tabs.Tab[]; groups: chrome.tabGroups.TabGroup[] };
+    const validWindows: WinData[] = [];
     for (const win of windows) {
       if (!win.id) continue;
       const chromeTabs = await chrome.tabs.query({ windowId: win.id });
       if (chromeTabs.length === 0) continue;
       const chromeGroups = await chrome.tabGroups.query({ windowId: win.id });
-      const { tabs, tabGroups } = captureTabGroups(chromeTabs, chromeGroups);
+      validWindows.push({ id: win.id, tabs: chromeTabs, groups: chromeGroups });
+    }
+    await guardAction(validWindows.length);
+    const sessions: Session[] = [];
+    for (const wd of validWindows) {
+      const { tabs, tabGroups } = captureTabGroups(wd.tabs, wd.groups);
       const session = await SessionService.saveSession(tabs, tabGroups, {
         name: payload.name,
-        windowId: win.id,
+        windowId: wd.id,
       });
       sessions.push(session);
     }
-    void trackAction(sessions.length);
+    void trackAction();
     return { success: true, data: { session: sessions, isDuplicate: false } };
   }
+
+  await guardAction();
 
   const windowId = payload.windowId ?? (await getCurrentWindowId());
   const chromeTabs = await chrome.tabs.query({ windowId });
@@ -373,10 +379,10 @@ async function handleImportSessions(payload: {
     return { success: false, data: { imported: 0, errors: result.errors }, error: result.errors.join('; ') || 'No valid sessions to import' };
   }
 
-  await guardAction();
+  await guardAction(validSessions.length);
   const repo = getSessionRepository();
   await Promise.all(validSessions.map(s => repo.save(s)));
-  void trackAction(validSessions.length);
+  void trackAction();
 
   return {
     success: true,
@@ -409,7 +415,7 @@ async function handleMergeSessions(payload: {
   }
   if (sessions.length < 2) return { success: false, error: 'Need at least 2 sessions to merge' };
 
-  await guardAction();
+  await guardAction(sessions.length);
 
   // Deduplicate tabs by URL, preserving first occurrence; flatten tab groups
   const seenUrls = new Set<string>();
@@ -518,6 +524,8 @@ async function handleUpdateSessionTabs(payload: {
   const session = await SessionService.getSession(payload.sessionId);
   if (!session) return { success: false, error: 'Session not found' };
 
+  await guardAction();
+
   const windowId = await getCurrentWindowId();
   const [chromeTabs, chromeGroups] = await Promise.all([
     chrome.tabs.query({ windowId }),
@@ -555,6 +563,7 @@ async function handleUpdateSessionTabs(payload: {
     tabCount: finalTabs.length,
   });
 
+  void trackAction();
   return { success: true, data: { addedCount: newTabs.length, removedCount } };
 }
 

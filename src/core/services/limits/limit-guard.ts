@@ -1,35 +1,22 @@
-import type { LimitStatus } from '@core/types/limits.types';
-import { getLimitStatus, incrementAction } from './action-tracker';
+import { checkAndIncrementAction } from './action-tracker';
 
-export class ActionLimitError extends Error {
-  readonly status: LimitStatus;
+// Re-exported so call sites that import ActionLimitError from this module continue to work.
+export { ActionLimitError } from './action-tracker';
 
-  constructor(status: LimitStatus) {
-    super('Action limit reached');
-    this.name = 'ActionLimitError';
-    this.status = status;
-  }
+/**
+ * Call BEFORE a mutation. Atomically checks the limit and increments the counter.
+ * Throws ActionLimitError if the daily or monthly limit would be exceeded.
+ */
+export async function guardAction(count = 1): Promise<void> {
+  await checkAndIncrementAction(count);
 }
 
 /**
- * Call BEFORE a mutation. Throws ActionLimitError if the user is at their
- * daily or monthly limit.
+ * Call AFTER a successful mutation. Fire-and-forgets an upsert to Supabase so
+ * the web dashboard can display counts. The local counter is already incremented
+ * by guardAction — this function only handles remote reporting.
  */
-export async function guardAction(): Promise<void> {
-  const status = await getLimitStatus();
-  if (status.dailyBlocked || status.monthlyBlocked) {
-    throw new ActionLimitError(status);
-  }
-}
-
-/**
- * Call AFTER a successful mutation. Increments the local counter and,
- * for signed-in users, fire-and-forgets an upsert to Supabase so the
- * web dashboard can display counts.
- */
-export async function trackAction(count = 1): Promise<void> {
-  await incrementAction(count);
-  // Fire-and-forget remote upsert for signed-in users
+export async function trackAction(_count = 1): Promise<void> {
   void reportActionToSupabase();
 }
 
@@ -51,7 +38,7 @@ async function reportActionToSupabase(): Promise<void> {
     }
 
     // Guest path: track usage so counts can be merged when the user later signs in.
-    // Uses getGuestId (non-creating) — if no guest_id exists yet this is a no-op.
+    // Uses getOrCreateGuestId — creates a guest_id on first tracked action.
     const { getOrCreateGuestId } = await import('@core/services/guest.service');
     const guestId = await getOrCreateGuestId();
     await supabase.rpc('upsert_guest_action_usage', {

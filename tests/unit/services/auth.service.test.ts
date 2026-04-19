@@ -5,6 +5,10 @@ vi.mock('@core/services/limits/action-tracker', () => ({
   cachePlanTier:     vi.fn(async () => undefined),
   getCachedPlanTier: vi.fn(async () => 'guest'),
   setActionUsage:    vi.fn(async () => undefined),
+  getActionUsage:    vi.fn(async () => ({
+    daily:   { date: new Date().toISOString().slice(0, 10), count: 0 },
+    monthly: { month: new Date().toISOString().slice(0, 7), count: 0 },
+  })),
 }));
 
 // ── Mock guest.service ────────────────────────────────────────────────────────
@@ -42,7 +46,7 @@ import {
   isAuthenticated,
   getEmail,
 } from '@core/services/auth.service';
-import { cachePlanTier } from '@core/services/limits/action-tracker';
+import { cachePlanTier, setActionUsage, getActionUsage } from '@core/services/limits/action-tracker';
 import { getGuestId, clearGuestId } from '@core/services/guest.service';
 
 beforeEach(() => {
@@ -226,6 +230,132 @@ describe('getEmail', () => {
       data: { session: null },
     });
     expect(await getEmail()).toBeNull();
+  });
+});
+
+// ── syncUsageFromServer local-wins ────────────────────────────────────────────
+
+describe('syncUsageFromServer local-wins', () => {
+  const TODAY = new Date().toISOString().slice(0, 10);
+  const MONTH = new Date().toISOString().slice(0, 7);
+
+  it('preserves local counts when they are higher than the server counts', async () => {
+    // Local has 10 actions; server only reports 3 — local must win.
+    vi.mocked(getActionUsage).mockResolvedValueOnce({
+      daily:   { date: TODAY, count: 10 },
+      monthly: { month: MONTH, count: 50 },
+    });
+
+    mockSupabase.from.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: {
+            daily_date:    TODAY,
+            daily_count:   3,
+            monthly_month: MONTH,
+            monthly_count: 15,
+          },
+          error: null,
+        }),
+      }),
+    });
+
+    mockSupabase.auth.signInWithPassword.mockResolvedValueOnce({
+      data: { user: { id: 'user-123', email: 'test@example.com' }, session: null },
+      error: null,
+    });
+
+    await signIn('test@example.com', 'password123');
+    // Allow the fire-and-forget syncUsageFromServer to settle
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Current code unconditionally overwrites with server value (3) — test FAILS before fix.
+    // After fix: Math.max(10, 3) = 10 is used.
+    expect(setActionUsage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        daily:   expect.objectContaining({ count: 10 }),
+        monthly: expect.objectContaining({ count: 50 }),
+      }),
+    );
+  });
+
+  it('uses server counts when they are higher than local counts', async () => {
+    // Fresh install (local=0), server has accumulated 15 — server must win.
+    vi.mocked(getActionUsage).mockResolvedValueOnce({
+      daily:   { date: TODAY, count: 0 },
+      monthly: { month: MONTH, count: 0 },
+    });
+
+    mockSupabase.from.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: {
+            daily_date:    TODAY,
+            daily_count:   15,
+            monthly_month: MONTH,
+            monthly_count: 100,
+          },
+          error: null,
+        }),
+      }),
+    });
+
+    mockSupabase.auth.signInWithPassword.mockResolvedValueOnce({
+      data: { user: { id: 'user-123', email: 'test@example.com' }, session: null },
+      error: null,
+    });
+
+    await signIn('test@example.com', 'password123');
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(setActionUsage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        daily:   expect.objectContaining({ count: 15 }),
+        monthly: expect.objectContaining({ count: 100 }),
+      }),
+    );
+  });
+
+  it('uses local daily count when higher but server monthly count when higher (independent)', async () => {
+    vi.mocked(getActionUsage).mockResolvedValueOnce({
+      daily:   { date: TODAY, count: 8 },
+      monthly: { month: MONTH, count: 2 },
+    });
+
+    mockSupabase.from.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: {
+            daily_date:    TODAY,
+            daily_count:   3,
+            monthly_month: MONTH,
+            monthly_count: 40,
+          },
+          error: null,
+        }),
+      }),
+    });
+
+    mockSupabase.auth.signInWithPassword.mockResolvedValueOnce({
+      data: { user: { id: 'user-123', email: 'test@example.com' }, session: null },
+      error: null,
+    });
+
+    await signIn('test@example.com', 'password123');
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(setActionUsage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        daily:   expect.objectContaining({ count: 8 }),   // local wins
+        monthly: expect.objectContaining({ count: 40 }),  // server wins
+      }),
+    );
   });
 });
 

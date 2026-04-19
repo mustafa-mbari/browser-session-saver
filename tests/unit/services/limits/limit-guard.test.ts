@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// ── Mock action-tracker so we control limit status ────────────────────────────
+// ── Mock action-tracker so we control check+increment behaviour ───────────────
 const mockLimitStatus = vi.hoisted(() => ({
   tier: 'guest' as const,
   dailyUsed: 0, dailyLimit: 3,
@@ -9,11 +9,27 @@ const mockLimitStatus = vi.hoisted(() => ({
   monthlyBlocked: false,
 }));
 
-vi.mock('@core/services/limits/action-tracker', () => ({
-  getLimitStatus:  vi.fn(async () => ({ ...mockLimitStatus })),
-  incrementAction: vi.fn(async () => undefined),
-  getCachedPlanTier: vi.fn(async () => 'guest'),
-}));
+// checkAndIncrementAction either resolves or throws ActionLimitError.
+// Default behaviour: resolves (under limit). Tests override with mockRejectedValueOnce.
+const mockCheckAndIncrement = vi.hoisted(() => vi.fn(async () => undefined));
+
+vi.mock('@core/services/limits/action-tracker', () => {
+  class ActionLimitError extends Error {
+    status: unknown;
+    constructor(status: unknown) {
+      super('Action limit reached');
+      this.name = 'ActionLimitError';
+      this.status = status;
+    }
+  }
+  return {
+    checkAndIncrementAction: mockCheckAndIncrement,
+    ActionLimitError,
+    getLimitStatus:    vi.fn(async () => ({ ...mockLimitStatus })),
+    incrementAction:   vi.fn(async () => undefined),
+    getCachedPlanTier: vi.fn(async () => 'guest'),
+  };
+});
 
 // ── Mock Supabase so trackAction's fire-and-forget does not throw ─────────────
 vi.mock('@core/supabase/client', () => ({
@@ -26,18 +42,12 @@ vi.mock('@core/supabase/client', () => ({
 }));
 
 import { guardAction, trackAction, ActionLimitError } from '@core/services/limits/limit-guard';
-import { getLimitStatus, incrementAction } from '@core/services/limits/action-tracker';
+import { checkAndIncrementAction } from '@core/services/limits/action-tracker';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Reset to default "under limit" state
-  mockLimitStatus.dailyBlocked   = false;
-  mockLimitStatus.monthlyBlocked = false;
-  mockLimitStatus.dailyUsed      = 0;
-  mockLimitStatus.monthlyUsed    = 0;
-  (getLimitStatus as ReturnType<typeof vi.fn>).mockImplementation(
-    async () => ({ ...mockLimitStatus }),
-  );
+  // Default: checkAndIncrementAction resolves (under limit)
+  mockCheckAndIncrement.mockResolvedValue(undefined);
 });
 
 // ── ActionLimitError ──────────────────────────────────────────────────────────
@@ -72,33 +82,22 @@ describe('guardAction', () => {
   });
 
   it('throws ActionLimitError when daily limit is blocked', async () => {
-    mockLimitStatus.dailyBlocked = true;
-    mockLimitStatus.dailyUsed = 3;
-    (getLimitStatus as ReturnType<typeof vi.fn>).mockImplementation(
-      async () => ({ ...mockLimitStatus }),
+    mockCheckAndIncrement.mockRejectedValueOnce(
+      new ActionLimitError({ ...mockLimitStatus, dailyBlocked: true, dailyUsed: 3 }),
     );
-
     await expect(guardAction()).rejects.toBeInstanceOf(ActionLimitError);
   });
 
   it('throws ActionLimitError when monthly limit is blocked', async () => {
-    mockLimitStatus.monthlyBlocked = true;
-    mockLimitStatus.monthlyUsed = 20;
-    (getLimitStatus as ReturnType<typeof vi.fn>).mockImplementation(
-      async () => ({ ...mockLimitStatus }),
+    mockCheckAndIncrement.mockRejectedValueOnce(
+      new ActionLimitError({ ...mockLimitStatus, monthlyBlocked: true, monthlyUsed: 20 }),
     );
-
     await expect(guardAction()).rejects.toBeInstanceOf(ActionLimitError);
   });
 
   it('attaches the current LimitStatus to the thrown error', async () => {
-    mockLimitStatus.dailyBlocked = true;
-    mockLimitStatus.dailyUsed    = 3;
-    mockLimitStatus.dailyLimit   = 3;
-    mockLimitStatus.tier         = 'guest';
-    (getLimitStatus as ReturnType<typeof vi.fn>).mockImplementation(
-      async () => ({ ...mockLimitStatus }),
-    );
+    const status = { ...mockLimitStatus, dailyBlocked: true, dailyUsed: 3, dailyLimit: 3 };
+    mockCheckAndIncrement.mockRejectedValueOnce(new ActionLimitError(status));
 
     let caught: ActionLimitError | undefined;
     try {
@@ -112,25 +111,25 @@ describe('guardAction', () => {
     expect(caught!.status.dailyLimit).toBe(3);
   });
 
-  it('calls getLimitStatus exactly once', async () => {
+  it('calls checkAndIncrementAction exactly once', async () => {
     await guardAction();
-    expect(getLimitStatus).toHaveBeenCalledTimes(1);
+    expect(checkAndIncrementAction).toHaveBeenCalledTimes(1);
   });
 });
 
 // ── trackAction ───────────────────────────────────────────────────────────────
 
 describe('trackAction', () => {
-  it('increments the local counter', async () => {
-    await trackAction();
-    expect(incrementAction).toHaveBeenCalledTimes(1);
-  });
-
   it('resolves without throwing even when Supabase is unavailable', async () => {
     await expect(trackAction()).resolves.toBeUndefined();
   });
 
   it('resolves without throwing when not signed in', async () => {
     await expect(trackAction()).resolves.toBeUndefined();
+  });
+
+  it('does not call checkAndIncrementAction (remote-only)', async () => {
+    await trackAction();
+    expect(checkAndIncrementAction).not.toHaveBeenCalled();
   });
 });
