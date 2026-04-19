@@ -1,13 +1,8 @@
 function logoOrText(): string {
-  const logoUrl    = process.env.SMTP_LOGO_URL || ''
   const websiteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://browserhub.app'
-  if (logoUrl) {
-    return `<a href="${websiteUrl}" style="text-decoration: none;">
-              <img src="${logoUrl}" alt="Browser Hub" width="120" style="display: block; width: 120px; height: auto;">
-            </a>`
-  }
-  return `<a href="${websiteUrl}" style="text-decoration: none; font-size: 22px; font-weight: 700; color: #1c1917; letter-spacing: -0.5px;">
-            Browser Hub
+  const logoUrl    = process.env.SMTP_LOGO_URL || `${websiteUrl}/icons/browser-hub_logo.png`
+  return `<a href="${websiteUrl}" style="text-decoration: none;">
+            <img src="${logoUrl}" alt="Browser Hub" width="120" style="display: block; width: 120px; height: auto;">
           </a>`
 }
 

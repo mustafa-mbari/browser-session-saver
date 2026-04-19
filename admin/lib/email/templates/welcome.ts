@@ -22,12 +22,6 @@ export function buildWelcomeEmail(params: { displayName: string | null }): { sub
             </tr>
             <tr>
               <td style="padding: 8px 0;">
-                <strong style="color: #1c1917; font-size: 14px;">&#9729;&#65039; Cloud sync</strong>
-                <br><span style="color: #78716c; font-size: 13px;">Sync sessions and prompts seamlessly across devices</span>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0;">
                 <strong style="color: #1c1917; font-size: 14px;">&#128218; Tab groups &amp; templates</strong>
                 <br><span style="color: #78716c; font-size: 13px;">Organise and reuse your favourite tab group setups</span>
               </td>

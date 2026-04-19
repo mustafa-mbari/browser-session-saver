@@ -46,7 +46,7 @@ export default async function StatsPage() {
     { label: 'Total Sessions Saved',  value: stats?.totalSessions?.toString() ?? '—',    icon: Layers,      iconBg: 'bg-amber-100 dark:bg-amber-900/30',     iconColor: 'text-amber-600 dark:text-amber-400' },
     { label: 'Sessions Today',        value: stats?.sessionsToday?.toString() ?? '—',    icon: BarChart3,   iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', iconColor: 'text-emerald-600 dark:text-emerald-400' },
     { label: 'Total Prompts',         value: stats?.totalPrompts?.toString() ?? '—',     icon: Sparkles,    iconBg: 'bg-rose-100 dark:bg-rose-900/30',       iconColor: 'text-rose-600 dark:text-rose-400' },
-    { label: 'Synced Folders',        value: stats?.totalFolders?.toString() ?? '—',     icon: Folder,      iconBg: 'bg-blue-100 dark:bg-blue-900/30',       iconColor: 'text-blue-600 dark:text-blue-400' },
+    { label: 'Bookmark Folders',        value: stats?.totalFolders?.toString() ?? '—',     icon: Folder,      iconBg: 'bg-blue-100 dark:bg-blue-900/30',       iconColor: 'text-blue-600 dark:text-blue-400' },
     { label: 'Tracked Subscriptions', value: stats?.totalSubs?.toString() ?? '—',        icon: CreditCard,  iconBg: 'bg-purple-100 dark:bg-purple-900/30',   iconColor: 'text-purple-600 dark:text-purple-400' },
   ]
 

@@ -20,6 +20,7 @@ import {
   LifeBuoy,
   Lightbulb,
   Gauge,
+  SlidersHorizontal,
   LogOut,
   Sun,
   Moon,
@@ -38,6 +39,7 @@ const NAV_ITEMS = [
   { href: '/tickets', label: 'Tickets', icon: LifeBuoy },
   { href: '/suggestions', label: 'Suggestions', icon: Lightbulb },
   { href: '/quotas', label: 'Quotas', icon: Gauge },
+  { href: '/user-limits', label: 'User Limits', icon: SlidersHorizontal },
   { href: '/emails', label: 'Emails', icon: Mail },
 ]
 

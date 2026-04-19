@@ -20,7 +20,7 @@ export function buildTrialEndingEmail(params: {
         <td style="padding: 16px; background-color: #eef2ff; border-radius: 8px; border: 1px solid #c7d2fe;">
           <p style="margin: 0 0 8px; font-size: 14px; font-weight: 600; color: #1c1917;">What you'll keep with Premium:</p>
           <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
-            <tr><td style="padding: 4px 0; font-size: 14px; color: #44403c;">&#10003; Unlimited session saves &amp; cloud sync</td></tr>
+            <tr><td style="padding: 4px 0; font-size: 14px; color: #44403c;">&#10003; Higher action limits (daily &amp; monthly)</td></tr>
             <tr><td style="padding: 4px 0; font-size: 14px; color: #44403c;">&#10003; Tab group templates &amp; auto-save</td></tr>
             <tr><td style="padding: 4px 0; font-size: 14px; color: #44403c;">&#10003; Prompt manager &amp; folder organisation</td></tr>
             <tr><td style="padding: 4px 0; font-size: 14px; color: #44403c;">&#10003; Subscription tracker &amp; reminders</td></tr>

@@ -13,10 +13,10 @@ const TITLES: Record<BillingEvent, string> = {
 }
 
 const MESSAGES: Record<BillingEvent, string> = {
-  subscription_created:  'Your Browser Hub premium subscription is now active. Enjoy unlimited session sync, cloud backup, and all premium features.',
+  subscription_created:  'Your Browser Hub premium subscription is now active. Enjoy all premium features with higher daily and monthly action limits.',
   subscription_renewed:  'Your Browser Hub premium subscription has been successfully renewed. Thank you for your continued support!',
   subscription_cancelled: 'Your subscription has been cancelled. You\'ll continue to have access until the end of your current billing period.',
-  trial_started:         'Your Browser Hub premium trial has started. Explore unlimited sessions, cloud sync, and everything else we have to offer!',
+  trial_started:         'Your Browser Hub premium trial has started. Explore unlimited sessions and everything else we have to offer!',
 }
 
 export function buildBillingNotificationEmail(params: {
