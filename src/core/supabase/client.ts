@@ -18,6 +18,11 @@ const chromeAuthStorage = {
 // VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are injected at build time.
 // Placeholder values are used when env vars are absent (e.g. in tests) so the
 // module can be imported without throwing — API calls will simply fail gracefully.
+//
+// Security: The anon key is intentionally client-side. All data access is
+// enforced by Supabase Row Level Security (RLS) policies — the key itself
+// provides no privileged access. This is the expected usage pattern for
+// browser-based Supabase clients.
 const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? 'https://placeholder.supabase.co';
 const supabaseKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ?? 'placeholder-anon-key';
 

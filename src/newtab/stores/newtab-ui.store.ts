@@ -39,7 +39,7 @@ interface NewTabUIState {
   setLoading: (v: boolean) => void;
 }
 
-export const useNewTabUIStore = create<NewTabUIState>((set) => ({
+export const useNewTabUIStore = create<NewTabUIState>((set, get) => ({
   settings: DEFAULT_NEWTAB_SETTINGS,
   layoutMode: DEFAULT_NEWTAB_SETTINGS.layoutMode,
   activeView: 'bookmarks',
@@ -50,12 +50,18 @@ export const useNewTabUIStore = create<NewTabUIState>((set) => ({
   isLoading: true,
 
   setSettings: (s) => set({ settings: s, layoutMode: s.layoutMode }),
-  updateSettings: (partial) => {
-    void updateNewTabSettings(partial);
+  // Optimistic update: apply immediately, revert on persistence failure.
+  updateSettings: async (partial) => {
+    const prev = get().settings;
     set((state) => ({
       settings: { ...state.settings, ...partial },
       layoutMode: partial.layoutMode ?? state.layoutMode,
     }));
+    try {
+      await updateNewTabSettings(partial);
+    } catch {
+      set({ settings: prev, layoutMode: prev.layoutMode });
+    }
   },
   setLayoutMode: (mode) => set({ layoutMode: mode }),
   setActiveView: (view) => set({ activeView: view }),

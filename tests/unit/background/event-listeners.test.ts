@@ -428,6 +428,23 @@ describe('handleMessage', () => {
     });
   });
 
+  // ── GET_LIMIT_STATUS (T-04) ──────────────────────────────────────────────
+  describe('GET_LIMIT_STATUS', () => {
+    it('returns a complete LimitStatus shape', async () => {
+      const res = await dispatch({ action: 'GET_LIMIT_STATUS', payload: {} });
+
+      expect(res.success).toBe(true);
+      const data = res.data as Record<string, unknown>;
+      expect(typeof data.tier).toBe('string');
+      expect(typeof data.dailyUsed).toBe('number');
+      expect(typeof data.dailyLimit).toBe('number');
+      expect(typeof data.monthlyUsed).toBe('number');
+      expect(typeof data.monthlyLimit).toBe('number');
+      expect(typeof data.dailyBlocked).toBe('boolean');
+      expect(typeof data.monthlyBlocked).toBe('boolean');
+    });
+  });
+
   // ── Unknown action ────────────────────────────────────────────────────────
   describe('unknown action', () => {
     it('returns success: false with an error for an unrecognised action', async () => {

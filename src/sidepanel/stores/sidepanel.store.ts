@@ -42,6 +42,8 @@ export const useSidePanelStore = create<SidePanelState>((set) => ({
   sortDirection: 'desc',
   focusSearch: null,
   selectedSessionIds: new Set<string>(),
+  // Invariant: isSelectionMode === (selectedSessionIds.size > 0).
+  // Both fields are always updated together in toggleSelection and clearSelection.
   isSelectionMode: false,
   activeHomeTab: 'session',
   activeNavBarTab: 'menu',

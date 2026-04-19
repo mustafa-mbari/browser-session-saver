@@ -176,7 +176,7 @@ export default function ImportExportView() {
         setTimeout(() => window.location.reload(), 1500);
       }
     } catch (e) {
-      setImportResult({ success: false, importedCounts: {}, skippedModules: [], errors: [String(e)] });
+      setImportResult({ success: false, importedCounts: {}, skippedModules: [], errors: [String(e)], moduleStatus: {} });
     }
     setImporting(false);
   };

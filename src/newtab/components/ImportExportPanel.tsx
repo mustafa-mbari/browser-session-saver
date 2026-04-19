@@ -182,7 +182,7 @@ export default function ImportExportPanel() {
         await refreshSessions();
       }
     } catch (e) {
-      setImportResult({ success: false, importedCounts: {}, skippedModules: [], errors: [String(e)] });
+      setImportResult({ success: false, importedCounts: {}, skippedModules: [], errors: [String(e)], moduleStatus: {} });
       setShowPreviewModal(false);
     }
     setImporting(false);

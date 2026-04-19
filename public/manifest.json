@@ -26,6 +26,10 @@
     "https://*.supabase.co/*",
     "https://bh.mbari.de/*"
   ],
+  "_host_permissions_notes": {
+    "supabase": "Scoped to *.supabase.co — narrowing to a specific project ID requires a build-time substitution that is not yet wired up.",
+    "bh.mbari.de": "Custom backend host used by the merge-guest Edge Function and any future server-side endpoints."
+  },
   "chrome_url_overrides": {
     "newtab": "src/newtab/index.html"
   },

@@ -98,4 +98,29 @@ describe('newtab-ui.store', () => {
     act(() => { useNewTabUIStore.getState().setLayoutMode('dashboard'); });
     expect(useNewTabUIStore.getState().layoutMode).toBe('dashboard');
   });
+
+  // ── updateSettings error handling (T-12) ────────────────────────────────────
+
+  it('reverts store state when updateNewTabSettings persistence fails', async () => {
+    vi.mocked(updateNewTabSettings).mockRejectedValueOnce(new Error('storage full'));
+    const original = useNewTabUIStore.getState().settings.clockFormat;
+
+    await act(async () => {
+      await useNewTabUIStore.getState().updateSettings({ clockFormat: '24h' });
+    });
+
+    // After persistence failure, store must revert — not silently keep dirty state.
+    // Currently: state is updated and never reverted → this FAILS before fix.
+    expect(useNewTabUIStore.getState().settings.clockFormat).toBe(original);
+  });
+
+  it('keeps updated state when persistence succeeds', async () => {
+    vi.mocked(updateNewTabSettings).mockResolvedValueOnce({} as never);
+
+    await act(async () => {
+      await useNewTabUIStore.getState().updateSettings({ clockFormat: '24h' });
+    });
+
+    expect(useNewTabUIStore.getState().settings.clockFormat).toBe('24h');
+  });
 });
