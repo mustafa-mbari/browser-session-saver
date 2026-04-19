@@ -188,15 +188,27 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 
 ## Action Limits Feature Notes
 
-- **Plan tiers**: `PlanTier` = `'guest' | 'free' | 'pro' | 'lifetime'`; limits in `PLAN_LIMITS` in `src/core/types/limits.types.ts`
+- **Plan tiers**: `PlanTier` = `'guest' | 'free' | 'pro' | 'lifetime'`; limits in `PLAN_LIMITS` in `src/core/types/limits.types.ts`; guest limits are also fetched dynamically from Supabase at startup (see Guest Migration Feature Notes)
 - **Guard+track pattern**: every mutation service calls `await guardAction()` before the operation and `void trackAction()` after; `guardAction` throws `ActionLimitError` when the daily or monthly limit is reached
 - **Services with guard+track**: `bookmark.service.ts`, `quicklinks.service.ts`, `todo.service.ts`, `prompt-storage.ts`, `subscription-storage.ts`, `tab-group-template-storage.ts`; also `SAVE_SESSION`, `UPDATE_SESSION`, `DELETE_SESSION` handlers in `event-listeners.ts`
-- **Storage keys**: `action_usage` (daily/monthly counts with auto-reset), `cached_plan` (plan tier string) — both in `chrome.storage.local`
+- **Storage keys**: `action_usage` (daily/monthly counts with auto-reset), `cached_plan` (plan tier string), `cached_guest_limits` (dynamic guest limits from Supabase), `guest_id` (persistent UUID for unauthenticated users) — all in `chrome.storage.local`
 - **Plan tier caching**: `auth.service.ts` fetches tier via `get_user_plan_tier()` Supabase RPC on sign-in and resets to `'guest'` on sign-out
-- **Remote tracking**: `trackAction()` fire-and-forgets an upsert to `user_action_usage` Supabase table for signed-in users (local counter is source of truth)
+- **Remote tracking**: `trackAction()` fire-and-forgets an upsert to `user_action_usage` (signed-in) or `guest_action_usage` (guest) Supabase table; local counter is the source of truth
 - **UI**: `LimitReachedModal` in `src/shared/components/LimitReachedModal.tsx`; limit pill in `Header.tsx` (sidepanel); `LimitStatusRow` in `DashboardSidebar.tsx` (start-tab)
 - **Test mocking**: services that call `guardAction`/`trackAction` must mock `@core/services/limits/limit-guard` in their tests: `vi.mock('@core/services/limits/limit-guard', () => ({ guardAction: vi.fn().mockResolvedValue(undefined), trackAction: vi.fn().mockResolvedValue(undefined), ActionLimitError: class ActionLimitError extends Error {} }))`
-- **Supabase migrations**: `supabase/migrations/029_action_limits.sql` adds `daily_action_limit`/`monthly_action_limit` to plans + `user_action_usage` table + `upsert_action_usage` and `get_user_plan_tier` RPCs; `030_rename_max_to_lifetime.sql` renames plan; `031_drop_sync_tables.sql` drops old sync tables (run last after all installs migrated)
+- **Supabase migrations**: `029_action_limits.sql` adds `daily_action_limit`/`monthly_action_limit` to plans + `user_action_usage` table + `upsert_action_usage` and `get_user_plan_tier` RPCs; `030_rename_max_to_lifetime.sql` renames plan; `031_drop_sync_tables.sql` drops old sync tables; `036_guest_action_usage.sql` adds `guest_action_usage` table + `upsert_guest_action_usage` and `get_guest_limits` RPCs
+
+## Guest Migration Feature Notes
+
+- **Guest identity**: every unauthenticated user gets a persistent UUID stored in `chrome.storage.local['guest_id']`; created lazily on first tracked action via `getOrCreateGuestId()` in `src/core/services/guest.service.ts`
+- **Guest service**: `src/core/services/guest.service.ts` — `getOrCreateGuestId()` (create-on-demand), `getGuestId()` (read-only, returns `null` if absent), `clearGuestId()` (called after successful merge)
+- **Server-side tracking**: after each guest action, `reportActionToSupabase()` in `limit-guard.ts` calls `upsert_guest_action_usage(guest_id, date, month)` RPC fire-and-forget; uses `SECURITY DEFINER` so the anon role can call it without a JWT
+- **Dynamic guest limits**: `fetchAndCacheGuestLimits()` in `action-tracker.ts` is called at service worker startup; fetches from `get_guest_limits()` RPC and caches in `chrome.storage.local['cached_guest_limits']`; `getLimitStatus()` prefers the dynamic cache for the guest tier, falls back to `PLAN_LIMITS.guest` if offline
+- **Migration on sign-in**: `auth.service.ts` `signIn()` fire-and-forgets `mergeGuestOnSignIn(jwt)` after success; calls the `merge-guest` Supabase Edge Function which transfers guest action counts into `user_action_usage` and deletes the guest row; `clearGuestId()` is called only on `res.ok` so the ID is preserved for retry on network failure
+- **Edge Function**: `supabase/functions/merge-guest/index.ts` — validates JWT, reads `guest_action_usage`, merges counts (date-aware: only adds today's guest counts to today's user counts), upserts `user_action_usage`, deletes guest row; idempotent — second call returns `{ merged: false, reason: 'guest_not_found' }`
+- **DB table**: `guest_action_usage` (migration 036) — `guest_id UUID PK`, `daily_date`, `daily_count`, `monthly_month`, `monthly_count`, `updated_at`; RLS enabled with no policies (access only via SECURITY DEFINER RPCs or service-role Edge Function)
+- **Auth test mock**: tests for services that import `auth.service.ts` or `guest.service.ts` must add `vi.mock('@core/services/guest.service', () => ({ getGuestId: vi.fn(async () => null), clearGuestId: vi.fn(async () => undefined) }))`
+- **Deploy checklist**: apply migration 036 → set `SUPABASE_SERVICE_ROLE_KEY` secret → `supabase functions deploy merge-guest`
 
 ## Tab Groups Feature Notes
 
@@ -213,7 +225,7 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - Chrome APIs are mocked globally in `tests/setup.ts`
 - Unit tests in `tests/unit/` organized by module (utils, services, storage, contexts, config, components, hooks, stores, background)
   - `tests/unit/utils/` — uuid, date, validators, debounce, favicon, safe-open
-  - `tests/unit/services/` — search, export, import, session-count, session.service, subscription.service, prompt.service, bookmark.service, todo.service, quicklinks.service, seed.service, newtab-export.service, weather.service, tab-group.service, migration.service, newtab-settings.service, auth.service
+  - `tests/unit/services/` — search, export, import, session-count, session.service, subscription.service, prompt.service, bookmark.service, todo.service, quicklinks.service, seed.service, newtab-export.service, weather.service, tab-group.service, migration.service, newtab-settings.service, auth.service, guest.service
   - `tests/unit/services/limits/` — action-tracker, limit-guard
   - `tests/unit/storage/` — chrome-local-key-adapter, chrome-local-array-repository, newtab-storage, prompt-storage, subscription-storage, tab-group-template-storage, indexeddb, chrome-storage, storage-factory
   - `tests/unit/contexts/` — bookmark-board-context
@@ -222,7 +234,7 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
   - `tests/unit/stores/` — sidepanel.store, newtab-ui.store, newtab-data.store
   - `tests/unit/background/` — auto-save-engine, event-listeners, alarms, tab-group-restore
   - `tests/unit/config/` — widget-config
-- 661 tests across 64 test files
+- 677 tests across 65 test files
 - Run `npm test` before committing
 - Services that call `guardAction`/`trackAction` must mock `@core/services/limits/limit-guard` in their tests (see Action Limits Feature Notes above)
 
