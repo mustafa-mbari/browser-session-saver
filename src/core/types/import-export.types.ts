@@ -117,6 +117,7 @@ export interface FullImportResult {
   importedCounts: Partial<FullBackupCounts>;
   skippedModules: BackupModule[];
   errors: string[];
+  moduleStatus: Partial<Record<BackupModule, 'success' | 'failed' | 'skipped'>>;
 }
 
 // ── Supplementary export formats ──────────────────────────────────────────────

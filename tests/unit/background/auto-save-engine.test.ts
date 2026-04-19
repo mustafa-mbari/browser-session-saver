@@ -130,3 +130,132 @@ describe('updateSettings', () => {
     expect(mockClearAlarms).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// 3B-01 — onSuspend shutdown flag + startup deferred save
+// ---------------------------------------------------------------------------
+
+describe('onSuspend shutdown flag (3B-01)', () => {
+  it('writes pendingShutdownSave flag to storage.session when saveOnBrowserClose is true', () => {
+    initAutoSaveEngine(makeSettings({ enableAutoSave: true, saveOnBrowserClose: true }));
+
+    const onSuspendCb = vi.mocked(chrome.runtime.onSuspend.addListener).mock.calls[0]?.[0];
+    expect(onSuspendCb).toBeDefined();
+
+    // Fire the onSuspend listener
+    onSuspendCb!();
+
+    // After fix: pending_shutdown_save flag must be written to session storage.
+    // Currently: handler only calls performAutoSave (bare call), no flag write → FAILS.
+    expect(chrome.storage.session.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pending_shutdown_save: expect.objectContaining({ timestamp: expect.any(Number) }),
+      }),
+    );
+  });
+
+  it('does NOT write the flag when saveOnBrowserClose is false', () => {
+    initAutoSaveEngine(makeSettings({ enableAutoSave: true, saveOnBrowserClose: false }));
+
+    const onSuspendCb = vi.mocked(chrome.runtime.onSuspend.addListener).mock.calls[0]?.[0];
+    onSuspendCb?.();
+
+    expect(chrome.storage.session.set).not.toHaveBeenCalledWith(
+      expect.objectContaining({ pending_shutdown_save: expect.anything() }),
+    );
+  });
+});
+
+describe('checkPendingShutdownSave (3B-01)', () => {
+  it('is exported from auto-save-engine', async () => {
+    const mod = await import('@background/auto-save-engine');
+    // After fix: this function is exported.
+    // Currently: it does not exist → FAILS.
+    expect(typeof (mod as Record<string, unknown>).checkPendingShutdownSave).toBe('function');
+  });
+
+  it('triggers upsertAutoSaveSession when a recent flag exists and the tab cache is populated', async () => {
+    // Arrange: session storage returns a recent flag
+    (chrome.storage.session.get as ReturnType<typeof vi.fn>).mockImplementation(
+      async (key: string) => {
+        if (key === 'pending_shutdown_save') {
+          return { pending_shutdown_save: { timestamp: Date.now() } };
+        }
+        // Provide cached tab data for the engine to use
+        if (key === 'window_tab_cache') {
+          return {
+            window_tab_cache: {
+              1: {
+                tabs: [{ id: 'tab-1', url: 'https://example.com', title: 'Ex', favIconUrl: '', index: 0, pinned: false, groupId: -1, active: false, scrollPosition: { x: 0, y: 0 } }],
+                tabGroups: [],
+              },
+            },
+          };
+        }
+        return {};
+      },
+    );
+
+    // Re-import the module (already done in beforeEach via resetModules)
+    const mod = await import('@background/auto-save-engine');
+    initAutoSaveEngine = mod.initAutoSaveEngine;
+
+    // Initialise engine so the tab cache is rehydrated
+    initAutoSaveEngine(makeSettings({ enableAutoSave: true, saveOnBrowserClose: true }));
+
+    // Allow rehydrateTabCache to settle
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const { checkPendingShutdownSave } = mod as unknown as {
+      checkPendingShutdownSave?: () => Promise<void>;
+    };
+
+    if (!checkPendingShutdownSave) {
+      // Function doesn't exist yet — fail explicitly
+      throw new Error('checkPendingShutdownSave is not exported from auto-save-engine');
+    }
+
+    await checkPendingShutdownSave();
+
+    // After fix: upsertAutoSaveSession called with the cached tabs.
+    // Currently: function doesn't exist → test fails above.
+    expect(mockUpsertAutoSaveSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing when flag is absent', async () => {
+    (chrome.storage.session.get as ReturnType<typeof vi.fn>).mockResolvedValue({});
+
+    const mod = await import('@background/auto-save-engine');
+    const { checkPendingShutdownSave } = mod as unknown as {
+      checkPendingShutdownSave?: () => Promise<void>;
+    };
+
+    if (!checkPendingShutdownSave) return; // skip if not yet implemented
+
+    await checkPendingShutdownSave();
+    expect(mockUpsertAutoSaveSession).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when the flag is older than 30 minutes', async () => {
+    const thirtyOneMinutesAgo = Date.now() - 31 * 60 * 1000;
+    (chrome.storage.session.get as ReturnType<typeof vi.fn>).mockImplementation(
+      async (key: string) => {
+        if (key === 'pending_shutdown_save') {
+          return { pending_shutdown_save: { timestamp: thirtyOneMinutesAgo } };
+        }
+        return {};
+      },
+    );
+
+    const mod = await import('@background/auto-save-engine');
+    const { checkPendingShutdownSave } = mod as unknown as {
+      checkPendingShutdownSave?: () => Promise<void>;
+    };
+
+    if (!checkPendingShutdownSave) return; // skip if not yet implemented
+
+    await checkPendingShutdownSave();
+    expect(mockUpsertAutoSaveSession).not.toHaveBeenCalled();
+  });
+});

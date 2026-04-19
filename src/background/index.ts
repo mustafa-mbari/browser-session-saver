@@ -1,6 +1,6 @@
 import { registerEventListeners } from './event-listeners';
 import { setupSidePanelController } from './side-panel-controller';
-import { initAutoSaveEngine, updateSettings } from './auto-save-engine';
+import { initAutoSaveEngine, updateSettings, checkPendingShutdownSave } from './auto-save-engine';
 import { restoreTabGroupNamesOnStartup } from './tab-group-restore';
 import { migrateIfNeeded } from '@core/services/migration.service';
 import { getSettingsStorage } from '@core/storage/storage-factory';
@@ -23,6 +23,7 @@ initAutoSaveEngine(DEFAULT_SETTINGS);
 
 chrome.runtime.onStartup.addListener(() => {
   void restoreTabGroupNamesOnStartup();
+  void checkPendingShutdownSave();
   // Signal to the New Tab page and sidepanel that a restore prompt should be shown.
   chrome.storage.local.set({ session_restore_prompt: { shownAt: Date.now() } });
 });

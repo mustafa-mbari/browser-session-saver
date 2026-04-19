@@ -149,8 +149,11 @@ export function previewImport(rawText: string): ImportPreview {
 
 /**
  * Execute the import for the selected modules.
- * In replace mode, existing data is cleared before writing.
- * In merge mode, imported data is upserted (IDs are respected).
+ * In replace mode, all selected modules are validated first, a backup is
+ * created, then all writes happen — any validation or backup failure aborts
+ * without touching stored data.
+ * In merge mode, writes are attempted per module; individual failures are
+ * collected and other modules continue.
  */
 export async function executeImport(
   rawText: string,
@@ -161,12 +164,13 @@ export async function executeImport(
   const importedCounts: Partial<FullBackupCounts> = {};
   const skippedModules: BackupModule[] = [];
   const errors: string[] = [];
+  const moduleStatus: Partial<Record<BackupModule, 'success' | 'failed' | 'skipped'>> = {};
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawText);
   } catch {
-    return { success: false, importedCounts, skippedModules, errors: ['Failed to parse file'] };
+    return { success: false, importedCounts, skippedModules, errors: ['Failed to parse file'], moduleStatus };
   }
 
   const p = parsed as Record<string, unknown>;
@@ -175,18 +179,42 @@ export async function executeImport(
   if (preview.fileType === 'full-backup-v2') {
     const env = parsed as unknown as FullBackupEnvelope;
 
-    await runModuleImport('sessions', selection, preview, skippedModules, errors, async () => {
+    // REPLACE mode: validate all selected modules before any write, then backup.
+    // Any failure aborts the entire import with no data written.
+    if (mode === 'replace') {
+      const validationErrors = validateModulesForReplace(env, selection, preview);
+      if (validationErrors.length > 0) {
+        return { success: false, importedCounts, skippedModules, errors: validationErrors, moduleStatus };
+      }
+
+      const selectedForBackup = (Object.keys(selection) as BackupModule[]).filter(
+        (m) => selection[m] && preview.availableModules.includes(m),
+      );
+      try {
+        await createAutoBackup(selectedForBackup);
+      } catch (e) {
+        return {
+          success: false,
+          importedCounts,
+          skippedModules,
+          errors: [`Backup failed — import aborted to prevent data loss: ${String(e)}`],
+          moduleStatus,
+        };
+      }
+    }
+
+    await runModuleImport('sessions', selection, preview, skippedModules, errors, moduleStatus, async () => {
       if (!env.sessions) return;
       const count = await importSessions(env.sessions, mode);
       importedCounts.sessions = count;
     });
 
-    await runModuleImport('settings', selection, preview, skippedModules, errors, async () => {
+    await runModuleImport('settings', selection, preview, skippedModules, errors, moduleStatus, async () => {
       if (!env.settings) return;
       await importSettings(env.settings);
     });
 
-    await runModuleImport('prompts', selection, preview, skippedModules, errors, async () => {
+    await runModuleImport('prompts', selection, preview, skippedModules, errors, moduleStatus, async () => {
       if (!env.prompts) return;
       const count = await importPrompts(
         env.prompts,
@@ -198,7 +226,7 @@ export async function executeImport(
       importedCounts.prompts = count;
     });
 
-    await runModuleImport('subscriptions', selection, preview, skippedModules, errors, async () => {
+    await runModuleImport('subscriptions', selection, preview, skippedModules, errors, moduleStatus, async () => {
       if (!env.subscriptions) return;
       const count = await importSubscriptions(
         env.subscriptions,
@@ -208,13 +236,13 @@ export async function executeImport(
       importedCounts.subscriptions = count;
     });
 
-    await runModuleImport('tabGroupTemplates', selection, preview, skippedModules, errors, async () => {
+    await runModuleImport('tabGroupTemplates', selection, preview, skippedModules, errors, moduleStatus, async () => {
       if (!env.tabGroupTemplates) return;
       const count = await importTabGroupTemplates(env.tabGroupTemplates, mode);
       importedCounts.tabGroupTemplates = count;
     });
 
-    await runModuleImport('dashboard', selection, preview, skippedModules, errors, async () => {
+    await runModuleImport('dashboard', selection, preview, skippedModules, errors, moduleStatus, async () => {
       if (!env.dashboard) return;
       const counts = await importDashboard(env.dashboard, mode);
       importedCounts.dashboardBoards = counts.boards;
@@ -236,14 +264,18 @@ export async function executeImport(
           importedCounts.dashboardQuickLinks = result.counts.quickLinks;
           importedCounts.dashboardTodoLists = result.counts.todoLists;
           importedCounts.dashboardTodoItems = result.counts.todoItems;
+          moduleStatus.dashboard = 'success';
         } else {
           errors.push(result.error ?? 'Dashboard import failed');
+          moduleStatus.dashboard = 'failed';
         }
       } catch (e) {
         errors.push(`Dashboard import error: ${String(e)}`);
+        moduleStatus.dashboard = 'failed';
       }
     } else {
       skippedModules.push('dashboard');
+      moduleStatus.dashboard = 'skipped';
     }
 
   } else if (preview.fileType === 'sessions-v1') {
@@ -252,11 +284,14 @@ export async function executeImport(
         const sessions = (p['sessions'] as Session[]) ?? [];
         const count = await importSessions(sessions, mode);
         importedCounts.sessions = count;
+        moduleStatus.sessions = 'success';
       } catch (e) {
         errors.push(`Sessions import error: ${String(e)}`);
+        moduleStatus.sessions = 'failed';
       }
     } else {
       skippedModules.push('sessions');
+      moduleStatus.sessions = 'skipped';
     }
   }
 
@@ -265,6 +300,7 @@ export async function executeImport(
     importedCounts,
     skippedModules,
     errors,
+    moduleStatus,
   };
 }
 
@@ -283,22 +319,44 @@ export async function createAutoBackup(modules: BackupModule[]): Promise<string>
 
 // ── Module import helpers ─────────────────────────────────────────────────────
 
+function validateModulesForReplace(
+  env: FullBackupEnvelope,
+  selection: ModuleSelection,
+  preview: ImportPreview,
+): string[] {
+  const errs: string[] = [];
+  const check = (module: BackupModule, value: unknown, label: string) => {
+    if (selection[module] && preview.availableModules.includes(module)) {
+      if (!Array.isArray(value)) errs.push(`${label} data is invalid — expected an array`);
+    }
+  };
+  check('sessions', env.sessions, 'Sessions');
+  check('prompts', env.prompts, 'Prompts');
+  check('subscriptions', env.subscriptions, 'Subscriptions');
+  check('tabGroupTemplates', env.tabGroupTemplates, 'Tab group templates');
+  return errs;
+}
+
 async function runModuleImport(
   module: BackupModule,
   selection: ModuleSelection,
   preview: ImportPreview,
   skippedModules: BackupModule[],
   errors: string[],
+  moduleStatus: Partial<Record<BackupModule, 'success' | 'failed' | 'skipped'>>,
   fn: () => Promise<void>,
 ): Promise<void> {
   if (!selection[module] || !preview.availableModules.includes(module)) {
     skippedModules.push(module);
+    moduleStatus[module] = 'skipped';
     return;
   }
   try {
     await fn();
+    moduleStatus[module] = 'success';
   } catch (e) {
     errors.push(`${module} import error: ${String(e)}`);
+    moduleStatus[module] = 'failed';
   }
 }
 

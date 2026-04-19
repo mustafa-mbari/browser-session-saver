@@ -17,6 +17,7 @@ const windowTabCache = new Map<number, { tabs: Tab[]; tabGroups: TabGroup[] }>()
 let _tabCacheTimer: ReturnType<typeof setTimeout> | null = null;
 
 const TAB_CACHE_KEY = 'window_tab_cache';
+const SHUTDOWN_FLAG_KEY = 'pending_shutdown_save';
 
 async function persistTabCache(): Promise<void> {
   try {
@@ -63,11 +64,11 @@ export function initAutoSaveEngine(settings: Settings): void {
   setupAlarms(settings.saveInterval);
   onAlarm(() => performAutoSave('timer'));
 
-  // Browser close
+  // Browser close — write a flag to session storage so the next startup can do a deferred save.
+  // Calling performAutoSave here would be a fire-and-forget that may not complete before suspend.
   chrome.runtime.onSuspend.addListener(() => {
     if (_settings?.saveOnBrowserClose) {
-      // onSuspend gives limited time; save synchronously to storage.session as best-effort
-      performAutoSave('shutdown');
+      void chrome.storage.session.set({ [SHUTDOWN_FLAG_KEY]: { timestamp: Date.now() } });
     }
   });
 
@@ -109,6 +110,43 @@ export function updateSettings(settings: Settings): void {
     updateAlarmInterval(settings.saveInterval);
   } else {
     clearAlarms();
+  }
+}
+
+/**
+ * Called on service-worker startup. If a pending-shutdown flag was written during the
+ * previous session's onSuspend, and it's recent (< 30 min), trigger a deferred save
+ * using the tab cache that was rehydrated from session storage.
+ */
+export async function checkPendingShutdownSave(): Promise<void> {
+  try {
+    const result = await chrome.storage.session.get(SHUTDOWN_FLAG_KEY);
+    const flag = result[SHUTDOWN_FLAG_KEY] as { timestamp: number } | undefined;
+    if (!flag) return;
+
+    const age = Date.now() - flag.timestamp;
+    if (age > 30 * 60 * 1000) return;
+
+    // Clear the flag so a second startup doesn't re-trigger
+    void chrome.storage.session.set({ [SHUTDOWN_FLAG_KEY]: null });
+
+    const allTabs: Tab[] = [];
+    const allTabGroups: TabGroup[] = [];
+    for (const { tabs, tabGroups } of windowTabCache.values()) {
+      allTabs.push(...tabs);
+      allTabGroups.push(...tabGroups);
+    }
+
+    if (allTabs.length === 0) return;
+
+    await SessionService.upsertAutoSaveSession(
+      allTabs,
+      allTabGroups,
+      { autoSaveTrigger: 'shutdown' },
+      false,
+    );
+  } catch {
+    // Non-critical — missed deferred save is acceptable
   }
 }
 
