@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { planBadgeClass } from '@/lib/plans'
+import { planBadgeClass } from '@/lib/plan-utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
