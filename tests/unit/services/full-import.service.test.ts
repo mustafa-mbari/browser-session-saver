@@ -88,7 +88,7 @@ vi.mock('@core/services/full-export.service', () => ({
 }));
 
 // ---------------------------------------------------------------------------
-import { executeImport } from '@core/services/full-import.service';
+import { executeImport, PRE_IMPORT_BACKUP_KEY } from '@core/services/full-import.service';
 import { PromptStorage } from '@core/storage/prompt-storage';
 
 // ---------------------------------------------------------------------------
@@ -367,5 +367,89 @@ describe('importPrompts — bulk write path (Bug #1)', () => {
     expect(vi.mocked(PromptStorage.save)).not.toHaveBeenCalled();
     expect(result.moduleStatus?.prompts).toBe('success');
     expect(result.success).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Bug #4 — Backup must be PERSISTED to storage before any destructive write
+// ---------------------------------------------------------------------------
+
+describe('executeImport — backup persisted to storage (Bug #4)', () => {
+  beforeEach(() => {
+    // Ensure each test starts with the default resolving implementation
+    (chrome.storage.local.set as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+  });
+
+  it('persists backup JSON to chrome.storage.local before any destructive write', async () => {
+    const callOrder: string[] = [];
+
+    (chrome.storage.local.set as ReturnType<typeof vi.fn>).mockImplementation(
+      (items: Record<string, unknown>) => {
+        if (PRE_IMPORT_BACKUP_KEY in items) callOrder.push('backup_persisted');
+        return Promise.resolve(undefined);
+      },
+    );
+    mockReplaceAll.mockImplementation(() => {
+      callOrder.push('replaceAll');
+      return Promise.resolve(undefined);
+    });
+
+    const envelope  = makeEnvelope({ sessions: [{ id: 's1' } as never] });
+    const rawText   = JSON.stringify(envelope);
+    const preview   = makePreview(['sessions']);
+    const selection = makeSelection({ sessions: true });
+
+    await executeImport(rawText, preview, selection, 'replace');
+
+    // FAILS before fix: chrome.storage.local.set is never called with the backup key
+    expect(chrome.storage.local.set).toHaveBeenCalledWith(
+      expect.objectContaining({ [PRE_IMPORT_BACKUP_KEY]: expect.any(String) }),
+    );
+    const backupIdx  = callOrder.indexOf('backup_persisted');
+    const replaceIdx = callOrder.indexOf('replaceAll');
+    expect(backupIdx).toBeGreaterThanOrEqual(0);
+    expect(backupIdx).toBeLessThan(replaceIdx);
+  });
+
+  it('backup is accessible in storage after a partial import failure', async () => {
+    const stored: Record<string, unknown> = {};
+    (chrome.storage.local.set as ReturnType<typeof vi.fn>).mockImplementation(
+      (items: Record<string, unknown>) => {
+        Object.assign(stored, items);
+        return Promise.resolve(undefined);
+      },
+    );
+    // Sessions import throws after backup is already saved
+    mockReplaceAll.mockRejectedValueOnce(new Error('storage full'));
+
+    const envelope  = makeEnvelope({ sessions: [{ id: 's1' } as never] });
+    const rawText   = JSON.stringify(envelope);
+    const preview   = makePreview(['sessions']);
+    const selection = makeSelection({ sessions: true });
+
+    const result = await executeImport(rawText, preview, selection, 'replace');
+
+    // Import failed, but backup must still be in storage for user recovery
+    // FAILS before fix: chrome.storage.local.set is never called → stored[key] is undefined
+    expect(result.moduleStatus?.sessions).toBe('failed');
+    expect(stored[PRE_IMPORT_BACKUP_KEY]).toBe('"backup-json"');
+  });
+
+  it('aborts import when backup persist itself fails', async () => {
+    (chrome.storage.local.set as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('quota exceeded'),
+    );
+
+    const envelope  = makeEnvelope({ sessions: [{ id: 's1' } as never] });
+    const rawText   = JSON.stringify(envelope);
+    const preview   = makePreview(['sessions']);
+    const selection = makeSelection({ sessions: true });
+
+    const result = await executeImport(rawText, preview, selection, 'replace');
+
+    // FAILS before fix: chrome.storage.local.set is never called → no rejection → import proceeds
+    expect(result.success).toBe(false);
+    expect(result.errors.some((e) => /backup/i.test(e))).toBe(true);
+    expect(mockReplaceAll).not.toHaveBeenCalled();
   });
 });

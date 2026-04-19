@@ -25,6 +25,8 @@ import {
 } from '@core/types/import-export.types';
 import { exportFullBackup } from '@core/services/full-export.service';
 
+export const PRE_IMPORT_BACKUP_KEY = 'pre_import_backup';
+
 // ── Type guards ───────────────────────────────────────────────────────────────
 
 function isFullBackupV2(p: unknown): p is FullBackupEnvelope {
@@ -191,7 +193,8 @@ export async function executeImport(
         (m) => selection[m] && preview.availableModules.includes(m),
       );
       try {
-        await createAutoBackup(selectedForBackup);
+        const backupJson = await createAutoBackup(selectedForBackup);
+        await chrome.storage.local.set({ [PRE_IMPORT_BACKUP_KEY]: backupJson });
       } catch (e) {
         return {
           success: false,
