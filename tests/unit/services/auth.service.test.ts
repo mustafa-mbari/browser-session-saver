@@ -1,7 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { withStorageLock } from '@core/storage/storage-mutex';
 
-// ── Mock cachePlanTier from action-tracker ────────────────────────────────────
+// ── Mock limits.service — auth.service delegates limits caching here ──────────
+const mockRefreshLimits    = vi.hoisted(() => vi.fn(async () => undefined));
+const mockInvalidateLimits = vi.hoisted(() => vi.fn(async () => undefined));
+
+vi.mock('@core/services/limits/limits.service', () => ({
+  refreshLimits:    mockRefreshLimits,
+  invalidateLimits: mockInvalidateLimits,
+}));
+
+// ── Mock action-tracker ───────────────────────────────────────────────────────
 vi.mock('@core/services/limits/action-tracker', () => ({
   cachePlanTier:     vi.fn(async () => undefined),
   getCachedPlanTier: vi.fn(async () => 'guest'),
@@ -49,11 +58,11 @@ import {
   getEmail,
 } from '@core/services/auth.service';
 import { cachePlanTier, setActionUsage, getActionUsage } from '@core/services/limits/action-tracker';
+import { refreshLimits, invalidateLimits } from '@core/services/limits/limits.service';
 import { getGuestId, clearGuestId } from '@core/services/guest.service';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Reset to default authenticated state
   mockSupabase.auth.getSession.mockResolvedValue({
     data: { session: mockSession },
   });
@@ -95,9 +104,31 @@ describe('signIn', () => {
     });
 
     await signIn('bad@example.com', 'wrong');
-    // cachePlanTier should not be called synchronously on failure
-    // (fire-and-forget is only started on success)
     expect(cachePlanTier).not.toHaveBeenCalled();
+  });
+
+  it('does not call refreshLimits on sign-in failure', async () => {
+    mockSupabase.auth.signInWithPassword.mockResolvedValueOnce({
+      data: { user: null },
+      error: { message: 'error' },
+    });
+
+    await signIn('bad@example.com', 'wrong');
+    expect(refreshLimits).not.toHaveBeenCalled();
+  });
+
+  it('calls refreshLimits with the user id on successful sign-in', async () => {
+    mockSupabase.auth.signInWithPassword.mockResolvedValueOnce({
+      data: { user: { id: 'user-123', email: 'test@example.com' } },
+      error: null,
+    });
+
+    await signIn('test@example.com', 'password123');
+    // Allow fire-and-forget microtasks to settle
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(refreshLimits).toHaveBeenCalledWith('user-123');
   });
 
   it('calls merge-guest when session has access_token and a guest_id exists', async () => {
@@ -112,7 +143,6 @@ describe('signIn', () => {
     });
 
     await signIn('test@example.com', 'password123');
-    // Allow fire-and-forget microtasks to settle
     await Promise.resolve();
     await Promise.resolve();
 
@@ -170,6 +200,17 @@ describe('signOut', () => {
     await signOut();
     expect(cachePlanTier).toHaveBeenCalledWith('guest');
   });
+
+  it('calls invalidateLimits after sign-out', async () => {
+    await signOut();
+    expect(invalidateLimits).toHaveBeenCalledTimes(1);
+  });
+
+  it('invalidates limits so stale limits are not used after signing out', async () => {
+    await signOut();
+    // invalidateLimits must be called on every sign-out, regardless of prior state.
+    expect(invalidateLimits).toHaveBeenCalled();
+  });
 });
 
 // ── getSession ────────────────────────────────────────────────────────────────
@@ -182,9 +223,9 @@ describe('getSession', () => {
   });
 
   it('returns null when no session exists', async () => {
-    mockSupabase.auth.getSession.mockResolvedValueOnce({
-      data: { session: null },
-    });
+    mockSupabase.auth.getSession.mockResolvedValueOnce(
+      { data: { session: null } } as any,
+    );
     const session = await getSession();
     expect(session).toBeNull();
   });
@@ -198,9 +239,9 @@ describe('getUserId', () => {
   });
 
   it('returns null when not authenticated', async () => {
-    mockSupabase.auth.getSession.mockResolvedValueOnce({
-      data: { session: null },
-    });
+    mockSupabase.auth.getSession.mockResolvedValueOnce(
+      { data: { session: null } } as any,
+    );
     expect(await getUserId()).toBeNull();
   });
 });
@@ -213,9 +254,9 @@ describe('isAuthenticated', () => {
   });
 
   it('returns false when no session exists', async () => {
-    mockSupabase.auth.getSession.mockResolvedValueOnce({
-      data: { session: null },
-    });
+    mockSupabase.auth.getSession.mockResolvedValueOnce(
+      { data: { session: null } } as any,
+    );
     expect(await isAuthenticated()).toBe(false);
   });
 });
@@ -228,9 +269,9 @@ describe('getEmail', () => {
   });
 
   it('returns null when not authenticated', async () => {
-    mockSupabase.auth.getSession.mockResolvedValueOnce({
-      data: { session: null },
-    });
+    mockSupabase.auth.getSession.mockResolvedValueOnce(
+      { data: { session: null } } as any,
+    );
     expect(await getEmail()).toBeNull();
   });
 });
@@ -242,7 +283,6 @@ describe('syncUsageFromServer local-wins', () => {
   const MONTH = new Date().toISOString().slice(0, 7);
 
   it('preserves local counts when they are higher than the server counts', async () => {
-    // Local has 10 actions; server only reports 3 — local must win.
     vi.mocked(getActionUsage).mockResolvedValueOnce({
       daily:   { date: TODAY, count: 10 },
       monthly: { month: MONTH, count: 50 },
@@ -268,13 +308,10 @@ describe('syncUsageFromServer local-wins', () => {
     });
 
     await signIn('test@example.com', 'password123');
-    // Allow the fire-and-forget syncUsageFromServer to settle
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
 
-    // Current code unconditionally overwrites with server value (3) — test FAILS before fix.
-    // After fix: Math.max(10, 3) = 10 is used.
     expect(setActionUsage).toHaveBeenCalledWith(
       expect.objectContaining({
         daily:   expect.objectContaining({ count: 10 }),
@@ -284,7 +321,6 @@ describe('syncUsageFromServer local-wins', () => {
   });
 
   it('uses server counts when they are higher than local counts', async () => {
-    // Fresh install (local=0), server has accumulated 15 — server must win.
     vi.mocked(getActionUsage).mockResolvedValueOnce({
       daily:   { date: TODAY, count: 0 },
       monthly: { month: MONTH, count: 0 },
@@ -354,14 +390,14 @@ describe('syncUsageFromServer local-wins', () => {
 
     expect(setActionUsage).toHaveBeenCalledWith(
       expect.objectContaining({
-        daily:   expect.objectContaining({ count: 8 }),   // local wins
-        monthly: expect.objectContaining({ count: 40 }),  // server wins
+        daily:   expect.objectContaining({ count: 8 }),
+        monthly: expect.objectContaining({ count: 40 }),
       }),
     );
   });
 });
 
-// ── syncUsageFromServer — lock compliance (Bug #3) ───────────────────────────
+// ── syncUsageFromServer — lock compliance ─────────────────────────────────────
 
 describe('syncUsageFromServer — lock compliance', () => {
   const TODAY = new Date().toISOString().slice(0, 10);
@@ -397,14 +433,11 @@ describe('syncUsageFromServer — lock compliance', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    // signIn fires syncUsageFromServer as fire-and-forget
     await signIn('test@example.com', 'password123');
-    // Allow Supabase mock to resolve + syncUsageFromServer to reach the lock attempt
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
 
-    // FAILS before fix: setActionUsage called immediately (no lock)
     expect(setActionUsage).not.toHaveBeenCalled();
 
     releaseLock();
@@ -417,7 +450,7 @@ describe('syncUsageFromServer — lock compliance', () => {
   });
 });
 
-// ── mergeGuestOnSignIn clearGuestId failure (1B-01) ───────────────────────────
+// ── mergeGuestOnSignIn clearGuestId failure ───────────────────────────────────
 
 describe('mergeGuestOnSignIn clearGuestId safety', () => {
   it('does not throw when clearGuestId fails after a successful merge', async () => {
@@ -432,15 +465,12 @@ describe('mergeGuestOnSignIn clearGuestId safety', () => {
       error: null,
     });
 
-    // signIn must resolve successfully even if clearGuestId throws
     await expect(signIn('test@example.com', 'password123')).resolves.toMatchObject({ success: true });
 
-    // Allow the fire-and-forget merge to settle
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
 
-    // clearGuestId was attempted once (the throw came from within the merge)
     expect(clearGuestId).toHaveBeenCalledTimes(1);
   });
 });

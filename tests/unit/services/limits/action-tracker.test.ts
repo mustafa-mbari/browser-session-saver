@@ -15,6 +15,21 @@ beforeEach(() => {
   );
 });
 
+// ── Mock limits.service so action-tracker tests are fully isolated ────────────
+// getLimits returns hardcoded PLAN_LIMITS values — the actual cache/RPC logic
+// is tested separately in limits.service.test.ts.
+vi.mock('@core/services/limits/limits.service', () => ({
+  getLimits: vi.fn(async (tier: string) => {
+    const table: Record<string, { daily: number; monthly: number }> = {
+      guest:    { daily: 3,  monthly: 20  },
+      free:     { daily: 6,  monthly: 30  },
+      pro:      { daily: 50, monthly: 500 },
+      lifetime: { daily: 90, monthly: 900 },
+    };
+    return table[tier] ?? { daily: 3, monthly: 20 };
+  }),
+}));
+
 import {
   getActionUsage,
   incrementAction,
@@ -59,15 +74,13 @@ describe('getActionUsage', () => {
   });
 
   it('returns 0 (not NaN) when storage has partial data missing count field', async () => {
-    // Simulates corrupted storage where date/month is present but count is absent
     store['action_usage'] = {
-      daily:   { date: TODAY },  // count is missing
-      monthly: { month: MONTH }, // count is missing
+      daily:   { date: TODAY },
+      monthly: { month: MONTH },
     };
     const usage = await getActionUsage();
     expect(usage.daily.count).toBe(0);
     expect(usage.monthly.count).toBe(0);
-    // Incrementing from partial data should produce 1, not NaN
     await incrementAction();
     const after = await getActionUsage();
     expect(after.daily.count).toBe(1);
@@ -82,7 +95,6 @@ describe('getActionUsage', () => {
     const usage = await getActionUsage();
     expect(usage.daily.count).toBe(0);
     expect(usage.daily.date).toBe(TODAY);
-    // Monthly should be preserved
     expect(usage.monthly.count).toBe(10);
   });
 
@@ -94,7 +106,6 @@ describe('getActionUsage', () => {
     const usage = await getActionUsage();
     expect(usage.monthly.count).toBe(0);
     expect(usage.monthly.month).toBe(MONTH);
-    // Daily should be preserved
     expect(usage.daily.count).toBe(2);
   });
 });
@@ -251,8 +262,6 @@ describe('canPerformAction', () => {
 
 describe('incrementAction concurrency', () => {
   it('two concurrent calls each increment by 1 (final count = 2)', async () => {
-    // Without a lock both calls read count=0, both write count=1 → count stays at 1.
-    // With a lock the second call reads the already-incremented count=1 → count reaches 2.
     await Promise.all([incrementAction(), incrementAction()]);
     const usage = await getActionUsage();
     expect(usage.daily.count).toBe(2);

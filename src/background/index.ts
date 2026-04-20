@@ -4,7 +4,7 @@ import { setupSidePanelController } from './side-panel-controller';
 import { initAutoSaveEngine, updateSettings, checkPendingShutdownSave } from './auto-save-engine';
 import { restoreTabGroupNamesOnStartup } from './tab-group-restore';
 import { migrateIfNeeded } from '@core/services/migration.service';
-import { fetchAndCacheGuestLimits } from '@core/services/limits/action-tracker';
+import { fetchAndCacheGuestLimits } from '@core/services/limits/limits.service';
 import { getSettingsStorage } from '@core/storage/storage-factory';
 import { STORAGE_KEYS } from '@core/types/storage.types';
 import { DEFAULT_SETTINGS } from '@core/types/settings.types';

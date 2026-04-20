@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@core/supabase/client';
 import type { PlanTier, ActionUsage } from '@core/types/limits.types';
 import { cachePlanTier, setActionUsage, getActionUsage, USAGE_KEY } from '@core/services/limits/action-tracker';
+import { refreshLimits, invalidateLimits } from '@core/services/limits/limits.service';
 import { withStorageLock } from '@core/storage/storage-mutex';
 import { getGuestId, clearGuestId } from '@core/services/guest.service';
 
@@ -13,28 +14,32 @@ export interface SignInResult {
 
 /**
  * Sign in using email + password.
- * On success, fetches the user's plan tier and caches it locally.
+ * On success, caches the plan tier, refreshes action limits from the backend,
+ * and syncs server-side usage counts so resets take effect immediately.
  */
 export async function signIn(email: string, password: string): Promise<SignInResult> {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     return { success: false, error: error.message };
   }
-  // Cache plan tier and sync server-side usage counts so resets take effect immediately
-  void fetchAndCachePlanTier(data.user?.id);
-  void syncUsageFromServer(data.user?.id);
-  // Transfer any guest action counts to the user's server record
+  const userId = data.user?.id;
+  void fetchAndCachePlanTier(userId);
+  // Refresh limits independently so the limits.service owns all caching logic.
+  if (userId) void refreshLimits(userId);
+  void syncUsageFromServer(userId);
   if (data.session?.access_token) void mergeGuestOnSignIn(data.session.access_token);
   return { success: true, email: data.user?.email ?? email };
 }
 
 /**
  * Sign out and clear the persisted auth session from chrome.storage.local.
- * Resets cached plan to 'guest'.
+ * Resets cached plan to 'guest' and clears the limits cache so a subsequent
+ * sign-in always picks up fresh limits from the backend.
  */
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
   await cachePlanTier('guest');
+  await invalidateLimits();
 }
 
 /**
