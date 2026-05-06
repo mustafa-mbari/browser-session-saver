@@ -6,6 +6,19 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/email/send'
 import { buildBillingNotificationEmail } from '@/lib/email/templates/billingNotification'
 
+// Minimal shapes we need — avoids breakage across Stripe API versions
+interface SubInfo {
+  id: string
+  status: string
+  current_period_end: number
+  customer: string
+}
+interface InvoiceInfo {
+  customer: string
+  subscription: string | null
+  billing_reason?: string
+}
+
 export async function POST(req: Request) {
   const body = await req.text()
   const sig = req.headers.get('stripe-signature')
@@ -101,7 +114,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, supabas
   let subscriptionId: string | null = null
 
   if (!isOneTime && session.subscription) {
-    const sub = await stripe.subscriptions.retrieve(session.subscription as string)
+    const sub = await stripe.subscriptions.retrieve(session.subscription as string) as unknown as SubInfo
     subscriptionId = sub.id
     periodEnd = new Date(sub.current_period_end * 1000).toISOString()
   }
@@ -121,8 +134,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, supabas
   await sendBillingEmail(userId, planId, 'subscription_created', periodEnd, supabase)
 }
 
-async function handleSubscriptionUpdated(sub: Stripe.Subscription, supabase: SupabaseClient) {
-  const customerId = sub.customer as string
+async function handleSubscriptionUpdated(rawSub: Stripe.Subscription, supabase: SupabaseClient) {
+  const sub = rawSub as unknown as SubInfo
+  const customerId = sub.customer
   const { data: userPlan } = await supabase
     .from('user_plans')
     .select('user_id, plan_id')
@@ -134,14 +148,15 @@ async function handleSubscriptionUpdated(sub: Stripe.Subscription, supabase: Sup
   const periodEnd = new Date(sub.current_period_end * 1000).toISOString()
 
   await supabase.from('user_plans').update({
-    status: sub.status === 'active' ? 'active' : sub.status as string,
+    status: sub.status === 'active' ? 'active' : sub.status,
     current_period_end: periodEnd,
     stripe_subscription_id: sub.id,
   }).eq('stripe_customer_id', customerId)
 }
 
-async function handleSubscriptionDeleted(sub: Stripe.Subscription, supabase: SupabaseClient) {
-  const customerId = sub.customer as string
+async function handleSubscriptionDeleted(rawSub: Stripe.Subscription, supabase: SupabaseClient) {
+  const sub = rawSub as unknown as SubInfo
+  const customerId = sub.customer
   const { data: userPlan } = await supabase
     .from('user_plans')
     .select('user_id, plan_id')
@@ -163,13 +178,14 @@ async function handleSubscriptionDeleted(sub: Stripe.Subscription, supabase: Sup
   await sendBillingEmail(userPlan.user_id, userPlan.plan_id, 'subscription_cancelled', periodEnd, supabase)
 }
 
-async function handleInvoiceSucceeded(invoice: Stripe.Invoice, supabase: SupabaseClient) {
+async function handleInvoiceSucceeded(rawInvoice: Stripe.Invoice, supabase: SupabaseClient) {
+  const invoice = rawInvoice as unknown as InvoiceInfo
   // Only act on renewals (not the first payment — that's handled by checkout.session.completed)
-  if ((invoice as Stripe.Invoice & { billing_reason?: string }).billing_reason !== 'subscription_cycle') return
+  if (invoice.billing_reason !== 'subscription_cycle') return
 
-  const customerId = invoice.customer as string
+  const customerId = invoice.customer
   const sub = invoice.subscription
-    ? await stripe.subscriptions.retrieve(invoice.subscription as string)
+    ? await stripe.subscriptions.retrieve(invoice.subscription) as unknown as SubInfo
     : null
 
   if (!sub) return
@@ -192,8 +208,9 @@ async function handleInvoiceSucceeded(invoice: Stripe.Invoice, supabase: Supabas
   }
 }
 
-async function handleInvoiceFailed(invoice: Stripe.Invoice, supabase: SupabaseClient) {
-  const customerId = invoice.customer as string
+async function handleInvoiceFailed(rawInvoice: Stripe.Invoice, supabase: SupabaseClient) {
+  const invoice = rawInvoice as unknown as InvoiceInfo
+  const customerId = invoice.customer
   await supabase.from('user_plans').update({ status: 'past_due' }).eq('stripe_customer_id', customerId)
 }
 
