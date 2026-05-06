@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { Crown, Zap, Check, Calendar, CreditCard, CheckCircle2, ArrowRight, CalendarDays, CalendarClock } from 'lucide-react'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth } from '@/lib/services/auth'
+import ManageBillingButton from './ManageBillingButton'
 
 type Plan = {
   id: string
@@ -18,7 +19,7 @@ async function getBillingData(userId: string) {
   const [userPlanRes, plansRes] = await Promise.all([
     supabase
       .from('user_plans')
-      .select('plan_id, status, billing_cycle, current_period_end, stripe_subscription_id')
+      .select('plan_id, status, billing_cycle, current_period_end, stripe_subscription_id, stripe_customer_id')
       .eq('user_id', userId)
       .single(),
     supabase.from('plans').select('id, name, price_monthly, daily_action_limit, monthly_action_limit').eq('is_active', true).order('sort_order'),
@@ -122,9 +123,12 @@ export default async function BillingPage() {
                 <p className="text-xs text-stone-500 dark:text-stone-400">Default billing method</p>
               </div>
             </div>
-            <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-stone-100 dark:border-[var(--dark-border)] rounded-xl">
+            <div className="flex flex-col items-center justify-center py-6 border-2 border-dashed border-stone-100 dark:border-[var(--dark-border)] rounded-xl gap-3">
               {userPlan?.stripe_subscription_id
-                ? <p className="text-sm text-stone-600 dark:text-stone-400">Managed via Stripe</p>
+                ? <>
+                    <p className="text-sm text-stone-600 dark:text-stone-400">Managed via Stripe</p>
+                    <ManageBillingButton />
+                  </>
                 : <p className="text-sm text-stone-400">No payment method set</p>}
             </div>
           </div>
