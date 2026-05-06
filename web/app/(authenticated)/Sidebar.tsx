@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
-  Database,
   CreditCard,
   Settings2,
   LifeBuoy,
@@ -173,7 +172,6 @@ export default function AppSidebar({ userInfo }: Props) {
 
   const NAV_MAIN = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/my-data', label: 'My Data', icon: Database },
   ]
 
   const NAV_ACCOUNT = [
