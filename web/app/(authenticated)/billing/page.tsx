@@ -150,7 +150,7 @@ export default async function BillingPage() {
                         {plan.name}
                       </span>
                       <span className="text-xs font-normal text-stone-400">
-                        {plan.price_monthly === 0 ? 'Free forever' : `$${plan.price_monthly}/mo`}
+                        {plan.price_monthly === 0 ? 'Free forever' : `€${plan.price_monthly}/mo`}
                       </span>
                       {plan.id === currentPlanId && (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold">
@@ -204,7 +204,7 @@ export default async function BillingPage() {
                         href={`/checkout?plan=${plan.id}`}
                         className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors"
                       >
-                        {plan.price_monthly === 0 ? 'Downgrade' : 'Upgrade'}
+                        {(plan.price_monthly as number) < (currentPlan?.price_monthly as number ?? 0) ? 'Downgrade' : 'Upgrade'}
                         <ArrowRight className="h-3 w-3" />
                       </a>
                     )}
@@ -215,7 +215,7 @@ export default async function BillingPage() {
           </table>
         </div>
         <p className="mt-3 text-xs text-stone-400 text-center">
-          All data is stored locally on your device. Limits reset at midnight. Yearly billing saves up to 20%.
+          All data is stored locally on your device. Limits reset at midnight. Prices in EUR. Yearly billing saves ~30%.
         </p>
       </div>
     </div>

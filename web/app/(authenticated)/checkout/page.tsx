@@ -22,8 +22,8 @@ const PLAN_INFO: Record<string, {
 }> = {
   pro: {
     label: 'Pro',
-    monthlyPrice: '$9.99/mo',
-    yearlyPrice: '$99.99/yr',
+    monthlyPrice: '€2.99/mo',
+    yearlyPrice: '€24.99/yr',
     isOneTime: false,
     icon: Zap,
     color: 'bg-indigo-600',
@@ -37,7 +37,7 @@ const PLAN_INFO: Record<string, {
   },
   lifetime: {
     label: 'Lifetime',
-    monthlyPrice: '$199.99',
+    monthlyPrice: '€59.99 one-time',
     yearlyPrice: null,
     isOneTime: true,
     icon: Crown,

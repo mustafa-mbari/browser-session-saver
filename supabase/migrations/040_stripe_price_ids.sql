@@ -7,11 +7,11 @@
 
 UPDATE public.plans
 SET
-  stripe_price_monthly = 'REPLACE_WITH_STRIPE_PRICE_ID_PRO_MONTHLY',
-  stripe_price_yearly  = 'REPLACE_WITH_STRIPE_PRICE_ID_PRO_YEARLY'
+  stripe_price_monthly = 'price_1TU5rgRpxbCZpxSkVW0i9kan',
+  stripe_price_yearly  = 'price_1TU5rgRpxbCZpxSkpaemmZgp'
 WHERE id = 'pro';
 
 UPDATE public.plans
 SET
-  stripe_price_monthly = 'REPLACE_WITH_STRIPE_PRICE_ID_LIFETIME'
+  stripe_price_monthly = 'price_1TU5tQRpxbCZpxSkyDpRQVND'
 WHERE id = 'lifetime';
