@@ -25,6 +25,7 @@ export interface MutableEntity extends BaseEntity {
  * The `toRow` / `fromRow` methods live on the RowMapper, not the entity,
  * to keep domain types free of infrastructure concerns.
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface Syncable extends BaseEntity {}
 
 /**
