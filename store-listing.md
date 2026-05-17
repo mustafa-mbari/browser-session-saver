@@ -1,5 +1,29 @@
 # Chrome Web Store — Browser Hub Listing
 
+## Single Purpose
+```
+Save, restore, and manage browser sessions and tab groups.
+```
+
+This satisfies Chrome's single-purpose policy: every feature in the extension (auto-save, tab groups, new-tab dashboard, prompt manager, subscription tracker) serves the same core goal — helping users organise and protect the tabs and work they have open in their browser. The extension does not change search providers, inject ads, or perform any function unrelated to tab/session management.
+
+---
+
+## Are you using remote code?
+**No.**
+
+All JavaScript and CSS is bundled at build time by Vite/CRXJS and shipped inside the extension package. The extension does **not** use `eval()`, `new Function()`, `importScripts()` with a remote URL, or any `<script src="https://...">`. The Content Security Policy in the manifest enforces this:
+
+```json
+"content_security_policy": {
+  "extension_pages": "script-src 'self'; object-src 'self'"
+}
+```
+
+Network requests are made only to fetch *data* (weather forecasts, authentication tokens, usage counters) — never to load executable code.
+
+---
+
 ## Short Description (132 chars max)
 ```
 Save, restore, and manage browser sessions with one click. Auto-save protects tabs before shutdown, sleep, or low battery.
