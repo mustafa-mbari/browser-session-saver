@@ -10,8 +10,6 @@ import { STORAGE_KEYS } from '@core/types/storage.types';
 import { DEFAULT_SETTINGS } from '@core/types/settings.types';
 import type { Settings } from '@core/types/settings.types';
 
-console.log('Browser Hub service worker started');
-
 setupSidePanelController();
 registerEventListeners();
 

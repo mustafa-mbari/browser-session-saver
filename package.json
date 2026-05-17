@@ -1,6 +1,6 @@
 {
   "name": "browser-hub",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Save, restore, and manage your browser sessions with one click.",
   "type": "module",
   "scripts": {

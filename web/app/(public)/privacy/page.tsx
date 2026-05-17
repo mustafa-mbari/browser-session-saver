@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: 'How Browser Hub collects, uses, and protects your data.',
 }
 
-const EFFECTIVE_DATE = 'May 6, 2025'
+const EFFECTIVE_DATE = 'May 17, 2026'
 const CONTACT_EMAIL = 'mbari.info@gmail.com'
 
 export default function PrivacyPage() {
