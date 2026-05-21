@@ -16,6 +16,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/verify-email') ||
     pathname.startsWith('/p/') ||
     pathname.startsWith('/prompts/') ||
+    pathname.startsWith('/privacy') ||
     pathname.startsWith('/api/')
   ) {
     return NextResponse.next({ request })

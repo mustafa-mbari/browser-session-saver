@@ -1,18 +1,40 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '../../app/api/auth/resend-verification/route'
+import { NextRequest } from 'next/server'
 
-const mockResend = vi.fn()
+// Use vi.hoisted to declare mock functions before vi.mock calls are evaluated
+const { mockGenerateLink, mockSendEmail } = vi.hoisted(() => ({
+  mockGenerateLink: vi.fn(),
+  mockSendEmail: vi.fn(() => Promise.resolve()),
+}))
 
-vi.mock('@supabase/ssr', () => ({
-  createServerClient: vi.fn(() => ({
+vi.mock('@/lib/supabase/server', () => ({
+  createServiceClient: vi.fn(() => ({
     auth: {
-      resend: mockResend,
+      admin: {
+        generateLink: mockGenerateLink,
+      },
     },
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          single: vi.fn(() => Promise.resolve({ data: { full_name: 'Test User' } })),
+        })),
+      })),
+    })),
+  })),
+}))
+
+vi.mock('@/lib/email', () => ({
+  sendEmail: mockSendEmail,
+  buildEmailVerificationEmail: vi.fn(() => ({
+    subject: 'Verify your email',
+    html: '<p>Verify</p>',
   })),
 }))
 
 function makeRequest(body: object) {
-  return new Request('http://localhost/api/auth/resend-verification', {
+  return new NextRequest('http://localhost/api/auth/resend-verification', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -25,7 +47,10 @@ describe('POST /api/auth/resend-verification', () => {
   })
 
   it('returns 200 with success:true on valid email', async () => {
-    mockResend.mockResolvedValue({ error: null })
+    mockGenerateLink.mockResolvedValue({
+      data: { properties: { hashed_token: '123' }, user: { id: 'user_id' } },
+      error: null,
+    })
     const res = await POST(makeRequest({ email: 'user@example.com' }))
     expect(res.status).toBe(200)
     const body = await res.json()
@@ -33,24 +58,31 @@ describe('POST /api/auth/resend-verification', () => {
   })
 
   it('returns 200 even when email does not exist (no enumeration)', async () => {
-    mockResend.mockResolvedValue({ error: { message: 'User not found' } })
+    mockGenerateLink.mockResolvedValue({ data: null, error: { message: 'User not found' } })
     const res = await POST(makeRequest({ email: 'unknown@example.com' }))
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body).toEqual({ success: true })
   })
 
-  it('returns 200 even when resend throws', async () => {
-    mockResend.mockRejectedValue(new Error('Network error'))
+  it('returns 200 even when generateLink throws', async () => {
+    mockGenerateLink.mockRejectedValue(new Error('Network error'))
     const res = await POST(makeRequest({ email: 'user@example.com' }))
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body).toEqual({ success: true })
   })
 
-  it('calls resend with type signup and the provided email', async () => {
-    mockResend.mockResolvedValue({ error: null })
+  it('calls generateLink with type magiclink and the provided email', async () => {
+    mockGenerateLink.mockResolvedValue({
+      data: { properties: { hashed_token: '123' }, user: { id: 'user_id' } },
+      error: null,
+    })
     await POST(makeRequest({ email: 'test@example.com' }))
-    expect(mockResend).toHaveBeenCalledWith({ type: 'signup', email: 'test@example.com' })
+    expect(mockGenerateLink).toHaveBeenCalledWith({
+      type: 'magiclink',
+      email: 'test@example.com',
+      options: { redirectTo: 'http://localhost/auth/confirm' },
+    })
   })
 })
