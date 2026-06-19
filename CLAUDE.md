@@ -86,7 +86,7 @@ All data is stored **locally only** — `chrome.storage.local` and IndexedDB. No
 
 ## Important Files
 
-- `public/manifest.json` — Chrome Manifest V3 with permissions (`tabs`, `tabGroups`, `storage`, `alarms`, `idle`, `sidePanel`, `activeTab`, `topSites`, `bookmarks`), `optional_permissions: [history]`, `host_permissions: ["https://*.supabase.co/*"]`, side_panel, and `chrome_url_overrides.newtab`
+- `public/manifest.json` — Chrome Manifest V3 with permissions (`tabs`, `tabGroups`, `storage`, `alarms`, `idle`, `sidePanel`, `bookmarks`, `downloads`, `downloads.open`), no `optional_permissions`, `host_permissions: ["https://api.open-meteo.com/*", "https://ipinfo.io/*", "https://*.supabase.co/*", "https://bh.mbari.de/*"]`, side_panel, and `chrome_url_overrides.newtab`. NOTE: `activeTab`, `topSites`, and `history` were removed in v1.0.2 after a Chrome Web Store "requesting but not using" rejection — every declared permission must have a *reachable* runtime caller (not just a code reference); dead/orphaned features get tree-shaken out of the production bundle and trigger the violation.
 - `src/core/types/session.types.ts` — Core data model (Session, Tab, TabGroup, AutoSaveTrigger, ChromeGroupColor)
 - `src/core/types/newtab.types.ts` — Start-tab data models: Board, BookmarkCategory, BookmarkEntry, QuickLink, TodoItem, TodoList, NewTabSettings, CardType, GRADIENT_PRESETS
 - `src/core/types/messages.types.ts` — Message protocol between SW and UI (19 action types)

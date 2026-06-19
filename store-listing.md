@@ -46,7 +46,7 @@ Never lose your work again. Browser Hub watches for shutdown signals, system sle
 Save Chrome tab groups as named templates. Restore your complete tab-group context — colours, names, and URLs — with a single click. Works alongside live groups so you can save a session and its groups together.
 
 ### Start-Tab Dashboard
-Replace your new-tab page with a customisable productivity hub. Add bookmark widgets, sticky notes, to-do lists, quick links, a clock, and a live weather widget. Three layout modes (Minimal, Focus, Dashboard) adapt to how you work. Drag cards to rearrange; resize them to fit your screen.
+Replace your new-tab page with a customisable productivity hub. Add widgets for bookmarks, your Chrome bookmarks tree, sticky notes, to-do lists, quick links, a clock, a live weather forecast, recent downloads, subscriptions, tab groups, and AI prompts. Three layout modes (Minimal, Focus, Dashboard) adapt to how you work. Drag cards to rearrange; resize them to fit your screen.
 
 ### Prompt Manager
 Store AI prompt templates with `{{variable}}` placeholders. Organise prompts into folders and sections, pin your favourites, and copy any prompt to the clipboard with one click. Variable slots are filled in a modal before copying — no more editing prompts in the AI chat box.
@@ -89,23 +89,14 @@ Paste each entry into the corresponding field in the Chrome Web Store developer 
 ### sidePanel
 > Required to render the extension's primary UI in Chrome's built-in Side Panel. The Side Panel is the main interface for saving, viewing, restoring, and managing sessions.
 
-### activeTab
-> Required to get metadata (URL, title, favicon) for the currently focused tab when the user triggers a quick-save action from the toolbar icon.
-
-### topSites
-> Required to show the user's most frequently visited sites in the "Frequently Visited" panel on the new-tab dashboard. No browsing data is sent to any server.
-
 ### bookmarks
 > Required to read the browser's native bookmark tree and display bookmarks in the new-tab dashboard. Users can browse and open bookmarks from the extension's start-tab without navigating away.
 
 ### downloads
-> Required to export saved sessions, prompts, subscriptions, and other user data as JSON files for backup. The downloaded file is written to the user's local filesystem.
+> Required for the "Recent Downloads" widget on the new-tab dashboard. The widget calls `chrome.downloads.search` to list the user's most recent downloads so they can be re-opened directly from the dashboard. (Note: exporting sessions/data as JSON uses an in-page blob link and does NOT rely on this permission.)
 
 ### downloads.open
-> Required to open the exported backup file in the user's default application immediately after the download completes, as a convenience so the user does not have to locate the file manually.
-
-### history (optional)
-> Requested only when the user enables the Activity tab on the new-tab dashboard. Used to display recent browsing history inline. The permission is optional; it is never requested at install time.
+> Required so the user can click an item in the "Recent Downloads" widget to open that file in its default application (`chrome.downloads.open`) or reveal it in its folder (`chrome.downloads.show`), without leaving the new-tab dashboard.
 
 ---
 
@@ -122,3 +113,21 @@ Paste each entry into the corresponding field in the Chrome Web Store developer 
 
 ### https://bh.mbari.de/*
 > Required for the optional prompt-sharing feature. When a user clicks "Share" on a prompt, the prompt title and content are sent to the Browser Hub web app to generate a public shareable link. No other data is transmitted to this host.
+
+---
+
+## Notes for Reviewer (Testing Instructions)
+
+Paste this into the **"Notes for reviewer"** / testing-instructions field on the submission page. Several permissions power optional new-tab **widgets** that are hidden until the user adds them — these steps exercise every requested permission so they can be observed in use:
+
+1. **Open a new tab** — the extension overrides the new-tab page with its dashboard.
+2. **Switch to Dashboard layout** — press `Ctrl+Shift+L` until the multi-widget grid appears.
+3. **Add widgets** — click the **+ / Add Card** button and add each of the following:
+   - **Weather** — on first render it derives an approximate location via `https://ipinfo.io/json`, then fetches the forecast from `https://api.open-meteo.com` (the two weather host permissions). No data is stored.
+   - **Recent Downloads** — calls `chrome.downloads.search` to list recent downloads; clicking an item uses `chrome.downloads.open` / `chrome.downloads.show` (the `downloads` / `downloads.open` permissions).
+   - **Chrome Bookmarks** — calls `chrome.bookmarks.getTree` to render the native bookmark tree (`bookmarks` permission).
+4. **Prompt sharing** (`https://bh.mbari.de/*`) — open the **Prompts** view, select any prompt, and click **Share**; the prompt title/content is POSTed to the Browser Hub web app to generate a public link.
+5. **Sessions, tab groups & auto-save** (`tabs`, `tabGroups`, `alarms`, `idle`, `storage`, `sidePanel`) — open the Side Panel (toolbar icon or `Ctrl+Shift+S`) and click **Save** to capture all open tabs and groups; auto-save is scheduled via `chrome.alarms` and the `chrome.idle` listener.
+6. **Account / usage sync** (`https://*.supabase.co/*`) — optional: sign in from the Account screen to see daily/monthly usage counters sync.
+
+All user data is stored locally (`chrome.storage.local` + IndexedDB). Network requests fetch *data* only — no remote code is executed (CSP: `script-src 'self'`).

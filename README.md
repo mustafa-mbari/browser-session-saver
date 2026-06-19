@@ -146,8 +146,7 @@ src/
 │                            # NewTabHeader, SubscriptionCardBody, TabGroupsCardBody,
 │                            # PromptCardBody, SubscriptionReminder, SessionsPanel*,
 │                            # AutoSavesPanel*, TabGroupsPanel*, SubscriptionsPanel*,
-│                            # PromptsPanel*, ImportExportPanel,
-│                            # FrequentlyVisitedPanel, TabsPanel, ActivityPanel
+│                            # PromptsPanel*, ImportExportPanel, TabsPanel
 │                            # (* = React.lazy loaded)
 └── shared/
     ├── components/          # Button, Modal, Toast, Badge, ContextMenu (keyboard nav),

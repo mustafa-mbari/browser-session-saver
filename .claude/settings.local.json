@@ -51,7 +51,9 @@
       "Bash(curl -s -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/124.0.0.0 Safari/537.36\" \"https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap\")",
       "Bash(curl -s -o \"e:/AntiGravity_Projects/browser-session-saver/browser-session-saver/public/fonts/inter-latin.woff2\" \"https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2\")",
       "Bash(curl -s -o \"e:/AntiGravity_Projects/browser-session-saver/browser-session-saver/public/fonts/inter-latin-ext.woff2\" \"https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc.woff2\")",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "PowerShell(npm run build 2>&1)",
+      "PowerShell(npm test 2>&1)"
     ],
     "additionalDirectories": [
       "E:\\Work-Timer\\web\\components\\ui",
