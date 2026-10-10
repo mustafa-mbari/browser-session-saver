@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { crx } from '@crxjs/vite-plugin';
 import { resolve } from 'path';
-import manifest from './public/manifest.json';
+import manifest from './public/manifest.json' with { type: 'json' };
 
 export default defineConfig({
   plugins: [
@@ -11,19 +11,19 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@core': resolve(__dirname, 'src/core'),
-      '@shared': resolve(__dirname, 'src/shared'),
-      '@background': resolve(__dirname, 'src/background'),
-      '@sidepanel': resolve(__dirname, 'src/sidepanel'),
-      '@newtab': resolve(__dirname, 'src/newtab'),
+      '@core': resolve(import.meta.dirname, 'src/core'),
+      '@shared': resolve(import.meta.dirname, 'src/shared'),
+      '@background': resolve(import.meta.dirname, 'src/background'),
+      '@sidepanel': resolve(import.meta.dirname, 'src/sidepanel'),
+      '@newtab': resolve(import.meta.dirname, 'src/newtab'),
     },
   },
   build: {
     sourcemap: 'hidden',
     rollupOptions: {
       input: {
-        sidepanel: resolve(__dirname, 'src/sidepanel/index.html'),
-        newtab: resolve(__dirname, 'src/newtab/index.html'),
+        sidepanel: resolve(import.meta.dirname, 'src/sidepanel/index.html'),
+        newtab: resolve(import.meta.dirname, 'src/newtab/index.html'),
       },
     },
   },
