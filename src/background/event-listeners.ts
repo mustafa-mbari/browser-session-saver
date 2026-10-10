@@ -125,7 +125,8 @@ async function handleSaveSession(payload: {
     windowId,
   });
 
-  if (payload.closeAfter) {
+  const closeAfter = payload.closeAfter ?? (await getSettings()).closeTabsAfterSave;
+  if (closeAfter) {
     const tabIds = chromeTabs.map((t) => t.id).filter((id): id is number => id !== undefined);
     if (tabIds.length > 0) {
       await chrome.tabs.create({ windowId });
@@ -274,26 +275,26 @@ async function handleGetCurrentTabs(): Promise<MessageResponse> {
   };
 }
 
+async function getSettings(): Promise<Settings> {
+  const stored = await getSettingsStorage().get<Settings>(STORAGE_KEYS.SETTINGS);
+  return { ...DEFAULT_SETTINGS, ...(stored ?? {}) };
+}
+
 async function handleGetSettings(): Promise<MessageResponse> {
-  const storage = getSettingsStorage();
-  const settings = (await storage.get<Settings>(STORAGE_KEYS.SETTINGS)) ?? { ...DEFAULT_SETTINGS };
-  return { success: true, data: settings };
+  return { success: true, data: await getSettings() };
 }
 
 async function handleUpdateSettings(
   updates: Partial<Settings>,
 ): Promise<MessageResponse> {
-  const storage = getSettingsStorage();
-  const current = (await storage.get<Settings>(STORAGE_KEYS.SETTINGS)) ?? { ...DEFAULT_SETTINGS };
-  const updated = { ...current, ...updates };
-  await storage.set(STORAGE_KEYS.SETTINGS, updated);
+  const updated = { ...(await getSettings()), ...updates };
+  await getSettingsStorage().set(STORAGE_KEYS.SETTINGS, updated);
   return { success: true, data: updated };
 }
 
 async function handleAutoSaveStatus(): Promise<MessageResponse> {
-  const storage = getSettingsStorage();
-  const settings = (await storage.get<Settings>(STORAGE_KEYS.SETTINGS)) ?? DEFAULT_SETTINGS;
-  const metadata = await storage.get<StorageMetadata>(STORAGE_KEYS.METADATA);
+  const settings = await getSettings();
+  const metadata = await getSettingsStorage().get<StorageMetadata>(STORAGE_KEYS.METADATA);
   return {
     success: true,
     data: {
@@ -541,8 +542,7 @@ async function handleUpdateSessionTabs(payload: {
 
   const { tabs: currentTabs, tabGroups: currentTabGroups } = captureTabGroups(chromeTabs, chromeGroups);
 
-  const settingsStorage = getSettingsStorage();
-  const settings = (await settingsStorage.get<Settings>(STORAGE_KEYS.SETTINGS)) ?? DEFAULT_SETTINGS;
+  const settings = await getSettings();
 
   const existingUrls = new Set(session.tabs.map((t) => t.url));
   const currentUrls = new Set(currentTabs.map((t) => t.url));

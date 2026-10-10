@@ -1,9 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AlertTriangle, Monitor, ALargeSmall } from 'lucide-react';
 import type { TextSizeMode, NewTabSettings, SearchEngine } from '@core/types/newtab.types';
-import type { Settings } from '@core/types/settings.types';
-import { DEFAULT_SETTINGS } from '@core/types/settings.types';
-import { useMessaging } from '@shared/hooks/useMessaging';
+import { useAppSettings } from '@shared/hooks/useAppSettings';
+import AutoSaveSettingsSection from '@shared/components/settings/AutoSaveSettingsSection';
+import {
+  GlassCard as Card,
+  GlassDivider as Divider,
+  GlassSectionTitle as SectionTitle,
+  GlassSelect as SelectField,
+  GlassToggle as Toggle,
+} from '@shared/components/settings/glass-controls';
 
 interface BoardOption {
   id: string;
@@ -32,136 +38,10 @@ const SEARCH_ENGINE_OPTIONS: { value: SearchEngine; label: string }[] = [
   { value: 'custom',    label: 'Custom' },
 ];
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h3 className="text-[11px] font-semibold uppercase tracking-wider mb-3"
-      style={{ color: 'rgba(255,255,255,0.4)' }}>
-      {children}
-    </h3>
-  );
-}
-
-function Toggle({ label, desc, checked, onChange }: {
-  label: string; desc?: string; checked: boolean; onChange: (v: boolean) => void;
-}) {
-  return (
-    <label className="flex items-center justify-between gap-4 cursor-pointer py-1">
-      <div>
-        <div className="text-sm" style={{ color: 'var(--newtab-text)' }}>{label}</div>
-        {desc && <div className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>{desc}</div>}
-      </div>
-      <button
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={`relative shrink-0 w-10 h-[22px] rounded-full transition-colors duration-200 ${
-          checked ? 'bg-indigo-500' : 'bg-white/25'
-        }`}
-      >
-        <span
-          className={`absolute top-[3px] left-[3px] w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
-            checked ? 'translate-x-[18px]' : 'translate-x-0'
-          }`}
-        />
-      </button>
-    </label>
-  );
-}
-
-function Divider() {
-  return <div className="h-px my-1" style={{ background: 'rgba(255,255,255,0.07)' }} />;
-}
-
-function Range({ label, value, min, max, step, unit, onChange }: {
-  label: string; value: number; min: number; max: number; step: number; unit: string; onChange: (v: number) => void;
-}) {
-  return (
-    <div className="py-1">
-      <div className="flex justify-between mb-1.5">
-        <span className="text-sm" style={{ color: 'var(--newtab-text)' }}>{label}</span>
-        <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{value} {unit}</span>
-      </div>
-      <input
-        type="range" min={min} max={max} step={step} value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1.5 rounded-full appearance-none"
-        style={{ accentColor: '#6366f1' }}
-      />
-    </div>
-  );
-}
-
-function NumberField({ label, value, min, max, onChange }: {
-  label: string; value: number; min: number; max: number; onChange: (v: number) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between py-1">
-      <span className="text-sm" style={{ color: 'var(--newtab-text)' }}>{label}</span>
-      <input
-        type="number" min={min} max={max} value={value}
-        onChange={(e) => onChange(Math.min(max, Math.max(min, Number(e.target.value))))}
-        className="w-20 px-2 py-1 text-sm rounded-lg text-center outline-none"
-        style={{
-          background: 'rgba(255,255,255,0.08)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          color: 'var(--newtab-text)',
-        }}
-      />
-    </div>
-  );
-}
-
-function SelectField({ label, value, options, onChange }: {
-  label: string; value: string; options: { value: string; label: string }[]; onChange: (v: string) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between py-1">
-      <span className="text-sm" style={{ color: 'var(--newtab-text)' }}>{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="px-2 py-1.5 text-sm rounded-lg outline-none"
-        style={{
-          background: 'rgba(255,255,255,0.08)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          color: 'var(--newtab-text)',
-        }}
-      >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value} style={{ background: '#1a1a2e' }}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-function Card({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="glass-panel rounded-2xl p-5">
-      {children}
-    </div>
-  );
-}
-
 export default function SettingsView({ settings, boards, onUpdate, onClearData }: Props) {
   const [confirmClear, setConfirmClear] = useState(false);
   const [clearing, setClearing] = useState(false);
-  const { sendMessage } = useMessaging();
-  const [appSettings, setAppSettings] = useState<Settings>(DEFAULT_SETTINGS);
-
-  useEffect(() => {
-    sendMessage<Settings>({ action: 'GET_SETTINGS', payload: {} }).then((r) => {
-      if (r.success && r.data) setAppSettings(r.data as Settings);
-    });
-  }, [sendMessage]);
-
-  const updateApp = async <K extends keyof Settings>(key: K, value: Settings[K]) => {
-    const updated = { ...appSettings, [key]: value };
-    setAppSettings(updated);
-    await sendMessage({ action: 'UPDATE_SETTINGS', payload: { [key]: value } });
-  };
+  const { settings: appSettings, updateSetting: updateApp } = useAppSettings();
 
   const handleClear = async () => {
     setClearing(true);
@@ -321,82 +201,15 @@ export default function SettingsView({ settings, boards, onUpdate, onClearData }
           </div>
         </Card>
 
-        {/* ── Auto-Save ── */}
-        <Card>
-          <SectionTitle>Auto-Save</SectionTitle>
-          <div className="flex flex-col gap-0.5">
-            <Toggle
-              label="Enable Auto-Save"
-              checked={appSettings.enableAutoSave}
-              onChange={(v) => { void updateApp('enableAutoSave', v); }}
-            />
-            <Range
-              label="Save Interval"
-              value={appSettings.saveInterval}
-              min={5} max={60} step={5} unit="min"
-              onChange={(v) => { void updateApp('saveInterval', v); }}
-            />
-            <NumberField
-              label="Max Auto-Saves to Keep"
-              value={appSettings.maxAutoSaves}
-              min={10} max={500}
-              onChange={(v) => { void updateApp('maxAutoSaves', v); }}
-            />
-            <Toggle
-              label="Save on Browser Close"
-              checked={appSettings.saveOnBrowserClose}
-              onChange={(v) => { void updateApp('saveOnBrowserClose', v); }}
-            />
-            <Toggle
-              label="Save on Low Battery"
-              checked={appSettings.saveOnLowBattery}
-              onChange={(v) => { void updateApp('saveOnLowBattery', v); }}
-            />
-            {appSettings.saveOnLowBattery && (
-              <Range
-                label="Battery Threshold"
-                value={appSettings.lowBatteryThreshold}
-                min={5} max={30} step={5} unit="%"
-                onChange={(v) => { void updateApp('lowBatteryThreshold', v); }}
-              />
-            )}
-            <Toggle
-              label="Save on Sleep / Hibernate"
-              checked={appSettings.saveOnSleep}
-              onChange={(v) => { void updateApp('saveOnSleep', v); }}
-            />
-            <Toggle
-              label="Save on Network Disconnect"
-              checked={appSettings.saveOnNetworkDisconnect}
-              onChange={(v) => { void updateApp('saveOnNetworkDisconnect', v); }}
-            />
-          </div>
-        </Card>
-
-        {/* ── Behavior ── */}
-        <Card>
-          <SectionTitle>Behavior</SectionTitle>
-          <div className="flex flex-col gap-0.5">
-            <Toggle
-              label="Close Tabs After Saving"
-              checked={appSettings.closeTabsAfterSave}
-              onChange={(v) => { void updateApp('closeTabsAfterSave', v); }}
-            />
-            <SelectField
-              label="Auto-delete Old Sessions"
-              value={String(appSettings.autoDeleteAfterDays ?? 'never')}
-              options={[
-                { value: 'never', label: 'Never' },
-                { value: '7',     label: '7 days' },
-                { value: '14',    label: '14 days' },
-                { value: '30',    label: '30 days' },
-                { value: '60',    label: '60 days' },
-                { value: '90',    label: '90 days' },
-              ]}
-              onChange={(v) => { void updateApp('autoDeleteAfterDays', v === 'never' ? null : Number(v)); }}
-            />
-          </div>
-        </Card>
+        <AutoSaveSettingsSection
+          variant="newtab"
+          renderGroup={(title, rows) => (
+            <Card>
+              <SectionTitle>{title}</SectionTitle>
+              <div className="flex flex-col gap-0.5">{rows}</div>
+            </Card>
+          )}
+        />
 
         {/* ── Danger Zone ── */}
         <Card>

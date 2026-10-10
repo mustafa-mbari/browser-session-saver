@@ -143,7 +143,7 @@ export default function AutoSavesPanel() {
           <Clock size={32} className="mx-auto mb-3 opacity-40" />
           <p className="text-base">No auto-saves yet</p>
           <p className="text-sm mt-1 opacity-60">
-            Auto-saves appear when triggered by browser close, sleep, low battery, or timer
+            Auto-saves appear when triggered by the timer, browser close, sleep, or closing a window
           </p>
         </div>
       ) : autoSaves.length <= 30 ? (

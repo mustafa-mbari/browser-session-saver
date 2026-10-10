@@ -1,11 +1,9 @@
-import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
+import { useState, useMemo, useCallback, memo, useRef } from 'react';
 import { t } from '@shared/utils/i18n';
-import type { LucideIcon } from 'lucide-react';
 import {
   Search, RotateCcw, RefreshCw, MoreVertical, Pin, Star, Download, Trash2, Lock,
   FolderOpen, Layers2, Clock as ClockIcon, HardDrive,
-  SlidersHorizontal, Power, Moon, Battery, WifiOff, Camera, Filter, Scissors, Calendar,
-  Save,
+  SlidersHorizontal, Save,
 } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useSession } from '@shared/hooks/useSession';
@@ -16,10 +14,9 @@ import LoadingSpinner from '@shared/components/LoadingSpinner';
 import Tooltip from '@shared/components/Tooltip';
 import SessionBulkToolbar from './SessionBulkToolbar';
 import SessionDiffModal from './SessionDiffModal';
+import AutoSaveSettingsSection from '@shared/components/settings/AutoSaveSettingsSection';
 import type { Session, TabGroup } from '@core/types/session.types';
 import type { SessionDiffResponse } from '@core/types/messages.types';
-import type { Settings } from '@core/types/settings.types';
-import { DEFAULT_SETTINGS } from '@core/types/settings.types';
 import { GROUP_COLORS } from '@core/constants/tab-group-colors';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
@@ -292,97 +289,6 @@ const ManualSessionCard = memo(function ManualSessionCard({
 
 // ── Settings Panel ─────────────────────────────────────────────────────────────
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className="relative shrink-0 rounded-full transition-all focus:outline-none"
-      style={{
-        width: 36,
-        height: 20,
-        background: checked ? '#6366f1' : 'rgba(255,255,255,0.15)',
-      }}
-    >
-      <span
-        className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
-        style={{ transform: checked ? 'translateX(16px)' : 'translateX(0px)' }}
-      />
-    </button>
-  );
-}
-
-function SettingRow({
-  icon: Icon,
-  label,
-  description,
-  children,
-}: {
-  icon?: LucideIcon;
-  label: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-2.5">
-      {Icon
-        ? <Icon size={13} style={{ color: 'var(--newtab-text-secondary)', opacity: 0.65, flexShrink: 0 }} />
-        : <span style={{ width: 13, flexShrink: 0 }} />
-      }
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium leading-tight" style={{ color: 'var(--newtab-text)' }}>{label}</p>
-        {description && (
-          <p className="text-[10px] mt-0.5 leading-tight" style={{ color: 'var(--newtab-text-secondary)', opacity: 0.7 }}>
-            {description}
-          </p>
-        )}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function NumInput({
-  value,
-  onChange,
-  min,
-  max,
-  unit,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  min: number;
-  max: number;
-  unit?: string;
-}) {
-  return (
-    <div className="flex items-center gap-1.5 shrink-0">
-      {unit && (
-        <span className="text-[10px] shrink-0" style={{ color: 'var(--newtab-text-secondary)' }}>
-          {unit}
-        </span>
-      )}
-      <input
-        type="number"
-        value={value}
-        onChange={(e) => {
-          const v = parseInt(e.target.value, 10);
-          if (!isNaN(v) && v >= min && v <= max) onChange(v);
-        }}
-        min={min}
-        max={max}
-        className="w-14 text-center text-xs rounded-lg px-1 py-1 outline-none"
-        style={{
-          background: 'rgba(255,255,255,0.1)',
-          color: 'var(--newtab-text)',
-          border: '1px solid rgba(255,255,255,0.15)',
-        }}
-      />
-    </div>
-  );
-}
-
 const sectionLabel: React.CSSProperties = {
   color: 'var(--newtab-text-secondary)',
   opacity: 0.6,
@@ -394,27 +300,6 @@ const sectionLabel: React.CSSProperties = {
 };
 
 function SessionSettingsPanel() {
-  const { sendMessage } = useMessaging();
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-
-  useEffect(() => {
-    void sendMessage<Settings>({ action: 'GET_SETTINGS', payload: {} }).then((res) => {
-      if (res.success && res.data) setSettings(res.data);
-    });
-  }, [sendMessage]);
-
-  const update = useCallback(
-    async <K extends keyof Settings>(key: K, value: Settings[K]) => {
-      setSettings((prev) => ({ ...prev, [key]: value }));
-      const res = await sendMessage<Settings>({
-        action: 'UPDATE_SETTINGS',
-        payload: { [key]: value } as Partial<Settings>,
-      });
-      if (res.success && res.data) setSettings(res.data);
-    },
-    [sendMessage],
-  );
-
   return (
     <div
       className="flex flex-col gap-3 sticky top-4 overflow-y-auto"
@@ -428,112 +313,15 @@ function SessionSettingsPanel() {
         </h3>
       </div>
 
-      {/* Auto-Save */}
-      <div>
-        <p style={sectionLabel}>Auto-Save</p>
-        <div className="glass-panel rounded-xl px-3 py-2.5 flex flex-col gap-2.5">
-          <SettingRow icon={ClockIcon} label="Enable Auto-Save" description="Periodically capture all open tabs">
-            <Toggle checked={settings.enableAutoSave} onChange={(v) => update('enableAutoSave', v)} />
-          </SettingRow>
-          {settings.enableAutoSave && (
-            <>
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }} />
-              <SettingRow label="Interval">
-                <NumInput value={settings.saveInterval} onChange={(v) => update('saveInterval', v)} min={1} max={120} unit="min" />
-              </SettingRow>
-              <SettingRow label="Max entries">
-                <NumInput value={settings.maxAutoSaves} onChange={(v) => update('maxAutoSaves', v)} min={1} max={500} unit="saves" />
-              </SettingRow>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Triggers */}
-      {settings.enableAutoSave && (
-        <div>
-          <p style={sectionLabel}>Triggers</p>
-          <div className="glass-panel rounded-xl px-3 py-2.5 flex flex-col gap-2.5">
-            <SettingRow icon={Power} label="Browser Close">
-              <Toggle checked={settings.saveOnBrowserClose} onChange={(v) => update('saveOnBrowserClose', v)} />
-            </SettingRow>
-            <SettingRow icon={Moon} label="On Sleep">
-              <Toggle checked={settings.saveOnSleep} onChange={(v) => update('saveOnSleep', v)} />
-            </SettingRow>
-            <SettingRow icon={Battery} label="Low Battery">
-              <Toggle checked={settings.saveOnLowBattery} onChange={(v) => update('saveOnLowBattery', v)} />
-            </SettingRow>
-            {settings.saveOnLowBattery && (
-              <SettingRow label="Threshold">
-                <NumInput value={settings.lowBatteryThreshold} onChange={(v) => update('lowBatteryThreshold', v)} min={5} max={50} unit="%" />
-              </SettingRow>
-            )}
-            <SettingRow icon={WifiOff} label="Network Drop">
-              <Toggle checked={settings.saveOnNetworkDisconnect} onChange={(v) => update('saveOnNetworkDisconnect', v)} />
-            </SettingRow>
+      <AutoSaveSettingsSection
+        variant="newtab"
+        renderGroup={(title, rows) => (
+          <div>
+            <p style={sectionLabel}>{title}</p>
+            <div className="glass-panel rounded-xl px-3 py-2.5 flex flex-col gap-1">{rows}</div>
           </div>
-        </div>
-      )}
-
-      {/* Behavior */}
-      <div>
-        <p style={sectionLabel}>Behavior</p>
-        <div className="glass-panel rounded-xl px-3 py-2.5 flex flex-col gap-2.5">
-          <SettingRow
-            icon={Camera}
-            label="Snapshot Mode"
-            description="Remove closed tabs from auto-save"
-          >
-            <Toggle checked={settings.autoSaveOnTabClose} onChange={(v) => update('autoSaveOnTabClose', v)} />
-          </SettingRow>
-          <SettingRow
-            icon={Filter}
-            label="Sync on Update"
-            description="Remove tabs no longer open when updating a session"
-          >
-            <Toggle checked={settings.removeClosedTabsOnUpdate} onChange={(v) => update('removeClosedTabsOnUpdate', v)} />
-          </SettingRow>
-          <SettingRow
-            icon={Scissors}
-            label="Close After Save"
-            description="Close tabs when manually saving a session"
-          >
-            <Toggle checked={settings.closeTabsAfterSave} onChange={(v) => update('closeTabsAfterSave', v)} />
-          </SettingRow>
-        </div>
-      </div>
-
-      {/* Cleanup */}
-      <div>
-        <p style={sectionLabel}>Cleanup</p>
-        <div className="glass-panel rounded-xl px-3 py-2.5 flex flex-col gap-2.5">
-          <SettingRow
-            icon={Calendar}
-            label="Auto-Delete"
-            description={
-              settings.autoDeleteAfterDays === null
-                ? 'Keep sessions forever'
-                : `Delete sessions older than ${settings.autoDeleteAfterDays} days`
-            }
-          >
-            <Toggle
-              checked={settings.autoDeleteAfterDays !== null}
-              onChange={(v) => update('autoDeleteAfterDays', v ? 30 : null)}
-            />
-          </SettingRow>
-          {settings.autoDeleteAfterDays !== null && (
-            <SettingRow label="Delete after">
-              <NumInput
-                value={settings.autoDeleteAfterDays}
-                onChange={(v) => update('autoDeleteAfterDays', v)}
-                min={1}
-                max={365}
-                unit="days"
-              />
-            </SettingRow>
-          )}
-        </div>
-      </div>
+        )}
+      />
     </div>
   );
 }

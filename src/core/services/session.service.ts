@@ -1,6 +1,5 @@
 import type { Session, Tab, TabGroup, AutoSaveTrigger } from '@core/types/session.types';
 import type { SessionFilter, SessionSort } from '@core/types/messages.types';
-import type { Settings } from '@core/types/settings.types';
 import { CURRENT_SCHEMA_VERSION } from '@core/types/storage.types';
 import { generateId } from '@core/utils/uuid';
 import { nowISO, formatTimestamp } from '@core/utils/date';
@@ -60,10 +59,6 @@ export async function saveSession(
 
   if (isAutoSave) {
     const settingsStorage = getSettingsStorage();
-    const settings = await settingsStorage.get<Settings>(STORAGE_KEYS.SETTINGS);
-    const maxAutoSaves = settings?.maxAutoSaves ?? 50;
-    await enforceAutoSaveLimit(maxAutoSaves);
-
     const metadata = (await settingsStorage.get<StorageMetadata>(STORAGE_KEYS.METADATA)) ?? {
       version: CURRENT_SCHEMA_VERSION,
       lastAutoSave: null,
@@ -250,19 +245,6 @@ export async function checkDuplicate(tabUrls: string[]): Promise<boolean> {
   const latestUrls = latest.tabs.map((t) => t.url).sort();
   const currentUrls = [...tabUrls].sort();
   return latestUrls.every((url, i) => url === currentUrls[i]);
-}
-
-async function enforceAutoSaveLimit(maxAutoSaves: number): Promise<void> {
-  const repo = getSessionRepository();
-  const allAutoSaves = await repo.getByIndex('isAutoSave', true);
-  const deletable = allAutoSaves
-    .filter((s) => !s.isLocked)
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-  while (deletable.length > maxAutoSaves) {
-    const oldest = deletable.shift()!;
-    await repo.delete(oldest.id);
-  }
 }
 
 function applyFilter(sessions: Session[], filter: SessionFilter): Session[] {

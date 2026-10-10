@@ -18,4 +18,4 @@ export const STORAGE_KEYS = {
   METADATA: 'metadata',
 } as const;
 
-export const CURRENT_SCHEMA_VERSION = '1.0.0';
+export const CURRENT_SCHEMA_VERSION = '1.1.0';

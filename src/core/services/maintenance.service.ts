@@ -22,3 +22,23 @@ export async function purgeOldTombstones(now = Date.now()): Promise<number> {
   ]);
   return counts.reduce((sum, n) => sum + n, 0);
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Soft-delete sessions not updated in the last `days` days. Pinned, locked and starred
+ * sessions are always kept (the rolling auto-save is pinned and locked).
+ * Returns the number of sessions deleted.
+ */
+export async function deleteSessionsOlderThan(days: number, now = Date.now()): Promise<number> {
+  const cutoff = now - days * DAY_MS;
+  const repo = getSessionRepository();
+  let deleted = 0;
+  for (const session of await repo.getAll()) {
+    if (session.isPinned || session.isLocked || session.isStarred) continue;
+    const lastUpdated = Date.parse(session.updatedAt ?? session.createdAt);
+    if (Number.isNaN(lastUpdated) || lastUpdated >= cutoff) continue;
+    if (await repo.markDeleted(session.id)) deleted++;
+  }
+  return deleted;
+}

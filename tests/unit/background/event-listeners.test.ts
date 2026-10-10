@@ -242,6 +242,41 @@ describe('handleMessage', () => {
     });
   });
 
+  // ── SAVE_SESSION ──────────────────────────────────────────────────────────
+  describe('SAVE_SESSION', () => {
+    beforeEach(() => {
+      (chrome.tabs.query as ReturnType<typeof vi.fn>).mockResolvedValue([
+        { id: 11, url: 'https://a.com', windowId: 1 },
+        { id: 12, url: 'https://b.com', windowId: 1 },
+      ]);
+      mockCheckDuplicate.mockResolvedValue(false);
+      mockSaveSession.mockResolvedValue(makeSession());
+    });
+
+    it('closes the saved tabs when closeTabsAfterSave is on', async () => {
+      settingsStore['settings'] = { closeTabsAfterSave: true };
+      const res = await dispatch({ action: 'SAVE_SESSION', payload: { name: 'Work' } });
+
+      expect(res.success).toBe(true);
+      expect(chrome.tabs.create).toHaveBeenCalledWith({ windowId: 1 });
+      expect(chrome.tabs.remove).toHaveBeenCalledWith([11, 12]);
+    });
+
+    it('keeps the tabs when closeTabsAfterSave is off', async () => {
+      const res = await dispatch({ action: 'SAVE_SESSION', payload: { name: 'Work' } });
+
+      expect(res.success).toBe(true);
+      expect(chrome.tabs.remove).not.toHaveBeenCalled();
+    });
+
+    it('an explicit closeAfter in the request wins over the setting', async () => {
+      settingsStore['settings'] = { closeTabsAfterSave: true };
+      await dispatch({ action: 'SAVE_SESSION', payload: { name: 'Work', closeAfter: false } });
+
+      expect(chrome.tabs.remove).not.toHaveBeenCalled();
+    });
+  });
+
   // ── GET_SETTINGS ──────────────────────────────────────────────────────────
   describe('GET_SETTINGS', () => {
     it('returns default settings when nothing is stored', async () => {

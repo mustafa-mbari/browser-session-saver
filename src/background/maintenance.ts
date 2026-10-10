@@ -1,4 +1,8 @@
-import { purgeOldTombstones } from '@core/services/maintenance.service';
+import type { Settings } from '@core/types/settings.types';
+import { DEFAULT_SETTINGS } from '@core/types/settings.types';
+import { STORAGE_KEYS } from '@core/types/storage.types';
+import { getSettingsStorage } from '@core/storage/storage-factory';
+import { purgeOldTombstones, deleteSessionsOlderThan } from '@core/services/maintenance.service';
 import { MAINTENANCE_ALARM, ensureAlarm, onAlarm } from './alarms';
 
 const DAILY_MINUTES = 24 * 60;
@@ -15,6 +19,11 @@ export function initMaintenance(): void {
 
 export async function runMaintenance(): Promise<void> {
   try {
+    const stored = await getSettingsStorage().get<Settings>(STORAGE_KEYS.SETTINGS);
+    const { autoDeleteAfterDays } = { ...DEFAULT_SETTINGS, ...(stored ?? {}) };
+    if (autoDeleteAfterDays != null && autoDeleteAfterDays > 0) {
+      await deleteSessionsOlderThan(autoDeleteAfterDays);
+    }
     await purgeOldTombstones();
   } catch (error) {
     console.error('Maintenance failed:', error);

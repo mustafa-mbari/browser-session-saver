@@ -1,15 +1,14 @@
 export interface Settings {
   enableAutoSave: boolean;
   saveInterval: number;
-  maxAutoSaves: number;
   saveOnBrowserClose: boolean;
-  saveOnLowBattery: boolean;
-  lowBatteryThreshold: number;
   saveOnSleep: boolean;
   saveOnNetworkDisconnect: boolean;
+  /** Soft-delete saved sessions older than this many days; null keeps them forever.
+   *  Pinned, locked and starred sessions are always kept. */
   autoDeleteAfterDays: number | null;
+  /** Close the window's tabs after a manual save (unless the request says otherwise). */
   closeTabsAfterSave: boolean;
-  primaryUI: 'sidepanel' | 'popup';
   theme: 'light' | 'dark' | 'system';
   /** When false (default), auto-save only adds new tabs — closed tabs stay in the session.
    *  When true, auto-save reflects the exact current open tabs (closed tabs are removed). */
@@ -22,16 +21,20 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   enableAutoSave: true,
   saveInterval: 15,
-  maxAutoSaves: 50,
   saveOnBrowserClose: true,
-  saveOnLowBattery: true,
-  lowBatteryThreshold: 15,
   saveOnSleep: true,
   saveOnNetworkDisconnect: false,
-  autoDeleteAfterDays: 30,
+  autoDeleteAfterDays: null,
   closeTabsAfterSave: false,
-  primaryUI: 'sidepanel',
   theme: 'system',
   autoSaveOnTabClose: true,
   removeClosedTabsOnUpdate: false,
 };
+
+/** Settings keys that earlier versions stored but no longer exist. */
+export const REMOVED_SETTINGS_KEYS = [
+  'maxAutoSaves',
+  'saveOnLowBattery',
+  'lowBatteryThreshold',
+  'primaryUI',
+] as const;

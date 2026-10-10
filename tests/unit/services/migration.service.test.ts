@@ -73,4 +73,34 @@ describe('migrateIfNeeded', () => {
     const written = settingsStore[STORAGE_KEYS.METADATA] as { lastAutoSave: string };
     expect(written.lastAutoSave).toBe('2026-01-01T00:00:00.000Z');
   });
+
+  it('upgrading from 1.0.0 turns auto-delete off and drops removed settings', async () => {
+    settingsStore[STORAGE_KEYS.METADATA] = { version: '1.0.0', lastAutoSave: null, storageUsedBytes: 0 };
+    settingsStore[STORAGE_KEYS.SETTINGS] = {
+      enableAutoSave: true,
+      autoDeleteAfterDays: 30,
+      theme: 'dark',
+      maxAutoSaves: 50,
+      saveOnLowBattery: true,
+      lowBatteryThreshold: 15,
+      primaryUI: 'sidepanel',
+    };
+
+    await migrateIfNeeded();
+
+    expect(settingsStore[STORAGE_KEYS.SETTINGS]).toEqual({
+      enableAutoSave: true,
+      autoDeleteAfterDays: null,
+      theme: 'dark',
+    });
+  });
+
+  it('leaves settings alone once already on the current version', async () => {
+    settingsStore[STORAGE_KEYS.METADATA] = { version: CURRENT_SCHEMA_VERSION, lastAutoSave: null, storageUsedBytes: 0 };
+    settingsStore[STORAGE_KEYS.SETTINGS] = { autoDeleteAfterDays: 30 };
+
+    await migrateIfNeeded();
+
+    expect(settingsStore[STORAGE_KEYS.SETTINGS]).toEqual({ autoDeleteAfterDays: 30 });
+  });
 });
