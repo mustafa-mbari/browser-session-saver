@@ -543,12 +543,13 @@ function AnalyticsTab({ subs, onImport }: { subs: Subscription[]; onImport: (s: 
   const maxBar = Math.max(...monthly.map((d) => d.total), 1);
 
   const total = breakdown.reduce((s, d) => s + d.total, 0);
+  const arcs: (typeof breakdown[number] & { start: number; end: number })[] = [];
   let angle = 0;
-  const arcs = breakdown.map((d) => {
+  for (const d of breakdown) {
     const sweep = (d.total / Math.max(total, 1)) * 360;
-    const start = angle; angle += sweep;
-    return { ...d, start, end: angle };
-  });
+    arcs.push({ ...d, start: angle, end: angle + sweep });
+    angle += sweep;
+  }
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-4">

@@ -990,7 +990,7 @@ export default function BookmarkFolderPanel() {
 
   const rawEntries = selectedFolderId ? data.getEntriesForCategory(selectedFolderId) : [];
   const currentEntries = [...rawEntries].sort((a, b) => {
-    let av = '', bv = '';
+    let av: string, bv: string;
     if (sortKey === 'title') { av = (a.title || a.url).toLowerCase(); bv = (b.title || b.url).toLowerCase(); }
     else if (sortKey === 'category') { av = (a.category ?? '').toLowerCase(); bv = (b.category ?? '').toLowerCase(); }
     else { av = a.addedAt; bv = b.addedAt; }
@@ -1035,7 +1035,8 @@ export default function BookmarkFolderPanel() {
   }
 
   // Sort header cell
-  const SortTh = ({ col, label, width }: { col: SortKey; label: string; width: keyof ColWidths }) => (
+  // A render helper, not a component: a component defined here would remount every render.
+  const renderSortTh = (col: SortKey, label: string, width: keyof ColWidths) => (
     <th
       className="relative py-2.5 pr-3 text-left select-none"
       style={{ width: colWidths[width], minWidth: 80 }}
@@ -1197,8 +1198,8 @@ export default function BookmarkFolderPanel() {
                           <tr className="border-b border-white/8" style={{ background: 'rgba(255,255,255,0.04)' }}>
                             {/* Favicon col — fixed */}
                             <th className="w-10 pl-3 py-2.5" />
-                            <SortTh col="title" label="Title" width="title" />
-                            <SortTh col="category" label="Category" width="category" />
+                            {renderSortTh('title', 'Title', 'title')}
+                            {renderSortTh('category', 'Category', 'category')}
                             {/* Description — not sortable, still resizable */}
                             <th
                               className="relative py-2.5 pr-3 text-left"

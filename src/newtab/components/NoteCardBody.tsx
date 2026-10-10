@@ -5,6 +5,15 @@ import { getQuotesForLanguage } from '@core/data/motivational-quotes';
 
 const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
 
+/** A random index in [0, length) that differs from `current` when there is a choice. */
+function randomOtherIndex(length: number, current: number): number {
+  let next = Math.floor(Math.random() * length);
+  if (length > 1) {
+    while (next === current) next = Math.floor(Math.random() * length);
+  }
+  return next;
+}
+
 function getActiveQuoteIndex(quotes: readonly string[], quoteIndex?: number, quoteChangedAt?: string): number {
   if (quoteIndex !== undefined && quoteChangedAt) {
     if (Date.now() - new Date(quoteChangedAt).getTime() < FOUR_HOURS_MS) {
@@ -58,11 +67,7 @@ export default function NoteCardBody({
   const handleRefresh = (e: React.MouseEvent) => {
     e.stopPropagation();
     const current = getActiveQuoteIndex(quotes, quoteIndex, quoteChangedAt);
-    let next = Math.floor(Math.random() * quotes.length);
-    if (quotes.length > 1) {
-      while (next === current) next = Math.floor(Math.random() * quotes.length);
-    }
-    onRefreshQuote?.(next, new Date().toISOString());
+    onRefreshQuote?.(randomOtherIndex(quotes.length, current), new Date().toISOString());
   };
 
   // tick is read so the linter/bundler doesn't strip it — it forces re-render each minute

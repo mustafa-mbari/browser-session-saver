@@ -441,6 +441,7 @@ export default function DashboardLayout() {
             <div className="flex-1 overflow-y-auto px-[6%] pb-6">
               <div>
                 {/* Bookmark views */}
+                {/* eslint-disable-next-line react-hooks/refs -- the board handlers read layout refs only when called from events */}
                 {activeView === 'bookmarks' && bookmarkBoardProps && (
                   <div className="pt-3">
                     <BookmarkBoard {...bookmarkBoardProps} />

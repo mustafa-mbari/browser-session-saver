@@ -19,6 +19,11 @@ const SIDEPANEL_CAT_COLORS = [
   '#3b82f6', '#ec4899', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#f97316', '#6b7280',
 ];
 
+/** Category key from its label; falls back to a unique key when nothing usable remains. */
+function categorySlug(label: string): string {
+  return label.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || `cat_${Date.now()}`;
+}
+
 function getDefaultForm(): Partial<Subscription> {
   return {
     name: '',
@@ -56,7 +61,7 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
 
   const handleAddCustomCat = async () => {
     if (!newCatLabel.trim()) return;
-    const slug = newCatLabel.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || `cat_${Date.now()}`;
+    const slug = categorySlug(newCatLabel);
     const cat: CustomCategory = { value: slug, label: newCatLabel.trim(), emoji: newCatEmoji.trim() || '📦', color: newCatColor };
     await SubscriptionStorage.addCustomCategory(cat);
     setCustomCats((prev) => [...prev, cat]);

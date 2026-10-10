@@ -2,7 +2,9 @@ import { useEffect, useRef } from 'react';
 
 export function useKeyboard(shortcuts: Record<string, () => void>) {
   const shortcutsRef = useRef(shortcuts);
-  shortcutsRef.current = shortcuts;
+  useEffect(() => {
+    shortcutsRef.current = shortcuts;
+  });
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

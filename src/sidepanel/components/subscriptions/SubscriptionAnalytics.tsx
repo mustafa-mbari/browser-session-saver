@@ -84,13 +84,13 @@ function DonutChart({ data }: { data: { category: string; total: number; color: 
   const R  = 45;
   const IR = 28;
 
+  const arcs: (typeof data[number] & { startAngle: number; endAngle: number })[] = [];
   let angle = 0;
-  const arcs = data.map((d) => {
+  for (const d of data) {
     const sweep = (d.total / total) * 360;
-    const start = angle;
+    arcs.push({ ...d, startAngle: angle, endAngle: angle + sweep });
     angle += sweep;
-    return { ...d, startAngle: start, endAngle: angle };
-  });
+  }
 
   return (
     <div className="flex items-center gap-3">
