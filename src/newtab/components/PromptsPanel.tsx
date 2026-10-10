@@ -1435,14 +1435,15 @@ export default function PromptsPanel() {
 
   const handleDeleteFolder = useCallback(async (id: string) => {
     await PromptStorage.deleteFolder(id);
-    setFolders((prev) => prev.filter((f) => f.id !== id));
+    // Reload: deleting a folder also moves its sub-folders up to its parent.
+    setFolders(await PromptStorage.getFolders());
     setPrompts((prev) => prev.map((p) => p.folderId === id ? { ...p, folderId: undefined } : p));
     setNav((prevNav) =>
       prevNav.kind === 'source' && prevNav.folderId === id
         ? { kind: 'source', source: prevNav.source }
         : prevNav,
     );
-  }, [folders]);
+  }, []);
 
   const handleMoveFolder = useCallback(async (id: string, newParentId: string | undefined) => {
     const folder = folders.find((f) => f.id === id);
