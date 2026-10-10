@@ -1,31 +1,241 @@
 import type { Settings } from '@core/types/settings.types';
+import { DEFAULT_SETTINGS } from '@core/types/settings.types';
 import type { AutoSaveTrigger, Tab, TabGroup } from '@core/types/session.types';
+import { STORAGE_KEYS } from '@core/types/storage.types';
 import { TAB_CACHE_DEBOUNCE_MS } from '@core/constants/timings';
+import { getSettingsStorage } from '@core/storage/storage-factory';
+import { withStorageLock } from '@core/storage/storage-mutex';
 import * as SessionService from '@core/services/session.service';
 import { captureTabGroups } from '@core/services/tab-group.service';
-import { setupAlarms, clearAlarms, onAlarm, updateAlarmInterval } from './alarms';
+import { AUTO_SAVE_ALARM, ensureAlarm, clearAlarm, onAlarm } from './alarms';
 
-let _isSaving = false;
-let _settings: Settings | null = null;
+interface WindowTabs {
+  tabs: Tab[];
+  tabGroups: TabGroup[];
+}
+
+interface BrowserSnapshot extends WindowTabs {
+  savedAt: number;
+}
+
 let _initialized = false;
-const _pendingCriticalTriggers = new Set<AutoSaveTrigger>();
+let _settings: Settings = DEFAULT_SETTINGS;
+let _settingsReady: Promise<void> = Promise.resolve();
+let _settingsVersion = 0;
 
-// Cache of tab state per window for window-close auto-save
-const windowTabCache = new Map<number, { tabs: Tab[]; tabGroups: TabGroup[] }>();
+// Tabs per window, used by the window-close save. Mirrored to storage.session so it
+// survives service worker restarts (storage.session is cleared on browser restart).
+const windowTabCache = new Map<number, WindowTabs>();
+let _cacheReady: Promise<void> = Promise.resolve();
+const _tabCacheTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
-// Debounce timer for updateTabCache
-let _tabCacheTimer: ReturnType<typeof setTimeout> | null = null;
+// All open tabs across windows, mirrored to storage.local so the next browser start
+// can save what was open when the browser closed. Chrome gives the service worker
+// no reliable event on browser exit, so the snapshot has to be kept up to date.
+let _previousSnapshot: Promise<BrowserSnapshot | null> = Promise.resolve(null);
+let _lastSnapshotJson = '';
 
 const TAB_CACHE_KEY = 'window_tab_cache';
-const SHUTDOWN_FLAG_KEY = 'pending_shutdown_save';
+const BROWSER_SNAPSHOT_KEY = 'last_browser_snapshot';
+const SNAPSHOT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const AUTO_SAVE_LOCK = 'auto-save';
 
-async function persistTabCache(): Promise<void> {
+export function initAutoSaveEngine(): void {
+  // Guard against duplicate listener registration
+  if (_initialized) return;
+  _initialized = true;
+
+  // Read the last browser session's snapshot before anything can overwrite it.
+  _previousSnapshot = readBrowserSnapshot();
+  _cacheReady = rehydrateTabCache().then(refreshOpenWindows);
+  _settingsReady = loadSettings();
+
+  onAlarm(AUTO_SAVE_ALARM, () => {
+    void performAutoSave('timer');
+  });
+
+  // Settings can change from any extension page or an import; keep the engine in step.
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    const change = changes[STORAGE_KEYS.SETTINGS];
+    if (areaName !== 'local' || !change?.newValue) return;
+    _settingsVersion++;
+    void updateSettings({ ...DEFAULT_SETTINGS, ...(change.newValue as Partial<Settings>) });
+  });
+
+  // System sleep/idle
+  chrome.idle.setDetectionInterval(60);
+  chrome.idle.onStateChanged.addListener((state) => {
+    if (state === 'locked' || state === 'idle') {
+      void performAutoSave('sleep');
+    }
+  });
+
+  // Keep the per-window tab cache current (debounced per window)
+  chrome.tabs.onUpdated.addListener((_tabId, _changeInfo, tab) => {
+    scheduleTabCacheUpdate(tab.windowId);
+  });
+  chrome.tabs.onRemoved.addListener((_tabId, removeInfo) => {
+    if (!removeInfo.isWindowClosing) {
+      void updateTabCacheForWindow(removeInfo.windowId);
+    }
+  });
+  chrome.tabs.onAttached.addListener((_tabId, attachInfo) => {
+    scheduleTabCacheUpdate(attachInfo.newWindowId);
+  });
+  chrome.tabs.onDetached.addListener((_tabId, detachInfo) => {
+    scheduleTabCacheUpdate(detachInfo.oldWindowId);
+  });
+  chrome.windows.onRemoved.addListener((windowId) => {
+    void handleWindowRemoved(windowId);
+  });
+
+  // Network disconnect
+  self.addEventListener('offline', () => {
+    void performAutoSave('network');
+  });
+}
+
+/** Apply new settings: keep the periodic alarm in line with the configured interval. */
+export async function updateSettings(settings: Settings): Promise<void> {
+  _settings = settings;
   try {
-    const obj = Object.fromEntries(windowTabCache);
-    await chrome.storage.session.set({ [TAB_CACHE_KEY]: obj });
-  } catch {
-    // storage.session may not be available in all contexts
+    if (settings.enableAutoSave) {
+      await ensureAlarm(AUTO_SAVE_ALARM, settings.saveInterval);
+    } else {
+      await clearAlarm(AUTO_SAVE_ALARM);
+    }
+  } catch (error) {
+    console.error('Failed to update auto-save alarm:', describeError(error));
   }
+}
+
+/**
+ * Called on browser startup. Saves the tabs that were open when the browser last
+ * closed as the `shutdown` auto-save.
+ */
+export async function saveShutdownSnapshot(): Promise<void> {
+  await _settingsReady;
+  if (!isTriggerEnabled('shutdown')) return;
+
+  const snapshot = await _previousSnapshot;
+  if (!snapshot || snapshot.tabs.length === 0) return;
+  if (Date.now() - snapshot.savedAt > SNAPSHOT_MAX_AGE_MS) return;
+
+  await runSave('Shutdown auto-save', () =>
+    SessionService.upsertAutoSaveSession(
+      snapshot.tabs,
+      snapshot.tabGroups,
+      { autoSaveTrigger: 'shutdown' },
+      false,
+    ),
+  );
+}
+
+// ── Settings ────────────────────────────────────────────────────────────────
+
+async function loadSettings(): Promise<void> {
+  const version = _settingsVersion;
+  try {
+    const stored = await getSettingsStorage().get<Settings>(STORAGE_KEYS.SETTINGS);
+    // A change that arrived while reading is newer than what we just read.
+    if (version !== _settingsVersion) return;
+    await updateSettings({ ...DEFAULT_SETTINGS, ...(stored ?? {}) });
+  } catch (error) {
+    console.error('Failed to load auto-save settings:', describeError(error));
+  }
+}
+
+function isTriggerEnabled(trigger: AutoSaveTrigger): boolean {
+  if (!_settings.enableAutoSave) return false;
+  switch (trigger) {
+    case 'sleep':
+      return _settings.saveOnSleep;
+    case 'network':
+      return _settings.saveOnNetworkDisconnect;
+    case 'shutdown':
+      return _settings.saveOnBrowserClose;
+    default:
+      return true;
+  }
+}
+
+// ── Saving ──────────────────────────────────────────────────────────────────
+
+async function performAutoSave(trigger: AutoSaveTrigger): Promise<void> {
+  await _settingsReady;
+  if (!isTriggerEnabled(trigger)) return;
+
+  await runSave('Auto-save', async () => {
+    const { tabs, tabGroups } = combineWindows((await captureOpenWindows()).values());
+    if (tabs.length === 0) return;
+
+    // When autoSaveOnTabClose is off, keep closed tabs and only add new URLs.
+    const mergeWithExisting = !_settings.autoSaveOnTabClose;
+    await SessionService.upsertAutoSaveSession(
+      tabs,
+      tabGroups,
+      { autoSaveTrigger: trigger },
+      mergeWithExisting,
+    );
+  });
+}
+
+async function saveClosedWindow(cached: WindowTabs, windowId: number): Promise<void> {
+  await _settingsReady;
+  if (!isTriggerEnabled('window_close')) return;
+
+  // Always merge on window close — preserve tabs from the closing window
+  await runSave('Window close auto-save', () =>
+    SessionService.upsertAutoSaveSession(
+      cached.tabs,
+      cached.tabGroups,
+      { windowId, autoSaveTrigger: 'window_close' },
+      true,
+    ),
+  );
+}
+
+/** Serialize auto-save writes: each one reads and rewrites the same auto-save entry. */
+function runSave(label: string, save: () => Promise<unknown>): Promise<void> {
+  return withStorageLock(AUTO_SAVE_LOCK, async () => {
+    try {
+      await save();
+    } catch (error) {
+      console.error(`${label} failed:`, describeError(error));
+    }
+  });
+}
+
+function describeError(error: unknown): string {
+  return error instanceof DOMException ? `${error.name}: ${error.message}` : String(error);
+}
+
+// ── Tab cache ───────────────────────────────────────────────────────────────
+
+async function captureOpenWindows(): Promise<Map<number, WindowTabs>> {
+  const windows = await chrome.windows.getAll({ populate: false });
+  const entries = await Promise.all(
+    windows
+      .filter((win) => win.id != null)
+      .map(async (win) => {
+        const [chromeTabs, chromeGroups] = await Promise.all([
+          chrome.tabs.query({ windowId: win.id }),
+          chrome.tabGroups.query({ windowId: win.id }),
+        ]);
+        return [win.id!, captureTabGroups(chromeTabs, chromeGroups)] as const;
+      }),
+  );
+  return new Map(entries.filter(([, data]) => data.tabs.length > 0));
+}
+
+function combineWindows(windows: Iterable<WindowTabs>): WindowTabs {
+  const tabs: Tab[] = [];
+  const tabGroups: TabGroup[] = [];
+  for (const entry of windows) {
+    tabs.push(...entry.tabs);
+    tabGroups.push(...entry.tabGroups);
+  }
+  return { tabs, tabGroups };
 }
 
 async function rehydrateTabCache(): Promise<void> {
@@ -36,7 +246,7 @@ async function rehydrateTabCache(): Promise<void> {
       for (const [key, value] of Object.entries(data)) {
         const windowId = Number(key);
         if (!isNaN(windowId) && value && typeof value === 'object') {
-          windowTabCache.set(windowId, value as { tabs: Tab[]; tabGroups: TabGroup[] });
+          windowTabCache.set(windowId, value as WindowTabs);
         }
       }
     }
@@ -45,219 +255,101 @@ async function rehydrateTabCache(): Promise<void> {
   }
 }
 
-export function initAutoSaveEngine(settings: Settings): void {
-  _settings = settings;
-
-  // Rehydrate tab cache from storage.session (survives SW restarts)
-  void rehydrateTabCache();
-
-  if (!settings.enableAutoSave) {
-    clearAlarms();
-    return;
-  }
-
-  // Guard against duplicate listener registration on service worker restart
-  if (_initialized) return;
-  _initialized = true;
-
-  // Periodic timer
-  setupAlarms(settings.saveInterval);
-  onAlarm(() => performAutoSave('timer'));
-
-  // Browser close — write a flag to session storage so the next startup can do a deferred save.
-  // Calling performAutoSave here would be a fire-and-forget that may not complete before suspend.
-  chrome.runtime.onSuspend.addListener(() => {
-    if (_settings?.saveOnBrowserClose) {
-      void chrome.storage.session.set({ [SHUTDOWN_FLAG_KEY]: { timestamp: Date.now() } });
-    }
-  });
-
-  // System sleep/idle
-  chrome.idle.setDetectionInterval(60);
-  chrome.idle.onStateChanged.addListener((state) => {
-    if (_settings?.saveOnSleep && (state === 'locked' || state === 'idle')) {
-      performAutoSave('sleep');
-    }
-  });
-
-  // Window close - maintain tab cache with debounced updates
-  chrome.tabs.onUpdated.addListener(debouncedUpdateTabCache);
-  chrome.tabs.onRemoved.addListener((_tabId, removeInfo) => {
-    if (!removeInfo.isWindowClosing) {
-      updateTabCacheForWindow(removeInfo.windowId);
-    }
-  });
-  chrome.windows.onRemoved.addListener((windowId) => {
-    const cached = windowTabCache.get(windowId);
-    if (cached && cached.tabs.length > 0) {
-      saveClosedWindowFromCache(cached, windowId);
-    }
-    windowTabCache.delete(windowId);
-    void persistTabCache();
-  });
-
-  // Network disconnect
-  self.addEventListener('offline', () => {
-    if (_settings?.saveOnNetworkDisconnect) {
-      performAutoSave('network');
-    }
-  });
-}
-
-export function updateSettings(settings: Settings): void {
-  _settings = settings;
-  if (settings.enableAutoSave) {
-    updateAlarmInterval(settings.saveInterval);
-  } else {
-    clearAlarms();
-  }
-}
-
 /**
- * Called on service-worker startup. If a pending-shutdown flag was written during the
- * previous session's onSuspend, and it's recent (< 30 min), trigger a deferred save
- * using the tab cache that was rehydrated from session storage.
+ * Add every open window to the cache. Entries for windows that are gone are kept:
+ * a window-close event may be the reason the worker just woke up, and its handler
+ * still needs the closed window's tabs.
  */
-export async function checkPendingShutdownSave(): Promise<void> {
+async function refreshOpenWindows(): Promise<void> {
   try {
-    const result = await chrome.storage.session.get(SHUTDOWN_FLAG_KEY);
-    const flag = result[SHUTDOWN_FLAG_KEY] as { timestamp: number } | undefined;
-    if (!flag) return;
-
-    const age = Date.now() - flag.timestamp;
-    if (age > 30 * 60 * 1000) return;
-
-    // Clear the flag so a second startup doesn't re-trigger
-    void chrome.storage.session.set({ [SHUTDOWN_FLAG_KEY]: null });
-
-    const allTabs: Tab[] = [];
-    const allTabGroups: TabGroup[] = [];
-    for (const { tabs, tabGroups } of windowTabCache.values()) {
-      allTabs.push(...tabs);
-      allTabGroups.push(...tabGroups);
+    for (const [windowId, data] of await captureOpenWindows()) {
+      windowTabCache.set(windowId, data);
     }
-
-    if (allTabs.length === 0) return;
-
-    await SessionService.upsertAutoSaveSession(
-      allTabs,
-      allTabGroups,
-      { autoSaveTrigger: 'shutdown' },
-      false,
-    );
+    await persistTabCache();
   } catch {
-    // Non-critical — missed deferred save is acceptable
+    // Best effort — events will fill the cache
   }
 }
 
-async function saveClosedWindowFromCache(
-  cached: { tabs: Tab[]; tabGroups: TabGroup[] },
-  windowId: number,
-): Promise<void> {
-  if (!_settings?.enableAutoSave) return;
-
-  try {
-    // Always merge on window close — preserve tabs from the closing window
-    await SessionService.upsertAutoSaveSession(
-      cached.tabs,
-      cached.tabGroups,
-      { windowId, autoSaveTrigger: 'window_close' },
-      true, // mergeWithExisting
-    );
-  } catch (error) {
-    const detail = error instanceof DOMException
-      ? `${error.name}: ${error.message}`
-      : String(error);
-    console.error('Window close auto-save failed:', detail);
-  }
-}
-
-async function performAutoSave(trigger: AutoSaveTrigger): Promise<void> {
-  if (!_settings?.enableAutoSave) return;
-
-  // If already saving, queue critical triggers (shutdown, window_close) for retry
-  if (_isSaving) {
-    if (trigger === 'shutdown' || trigger === 'window_close') {
-      _pendingCriticalTriggers.add(trigger);
-    }
-    return;
-  }
-
-  _isSaving = true;
-
-  try {
-    // Collect ALL tabs from ALL open windows in parallel
-    const windows = await chrome.windows.getAll({ populate: false });
-    const windowResults = await Promise.all(
-      windows
-        .filter((win) => win.id != null)
-        .map(async (win) => {
-          const [chromeTabs, chromeGroups] = await Promise.all([
-            chrome.tabs.query({ windowId: win.id }),
-            chrome.tabGroups.query({ windowId: win.id }),
-          ]);
-          if (chromeTabs.length === 0) return null;
-          return captureTabGroups(chromeTabs, chromeGroups);
-        }),
-    );
-
-    const allTabs: Tab[] = [];
-    const allTabGroups: TabGroup[] = [];
-    for (const result of windowResults) {
-      if (result) {
-        allTabs.push(...result.tabs);
-        allTabGroups.push(...result.tabGroups);
-      }
-    }
-
-    if (allTabs.length === 0) return;
-
-    // mergeWithExisting = true when autoSaveOnTabClose is disabled (default).
-    // Merge keeps closed tabs in the session; only new URLs are added.
-    const mergeWithExisting = !(_settings?.autoSaveOnTabClose ?? true);
-
-    await SessionService.upsertAutoSaveSession(
-      allTabs,
-      allTabGroups,
-      { autoSaveTrigger: trigger },
-      mergeWithExisting,
-    );
-  } catch (error) {
-    const detail = error instanceof DOMException
-      ? `${error.name}: ${error.message}`
-      : String(error);
-    console.error('Auto-save failed:', detail);
-  } finally {
-    _isSaving = false;
-
-    // Process queued critical triggers (may have multiple if both shutdown + window_close fired)
-    if (_pendingCriticalTriggers.size > 0) {
-      const pending = [..._pendingCriticalTriggers];
-      _pendingCriticalTriggers.clear();
-      for (const t of pending) {
-        void performAutoSave(t);
-      }
-    }
-  }
-}
-
-
-function debouncedUpdateTabCache(_tabId: number, _changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab): void {
-  if (_tabCacheTimer) clearTimeout(_tabCacheTimer);
-  const windowId = tab.windowId;
-  _tabCacheTimer = setTimeout(() => {
-    if (windowId) updateTabCacheForWindow(windowId);
-  }, TAB_CACHE_DEBOUNCE_MS);
+function scheduleTabCacheUpdate(windowId: number): void {
+  const pending = _tabCacheTimers.get(windowId);
+  if (pending) clearTimeout(pending);
+  _tabCacheTimers.set(
+    windowId,
+    setTimeout(() => {
+      _tabCacheTimers.delete(windowId);
+      void updateTabCacheForWindow(windowId);
+    }, TAB_CACHE_DEBOUNCE_MS),
+  );
 }
 
 async function updateTabCacheForWindow(windowId: number): Promise<void> {
+  await _cacheReady;
   try {
-    const chromeTabs = await chrome.tabs.query({ windowId });
-    const chromeGroups = await chrome.tabGroups.query({ windowId });
-    const { tabs, tabGroups } = captureTabGroups(chromeTabs, chromeGroups);
-    windowTabCache.set(windowId, { tabs, tabGroups });
-    void persistTabCache();
+    const [chromeTabs, chromeGroups] = await Promise.all([
+      chrome.tabs.query({ windowId }),
+      chrome.tabGroups.query({ windowId }),
+    ]);
+    windowTabCache.set(windowId, captureTabGroups(chromeTabs, chromeGroups));
+    await persistTabCache();
   } catch {
     // Window may have already closed
+  }
+}
+
+async function handleWindowRemoved(windowId: number): Promise<void> {
+  await _cacheReady;
+  const pending = _tabCacheTimers.get(windowId);
+  if (pending) {
+    clearTimeout(pending);
+    _tabCacheTimers.delete(windowId);
+  }
+
+  const cached = windowTabCache.get(windowId);
+  windowTabCache.delete(windowId);
+  await persistTabCache();
+
+  if (cached && cached.tabs.length > 0) {
+    await saveClosedWindow(cached, windowId);
+  }
+}
+
+async function persistTabCache(): Promise<void> {
+  try {
+    await chrome.storage.session.set({ [TAB_CACHE_KEY]: Object.fromEntries(windowTabCache) });
+  } catch {
+    // storage.session may not be available in all contexts
+  }
+  await persistBrowserSnapshot();
+}
+
+async function persistBrowserSnapshot(): Promise<void> {
+  const { tabs, tabGroups } = combineWindows(windowTabCache.values());
+  // Closing the last window empties the cache. Keep the previous snapshot so the
+  // next browser start can still save it.
+  if (tabs.length === 0) return;
+
+  const json = JSON.stringify({ tabs, tabGroups });
+  if (json === _lastSnapshotJson) return;
+
+  // Never overwrite the last browser session's snapshot before startup has read it.
+  await _previousSnapshot;
+  try {
+    await chrome.storage.local.set({
+      [BROWSER_SNAPSHOT_KEY]: { savedAt: Date.now(), tabs, tabGroups },
+    });
+    _lastSnapshotJson = json;
+  } catch {
+    // Best effort
+  }
+}
+
+async function readBrowserSnapshot(): Promise<BrowserSnapshot | null> {
+  try {
+    const result = await chrome.storage.local.get(BROWSER_SNAPSHOT_KEY);
+    const snapshot = result[BROWSER_SNAPSHOT_KEY] as BrowserSnapshot | undefined;
+    return snapshot && Array.isArray(snapshot.tabs) ? snapshot : null;
+  } catch {
+    return null;
   }
 }

@@ -35,6 +35,8 @@ const chromeMock = {
     group: vi.fn().mockResolvedValue(1),
     onUpdated: { addListener: vi.fn() },
     onRemoved: { addListener: vi.fn() },
+    onAttached: { addListener: vi.fn() },
+    onDetached: { addListener: vi.fn() },
   },
   tabGroups: {
     query: vi.fn().mockResolvedValue([]),
@@ -52,8 +54,9 @@ const chromeMock = {
     open: vi.fn(),
   },
   alarms: {
-    create: vi.fn(),
-    clear: vi.fn(),
+    create: vi.fn().mockResolvedValue(undefined),
+    get: vi.fn().mockResolvedValue(undefined),
+    clear: vi.fn().mockResolvedValue(true),
     onAlarm: { addListener: vi.fn() },
   },
   idle: {

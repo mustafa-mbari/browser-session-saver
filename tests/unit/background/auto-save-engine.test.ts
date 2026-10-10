@@ -1,261 +1,332 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Settings } from '@core/types/settings.types';
+import { DEFAULT_SETTINGS } from '@core/types/settings.types';
+import type { Tab } from '@core/types/session.types';
 
 // ---------------------------------------------------------------------------
 // Stable mock function references — shared between vi.doMock factories and tests
 // ---------------------------------------------------------------------------
-const mockSetupAlarms = vi.fn();
-const mockClearAlarms = vi.fn();
+const mockEnsureAlarm = vi.fn().mockResolvedValue(undefined);
+const mockClearAlarm = vi.fn().mockResolvedValue(undefined);
 const mockOnAlarm = vi.fn();
-const mockUpdateAlarmInterval = vi.fn();
 const mockUpsertAutoSaveSession = vi.fn().mockResolvedValue({});
-const mockCaptureTabGroups = vi.fn().mockReturnValue({ tabs: [], tabGroups: [] });
+const mockCaptureTabGroups = vi.fn();
+const mockSettingsGet = vi.fn();
 
-// ---------------------------------------------------------------------------
 // Re-imported per test (vi.resetModules clears module state including _initialized)
-// ---------------------------------------------------------------------------
-let initAutoSaveEngine: (s: Settings) => void;
-let updateSettings: (s: Settings) => void;
+let engine: typeof import('@background/auto-save-engine');
 
 function makeSettings(overrides: Partial<Settings> = {}): Settings {
   return {
+    ...DEFAULT_SETTINGS,
     enableAutoSave: true,
     saveInterval: 15,
-    maxAutoSaves: 50,
     saveOnBrowserClose: false,
-    saveOnLowBattery: false,
-    lowBatteryThreshold: 15,
     saveOnSleep: false,
     saveOnNetworkDisconnect: false,
-    autoDeleteAfterDays: null,
-    closeTabsAfterSave: false,
-    primaryUI: 'sidepanel',
-    theme: 'system',
     autoSaveOnTabClose: false,
-    removeClosedTabsOnUpdate: false,
     ...overrides,
   };
 }
 
+function chromeTab(id: number, url: string, windowId = 1): chrome.tabs.Tab {
+  return { id, url, title: url, windowId, index: 0 } as chrome.tabs.Tab;
+}
+
+function savedTab(id: string, url: string): Tab {
+  return {
+    id, url, title: url, favIconUrl: '', index: 0, pinned: false,
+    groupId: -1, active: false, scrollPosition: { x: 0, y: 0 },
+  };
+}
+
+/** Let all pending promise chains (and zero-delay timers) settle. */
+async function flush(): Promise<void> {
+  for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function listenerOf<T>(addListener: unknown): T {
+  const calls = (addListener as ReturnType<typeof vi.fn>).mock.calls;
+  expect(calls.length).toBeGreaterThan(0);
+  return calls[calls.length - 1][0] as T;
+}
+
 beforeEach(async () => {
-  // A fresh module means _initialized = false, _settings = null, _isSaving = false
   vi.resetModules();
   vi.clearAllMocks();
 
+  (chrome.storage.local.get as ReturnType<typeof vi.fn>).mockResolvedValue({});
+  (chrome.storage.session.get as ReturnType<typeof vi.fn>).mockResolvedValue({});
+  (chrome.windows.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([{ id: 1 }]);
+  (chrome.tabs.query as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+  (chrome.tabGroups.query as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+  mockSettingsGet.mockResolvedValue(makeSettings());
+  mockCaptureTabGroups.mockImplementation((tabs: chrome.tabs.Tab[]) => ({
+    tabs: tabs.map((t) => savedTab(String(t.id), t.url ?? '')),
+    tabGroups: [],
+  }));
+
   vi.doMock('@background/alarms', () => ({
-    setupAlarms: mockSetupAlarms,
-    clearAlarms: mockClearAlarms,
+    AUTO_SAVE_ALARM: 'browser-hub-auto-save',
+    ensureAlarm: mockEnsureAlarm,
+    clearAlarm: mockClearAlarm,
     onAlarm: mockOnAlarm,
-    updateAlarmInterval: mockUpdateAlarmInterval,
   }));
   vi.doMock('@core/services/session.service', () => ({
     upsertAutoSaveSession: mockUpsertAutoSaveSession,
-    getAllSessions: vi.fn().mockResolvedValue([]),
   }));
   vi.doMock('@core/services/tab-group.service', () => ({
     captureTabGroups: mockCaptureTabGroups,
   }));
+  vi.doMock('@core/storage/storage-factory', () => ({
+    getSettingsStorage: () => ({ get: mockSettingsGet }),
+  }));
 
-  const mod = await import('@background/auto-save-engine');
-  initAutoSaveEngine = mod.initAutoSaveEngine;
-  updateSettings = mod.updateSettings;
+  engine = await import('@background/auto-save-engine');
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.doUnmock('@background/alarms');
   vi.doUnmock('@core/services/session.service');
   vi.doUnmock('@core/services/tab-group.service');
+  vi.doUnmock('@core/storage/storage-factory');
 });
 
 // ---------------------------------------------------------------------------
 describe('initAutoSaveEngine', () => {
-  it('calls clearAlarms and skips setup when enableAutoSave is false', () => {
-    initAutoSaveEngine(makeSettings({ enableAutoSave: false }));
-    expect(mockClearAlarms).toHaveBeenCalledTimes(1);
-    expect(mockSetupAlarms).not.toHaveBeenCalled();
-    expect(mockOnAlarm).not.toHaveBeenCalled();
-  });
+  it('registers every listener exactly once', () => {
+    engine.initAutoSaveEngine();
+    engine.initAutoSaveEngine();
 
-  it('calls setupAlarms with the configured interval when enabled', () => {
-    initAutoSaveEngine(makeSettings({ enableAutoSave: true, saveInterval: 10 }));
-    expect(mockSetupAlarms).toHaveBeenCalledWith(10);
     expect(mockOnAlarm).toHaveBeenCalledTimes(1);
-  });
-
-  it('registers idle state listener when enabled', () => {
-    initAutoSaveEngine(makeSettings({ enableAutoSave: true }));
-    expect(chrome.idle.setDetectionInterval).toHaveBeenCalled();
-    expect(chrome.idle.onStateChanged.addListener).toHaveBeenCalled();
-  });
-
-  it('registers tab and window event listeners when enabled', () => {
-    initAutoSaveEngine(makeSettings({ enableAutoSave: true }));
-    expect(chrome.tabs.onUpdated.addListener).toHaveBeenCalled();
-    expect(chrome.tabs.onRemoved.addListener).toHaveBeenCalled();
-    expect(chrome.windows.onRemoved.addListener).toHaveBeenCalled();
-  });
-
-  it('registers runtime.onSuspend listener when enabled', () => {
-    initAutoSaveEngine(makeSettings({ enableAutoSave: true }));
-    expect(chrome.runtime.onSuspend.addListener).toHaveBeenCalled();
-  });
-
-  it('does not register duplicate listeners on a second call (initialized guard)', () => {
-    initAutoSaveEngine(makeSettings({ enableAutoSave: true }));
-    initAutoSaveEngine(makeSettings({ enableAutoSave: true }));
-    // setupAlarms and listener registrations should each be called exactly once
-    expect(mockSetupAlarms).toHaveBeenCalledTimes(1);
+    expect(mockOnAlarm).toHaveBeenCalledWith('browser-hub-auto-save', expect.any(Function));
     expect(chrome.idle.onStateChanged.addListener).toHaveBeenCalledTimes(1);
+    expect(chrome.tabs.onUpdated.addListener).toHaveBeenCalledTimes(1);
+    expect(chrome.tabs.onRemoved.addListener).toHaveBeenCalledTimes(1);
+    expect(chrome.tabs.onAttached.addListener).toHaveBeenCalledTimes(1);
+    expect(chrome.tabs.onDetached.addListener).toHaveBeenCalledTimes(1);
+    expect(chrome.windows.onRemoved.addListener).toHaveBeenCalledTimes(1);
+    expect(chrome.storage.onChanged.addListener).toHaveBeenCalledTimes(1);
   });
 
-  it('second call with enableAutoSave=false still calls clearAlarms', () => {
-    initAutoSaveEngine(makeSettings({ enableAutoSave: true }));
-    // Second call with autoSave disabled — should clear alarms even though initialized
-    initAutoSaveEngine(makeSettings({ enableAutoSave: false }));
-    expect(mockClearAlarms).toHaveBeenCalled();
+  it('applies the stored interval without first creating an alarm from defaults', async () => {
+    mockSettingsGet.mockResolvedValue(makeSettings({ saveInterval: 5 }));
+    engine.initAutoSaveEngine();
+    await flush();
+
+    expect(mockEnsureAlarm).toHaveBeenCalledTimes(1);
+    expect(mockEnsureAlarm).toHaveBeenCalledWith('browser-hub-auto-save', 5);
+  });
+
+  it('clears the alarm when auto-save is disabled in stored settings', async () => {
+    mockSettingsGet.mockResolvedValue(makeSettings({ enableAutoSave: false }));
+    engine.initAutoSaveEngine();
+    await flush();
+
+    expect(mockClearAlarm).toHaveBeenCalledWith('browser-hub-auto-save');
+    expect(mockEnsureAlarm).not.toHaveBeenCalled();
   });
 });
 
 // ---------------------------------------------------------------------------
 describe('updateSettings', () => {
-  it('calls clearAlarms when enableAutoSave is turned off', () => {
-    updateSettings(makeSettings({ enableAutoSave: false }));
-    expect(mockClearAlarms).toHaveBeenCalledTimes(1);
-    expect(mockUpdateAlarmInterval).not.toHaveBeenCalled();
+  it('clears the alarm when enableAutoSave is turned off', async () => {
+    await engine.updateSettings(makeSettings({ enableAutoSave: false }));
+    expect(mockClearAlarm).toHaveBeenCalledTimes(1);
+    expect(mockEnsureAlarm).not.toHaveBeenCalled();
   });
 
-  it('calls updateAlarmInterval with the new interval when enableAutoSave is true', () => {
-    updateSettings(makeSettings({ enableAutoSave: true, saveInterval: 20 }));
-    expect(mockUpdateAlarmInterval).toHaveBeenCalledWith(20);
-    expect(mockClearAlarms).not.toHaveBeenCalled();
+  it('ensures the alarm with the new interval when enabled', async () => {
+    await engine.updateSettings(makeSettings({ enableAutoSave: true, saveInterval: 20 }));
+    expect(mockEnsureAlarm).toHaveBeenCalledWith('browser-hub-auto-save', 20);
+    expect(mockClearAlarm).not.toHaveBeenCalled();
+  });
+
+  it('follows settings written by any page via storage.onChanged', async () => {
+    engine.initAutoSaveEngine();
+    await flush();
+    mockEnsureAlarm.mockClear();
+
+    const onChanged = listenerOf<(changes: Record<string, chrome.storage.StorageChange>, area: string) => void>(
+      chrome.storage.onChanged.addListener,
+    );
+    onChanged({ settings: { newValue: makeSettings({ saveInterval: 30 }) } }, 'local');
+    onChanged({ other_key: { newValue: 1 } }, 'local');
+    onChanged({ settings: { newValue: makeSettings({ saveInterval: 45 }) } }, 'session');
+    await flush();
+
+    expect(mockEnsureAlarm).toHaveBeenCalledTimes(1);
+    expect(mockEnsureAlarm).toHaveBeenCalledWith('browser-hub-auto-save', 30);
   });
 });
 
 // ---------------------------------------------------------------------------
-// 3B-01 — onSuspend shutdown flag + startup deferred save
+describe('triggers', () => {
+  it('does not save on sleep when saveOnSleep is off', async () => {
+    (chrome.tabs.query as ReturnType<typeof vi.fn>).mockResolvedValue([chromeTab(1, 'https://a.com')]);
+    engine.initAutoSaveEngine();
+    await flush();
+
+    listenerOf<(state: string) => void>(chrome.idle.onStateChanged.addListener)('locked');
+    await flush();
+
+    expect(mockUpsertAutoSaveSession).not.toHaveBeenCalled();
+  });
+
+  it('saves all open tabs on sleep when saveOnSleep is on', async () => {
+    mockSettingsGet.mockResolvedValue(makeSettings({ saveOnSleep: true }));
+    (chrome.tabs.query as ReturnType<typeof vi.fn>).mockResolvedValue([chromeTab(1, 'https://a.com')]);
+    engine.initAutoSaveEngine();
+    await flush();
+
+    listenerOf<(state: string) => void>(chrome.idle.onStateChanged.addListener)('locked');
+    await flush();
+
+    expect(mockUpsertAutoSaveSession).toHaveBeenCalledWith(
+      [expect.objectContaining({ url: 'https://a.com' })],
+      [],
+      { autoSaveTrigger: 'sleep' },
+      true, // autoSaveOnTabClose off → merge
+    );
+  });
+});
+
 // ---------------------------------------------------------------------------
+describe('saveShutdownSnapshot', () => {
+  const previousTabs = [savedTab('t1', 'https://before-quit.com')];
 
-describe('onSuspend shutdown flag (3B-01)', () => {
-  it('writes pendingShutdownSave flag to storage.session when saveOnBrowserClose is true', () => {
-    initAutoSaveEngine(makeSettings({ enableAutoSave: true, saveOnBrowserClose: true }));
+  function storeSnapshot(savedAt: number) {
+    (chrome.storage.local.get as ReturnType<typeof vi.fn>).mockImplementation(async (key: string) =>
+      key === 'last_browser_snapshot'
+        ? { last_browser_snapshot: { savedAt, tabs: previousTabs, tabGroups: [] } }
+        : {},
+    );
+  }
 
-    const onSuspendCb = vi.mocked(chrome.runtime.onSuspend.addListener).mock.calls[0]?.[0];
-    expect(onSuspendCb).toBeDefined();
+  it('saves the tabs that were open when the browser closed', async () => {
+    storeSnapshot(Date.now() - 60_000);
+    mockSettingsGet.mockResolvedValue(makeSettings({ saveOnBrowserClose: true }));
+    engine.initAutoSaveEngine();
 
-    // Fire the onSuspend listener
-    onSuspendCb!();
+    await engine.saveShutdownSnapshot();
 
-    // After fix: pending_shutdown_save flag must be written to session storage.
-    // Currently: handler only calls performAutoSave (bare call), no flag write → FAILS.
-    expect(chrome.storage.session.set).toHaveBeenCalledWith(
-      expect.objectContaining({
-        pending_shutdown_save: expect.objectContaining({ timestamp: expect.any(Number) }),
+    expect(mockUpsertAutoSaveSession).toHaveBeenCalledWith(
+      previousTabs,
+      [],
+      { autoSaveTrigger: 'shutdown' },
+      false,
+    );
+  });
+
+  it('uses the previous snapshot even after the new session overwrote storage', async () => {
+    storeSnapshot(Date.now() - 60_000);
+    mockSettingsGet.mockResolvedValue(makeSettings({ saveOnBrowserClose: true }));
+    (chrome.tabs.query as ReturnType<typeof vi.fn>).mockResolvedValue([chromeTab(9, 'https://new-session.com')]);
+    engine.initAutoSaveEngine();
+    await flush();
+
+    // The new session's tabs were written to storage.local...
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({
+      last_browser_snapshot: expect.objectContaining({
+        tabs: [expect.objectContaining({ url: 'https://new-session.com' })],
       }),
+    });
+
+    // ...but the shutdown save still uses what was open before the restart.
+    await engine.saveShutdownSnapshot();
+    expect(mockUpsertAutoSaveSession).toHaveBeenCalledWith(
+      previousTabs, [], { autoSaveTrigger: 'shutdown' }, false,
     );
   });
 
-  it('does NOT write the flag when saveOnBrowserClose is false', () => {
-    initAutoSaveEngine(makeSettings({ enableAutoSave: true, saveOnBrowserClose: false }));
+  it('does nothing when saveOnBrowserClose is off', async () => {
+    storeSnapshot(Date.now() - 60_000);
+    engine.initAutoSaveEngine();
 
-    const onSuspendCb = vi.mocked(chrome.runtime.onSuspend.addListener).mock.calls[0]?.[0];
-    onSuspendCb?.();
+    await engine.saveShutdownSnapshot();
+    expect(mockUpsertAutoSaveSession).not.toHaveBeenCalled();
+  });
 
-    expect(chrome.storage.session.set).not.toHaveBeenCalledWith(
-      expect.objectContaining({ pending_shutdown_save: expect.anything() }),
+  it('does nothing when the snapshot is older than a week', async () => {
+    storeSnapshot(Date.now() - 8 * 24 * 60 * 60 * 1000);
+    mockSettingsGet.mockResolvedValue(makeSettings({ saveOnBrowserClose: true }));
+    engine.initAutoSaveEngine();
+
+    await engine.saveShutdownSnapshot();
+    expect(mockUpsertAutoSaveSession).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when there is no snapshot', async () => {
+    mockSettingsGet.mockResolvedValue(makeSettings({ saveOnBrowserClose: true }));
+    engine.initAutoSaveEngine();
+
+    await engine.saveShutdownSnapshot();
+    expect(mockUpsertAutoSaveSession).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe('browser snapshot', () => {
+  it('keeps the snapshot when the last window closes', async () => {
+    (chrome.tabs.query as ReturnType<typeof vi.fn>).mockResolvedValue([chromeTab(1, 'https://a.com')]);
+    engine.initAutoSaveEngine();
+    await flush();
+    (chrome.storage.local.set as ReturnType<typeof vi.fn>).mockClear();
+
+    listenerOf<(windowId: number) => void>(chrome.windows.onRemoved.addListener)(1);
+    await flush();
+
+    expect(chrome.storage.local.set).not.toHaveBeenCalledWith(
+      expect.objectContaining({ last_browser_snapshot: expect.anything() }),
     );
   });
 });
 
-describe('checkPendingShutdownSave (3B-01)', () => {
-  it('is exported from auto-save-engine', async () => {
-    const mod = await import('@background/auto-save-engine');
-    // After fix: this function is exported.
-    // Currently: it does not exist → FAILS.
-    expect(typeof (mod as Record<string, unknown>).checkPendingShutdownSave).toBe('function');
-  });
+// ---------------------------------------------------------------------------
+describe('window close', () => {
+  it('saves the closed window from the rehydrated cache right after the worker wakes', async () => {
+    const cachedTabs = [savedTab('t7', 'https://closed-window.com')];
+    (chrome.storage.session.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      window_tab_cache: { 7: { tabs: cachedTabs, tabGroups: [] } },
+    });
+    (chrome.windows.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]); // window 7 is gone
 
-  it('triggers upsertAutoSaveSession when a recent flag exists and the tab cache is populated', async () => {
-    // Arrange: session storage returns a recent flag
-    (chrome.storage.session.get as ReturnType<typeof vi.fn>).mockImplementation(
-      async (key: string) => {
-        if (key === 'pending_shutdown_save') {
-          return { pending_shutdown_save: { timestamp: Date.now() } };
-        }
-        // Provide cached tab data for the engine to use
-        if (key === 'window_tab_cache') {
-          return {
-            window_tab_cache: {
-              1: {
-                tabs: [{ id: 'tab-1', url: 'https://example.com', title: 'Ex', favIconUrl: '', index: 0, pinned: false, groupId: -1, active: false, scrollPosition: { x: 0, y: 0 } }],
-                tabGroups: [],
-              },
-            },
-          };
-        }
-        return {};
-      },
+    engine.initAutoSaveEngine();
+    // Fire immediately, before the cache has been read back from storage.session
+    listenerOf<(windowId: number) => void>(chrome.windows.onRemoved.addListener)(7);
+    await flush();
+
+    expect(mockUpsertAutoSaveSession).toHaveBeenCalledWith(
+      cachedTabs,
+      [],
+      { windowId: 7, autoSaveTrigger: 'window_close' },
+      true,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe('tab cache', () => {
+  it('keeps updates from two windows that change within the debounce period', async () => {
+    vi.useFakeTimers();
+    (chrome.windows.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (chrome.tabs.query as ReturnType<typeof vi.fn>).mockImplementation(async ({ windowId }: { windowId: number }) =>
+      windowId === 1 ? [chromeTab(1, 'https://one.com', 1)] : [chromeTab(2, 'https://two.com', 2)],
     );
 
-    // Re-import the module (already done in beforeEach via resetModules)
-    const mod = await import('@background/auto-save-engine');
-    initAutoSaveEngine = mod.initAutoSaveEngine;
+    engine.initAutoSaveEngine();
+    await vi.advanceTimersByTimeAsync(0);
 
-    // Initialise engine so the tab cache is rehydrated
-    initAutoSaveEngine(makeSettings({ enableAutoSave: true, saveOnBrowserClose: true }));
-
-    // Allow rehydrateTabCache to settle
-    await Promise.resolve();
-    await Promise.resolve();
-
-    const { checkPendingShutdownSave } = mod as unknown as {
-      checkPendingShutdownSave?: () => Promise<void>;
-    };
-
-    if (!checkPendingShutdownSave) {
-      // Function doesn't exist yet — fail explicitly
-      throw new Error('checkPendingShutdownSave is not exported from auto-save-engine');
-    }
-
-    await checkPendingShutdownSave();
-
-    // After fix: upsertAutoSaveSession called with the cached tabs.
-    // Currently: function doesn't exist → test fails above.
-    expect(mockUpsertAutoSaveSession).toHaveBeenCalledTimes(1);
-  });
-
-  it('does nothing when flag is absent', async () => {
-    (chrome.storage.session.get as ReturnType<typeof vi.fn>).mockResolvedValue({});
-
-    const mod = await import('@background/auto-save-engine');
-    const { checkPendingShutdownSave } = mod as unknown as {
-      checkPendingShutdownSave?: () => Promise<void>;
-    };
-
-    if (!checkPendingShutdownSave) return; // skip if not yet implemented
-
-    await checkPendingShutdownSave();
-    expect(mockUpsertAutoSaveSession).not.toHaveBeenCalled();
-  });
-
-  it('does nothing when the flag is older than 30 minutes', async () => {
-    const thirtyOneMinutesAgo = Date.now() - 31 * 60 * 1000;
-    (chrome.storage.session.get as ReturnType<typeof vi.fn>).mockImplementation(
-      async (key: string) => {
-        if (key === 'pending_shutdown_save') {
-          return { pending_shutdown_save: { timestamp: thirtyOneMinutesAgo } };
-        }
-        return {};
-      },
+    const onUpdated = listenerOf<(id: number, info: object, tab: chrome.tabs.Tab) => void>(
+      chrome.tabs.onUpdated.addListener,
     );
+    onUpdated(1, {}, chromeTab(1, 'https://one.com', 1));
+    onUpdated(2, {}, chromeTab(2, 'https://two.com', 2));
+    await vi.advanceTimersByTimeAsync(5_000);
 
-    const mod = await import('@background/auto-save-engine');
-    const { checkPendingShutdownSave } = mod as unknown as {
-      checkPendingShutdownSave?: () => Promise<void>;
-    };
-
-    if (!checkPendingShutdownSave) return; // skip if not yet implemented
-
-    await checkPendingShutdownSave();
-    expect(mockUpsertAutoSaveSession).not.toHaveBeenCalled();
+    const sessionWrites = (chrome.storage.session.set as ReturnType<typeof vi.fn>).mock.calls;
+    const lastCache = sessionWrites[sessionWrites.length - 1][0].window_tab_cache;
+    expect(Object.keys(lastCache).sort()).toEqual(['1', '2']);
   });
 });
