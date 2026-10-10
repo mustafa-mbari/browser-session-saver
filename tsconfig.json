@@ -16,13 +16,13 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
+    "types": ["chrome"],
     "paths": {
-      "@core/*": ["src/core/*"],
-      "@shared/*": ["src/shared/*"],
-      "@background/*": ["src/background/*"],
-      "@sidepanel/*": ["src/sidepanel/*"],
-      "@newtab/*": ["src/newtab/*"]
+      "@core/*": ["./src/core/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@background/*": ["./src/background/*"],
+      "@sidepanel/*": ["./src/sidepanel/*"],
+      "@newtab/*": ["./src/newtab/*"]
     }
   },
   "include": ["src"]
