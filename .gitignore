@@ -16,3 +16,8 @@ web/node_modules/
 # Admin app
 admin/.next/
 admin/node_modules/
+
+# Packaged store uploads and stray logs
+*.zip
+err.txt
+out.txt
