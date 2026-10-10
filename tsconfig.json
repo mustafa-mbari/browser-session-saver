@@ -22,8 +22,6 @@
       "@shared/*": ["src/shared/*"],
       "@background/*": ["src/background/*"],
       "@sidepanel/*": ["src/sidepanel/*"],
-      "@popup/*": ["src/popup/*"],
-      "@dashboard/*": ["src/dashboard/*"],
       "@newtab/*": ["src/newtab/*"]
     }
   },

@@ -15,7 +15,6 @@ export default defineConfig({
       '@shared': resolve(__dirname, 'src/shared'),
       '@background': resolve(__dirname, 'src/background'),
       '@sidepanel': resolve(__dirname, 'src/sidepanel'),
-      '@popup': resolve(__dirname, 'src/popup'),
       '@newtab': resolve(__dirname, 'src/newtab'),
     },
   },
@@ -24,7 +23,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         sidepanel: resolve(__dirname, 'src/sidepanel/index.html'),
-        popup: resolve(__dirname, 'src/popup/index.html'),
         newtab: resolve(__dirname, 'src/newtab/index.html'),
       },
     },
