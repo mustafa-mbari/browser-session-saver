@@ -24,10 +24,9 @@ export default function HomeTabGroupsPanel({ query, onToast }: HomeTabGroupsPane
   const refresh = useCallback(async () => {
     setPanelLoading(true);
     try {
-      const [groups, tabs, allTemplates] = await Promise.all([
+      const [groups, tabs] = await Promise.all([
         chrome.tabGroups.query({}),
         chrome.tabs.query({}),
-        TabGroupTemplateStorage.getAll(),
       ]);
       const tabsByGroup = new Map<number, chrome.tabs.Tab[]>();
       for (const tab of tabs) {
@@ -46,25 +45,12 @@ export default function HomeTabGroupsPanel({ query, onToast }: HomeTabGroupsPane
         tabs: tabsByGroup.get(g.id) ?? [],
       }));
       setLiveGroups(live);
-      setTemplates(allTemplates.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
 
       // Auto-save live groups (skip groups with no Chrome title)
-      const now = new Date().toISOString();
       const groupTitleById = new Map(groups.map((g) => [g.id, g.title ?? '']));
-      await Promise.all(
-        live
-          .filter((g) => g.tabs.length > 0 && groupTitleById.get(g.id) !== '')
-          .map((g) =>
-            TabGroupTemplateStorage.upsert({
-              key: `${g.title}-${g.color}`,
-              title: g.title,
-              color: g.color,
-              tabs: g.tabs.map((t) => ({ url: t.url ?? '', title: t.title ?? '', favIconUrl: t.favIconUrl ?? '' })),
-              savedAt: now,
-              updatedAt: now,
-            }),
-          ),
-      );
+      await TabGroupTemplateStorage.syncLiveGroups(live.filter((g) => groupTitleById.get(g.id) !== ''));
+      const allTemplates = await TabGroupTemplateStorage.getAll();
+      setTemplates(allTemplates.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
     } catch { /* ignore */ } finally {
       setPanelLoading(false);
     }

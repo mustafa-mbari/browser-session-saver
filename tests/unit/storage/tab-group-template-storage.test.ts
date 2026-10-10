@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
 import { withStorageLock } from '@core/storage/storage-mutex';
 import type { TabGroupTemplate } from '@core/types/tab-group.types';
+import { guardAction } from '@core/services/limits/limit-guard';
 
 vi.mock('@core/services/limits/limit-guard', () => ({
   guardAction: vi.fn().mockResolvedValue(undefined),
@@ -171,5 +172,54 @@ describe('TabGroupTemplateStorage', () => {
     expect(purged).toBe(1);
     const keys = (store.tab_group_templates as TabGroupTemplate[]).map((t) => t.key);
     expect(keys).toEqual(['recent', 'live']);
+  });
+
+  // ── syncLiveGroups ───────────────────────────────────────────────────────
+
+  describe('syncLiveGroups', () => {
+    const liveWork = {
+      title: 'Work',
+      color: 'blue' as const,
+      tabs: [{ url: 'https://example.com', title: 'Example', favIconUrl: '' }],
+    };
+
+    it('saves new live groups without counting a user action', async () => {
+      await TabGroupTemplateStorage.syncLiveGroups([liveWork]);
+
+      const saved = store.tab_group_templates as TabGroupTemplate[];
+      expect(saved).toHaveLength(1);
+      expect(saved[0]).toMatchObject({ key: 'Work-blue', title: 'Work', pinned: false, deletedAt: null });
+      expect(guardAction).not.toHaveBeenCalled();
+    });
+
+    it('updates changed tabs but keeps pinned and savedAt', async () => {
+      setupStorage({
+        tab_group_templates: [makeTemplate({ key: 'Work-blue', title: 'Work', pinned: true })],
+      });
+      await TabGroupTemplateStorage.syncLiveGroups([
+        { ...liveWork, tabs: [...liveWork.tabs, { url: 'https://new.com', title: 'New', favIconUrl: '' }] },
+      ]);
+
+      const [saved] = store.tab_group_templates as TabGroupTemplate[];
+      expect(saved.tabs).toHaveLength(2);
+      expect(saved.pinned).toBe(true);
+      expect(saved.savedAt).toBe('2026-01-01T00:00:00.000Z');
+    });
+
+    it('does not write when nothing changed', async () => {
+      setupStorage({ tab_group_templates: [makeTemplate({ key: 'Work-blue', title: 'Work' })] });
+      await TabGroupTemplateStorage.syncLiveGroups([liveWork]);
+      expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    });
+
+    it('does not bring back a template the user deleted', async () => {
+      setupStorage({
+        tab_group_templates: [makeTemplate({ key: 'Work-blue', title: 'Work', deletedAt: '2026-02-01T00:00:00.000Z' })],
+      });
+      await TabGroupTemplateStorage.syncLiveGroups([
+        { ...liveWork, tabs: [{ url: 'https://other.com', title: 'Other', favIconUrl: '' }] },
+      ]);
+      expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    });
   });
 });

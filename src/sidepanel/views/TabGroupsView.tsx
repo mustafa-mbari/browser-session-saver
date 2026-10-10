@@ -589,32 +589,9 @@ export default function TabGroupsView() {
       }));
       setLiveGroups(live);
 
-      // Auto-save live groups; preserve existing pinned flag so user choices aren't overwritten
-      const now = new Date().toISOString();
+      // Auto-save live groups (not a user action — no action-limit cost)
       const groupTitleById = new Map(groups.map((g) => [g.id, g.title ?? '']));
-      const existingAll = await TabGroupTemplateStorage.getAll();
-      const existingByKey = new Map(existingAll.map((t) => [t.key, t]));
-      await Promise.all(
-        live
-          .filter((g) => g.tabs.length > 0 && groupTitleById.get(g.id) !== '')
-          .map((g) => {
-            const key = `${g.title}-${g.color}`;
-            const existing = existingByKey.get(key);
-            return TabGroupTemplateStorage.upsert({
-              key,
-              title: g.title,
-              color: g.color,
-              tabs: g.tabs.map((t) => ({
-                url: t.url ?? '',
-                title: t.title ?? '',
-                favIconUrl: t.favIconUrl ?? '',
-              })),
-              savedAt: now,
-              updatedAt: now,
-              pinned: existing?.pinned ?? false,
-            });
-          }),
-      );
+      await TabGroupTemplateStorage.syncLiveGroups(live.filter((g) => groupTitleById.get(g.id) !== ''));
       await reloadSaved();
     } catch {
       setLiveGroups([]);
