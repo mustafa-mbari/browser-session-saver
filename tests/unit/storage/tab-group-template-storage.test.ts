@@ -156,4 +156,20 @@ describe('TabGroupTemplateStorage', () => {
 
     expect(order).toEqual(['lock_acquired', 'lock_released', 'replaceAll_done']);
   });
+
+  // ── purgeDeleted ─────────────────────────────────────────────────────────
+
+  it('purgeDeleted removes tombstones older than the cutoff only', async () => {
+    setupStorage({
+      tab_group_templates: [
+        makeTemplate({ key: 'old', deletedAt: '2026-01-01T00:00:00.000Z' }),
+        makeTemplate({ key: 'recent', deletedAt: '2026-05-01T00:00:00.000Z' }),
+        makeTemplate({ key: 'live' }),
+      ],
+    });
+    const purged = await TabGroupTemplateStorage.purgeDeleted('2026-03-01T00:00:00.000Z');
+    expect(purged).toBe(1);
+    const keys = (store.tab_group_templates as TabGroupTemplate[]).map((t) => t.key);
+    expect(keys).toEqual(['recent', 'live']);
+  });
 });

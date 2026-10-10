@@ -133,14 +133,7 @@ export class IndexedDBRepository<T extends BaseEntity>
   }
 
   async count(): Promise<number> {
-    const db = await this.open();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(this.config.storeName, 'readonly');
-      const store = tx.objectStore(this.config.storeName);
-      const req = store.count();
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
+    return (await this.getAll()).length;
   }
 
   async getByIndex(indexName: string, value: IDBValidKey | boolean, limit?: number): Promise<T[]> {
@@ -155,7 +148,9 @@ export class IndexedDBRepository<T extends BaseEntity>
         req.onsuccess = () => {
           const all = (req.result as T[]) ?? [];
           const filtered = all.filter(
-            (item) => (item as Record<string, unknown>)[indexName] === value,
+            (item) =>
+              (item as Record<string, unknown>)[indexName] === value &&
+              !(item as unknown as SyncableEntity).deletedAt,
           );
           resolve(limit ? filtered.slice(0, limit) : filtered);
         };
@@ -166,7 +161,9 @@ export class IndexedDBRepository<T extends BaseEntity>
       const index = store.index(indexName);
       const req = index.getAll(value);
       req.onsuccess = () => {
-        const results = (req.result as T[]) ?? [];
+        const results = ((req.result as T[]) ?? []).filter(
+          (e) => !(e as unknown as SyncableEntity).deletedAt,
+        );
         resolve(limit ? results.slice(0, limit) : results);
       };
       req.onerror = () => reject(req.error);

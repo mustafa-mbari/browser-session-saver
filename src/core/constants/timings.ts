@@ -9,3 +9,9 @@ export const TOAST_DISMISS_MS = 2_500;
 
 /** How old a restore-prompt record can be before it is discarded (ms). */
 export const RESTORE_PROMPT_MAX_AGE_MS = 24 * 60 * 60 * 1_000;
+
+/**
+ * How long soft-deleted records (tombstones) are kept before they are purged (ms).
+ * Long enough for a deletion to reach every browser sharing the same data folder.
+ */
+export const TOMBSTONE_RETENTION_MS = 90 * 24 * 60 * 60 * 1_000;

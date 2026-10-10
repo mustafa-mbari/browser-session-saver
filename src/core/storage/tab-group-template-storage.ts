@@ -60,4 +60,15 @@ export class TabGroupTemplateStorage {
       await adapter.setAll(templates);
     });
   }
+
+  /** Hard-delete tombstones deleted before `beforeTs` (ISO). Returns the count purged. */
+  static purgeDeleted(beforeTs: string): Promise<number> {
+    return withStorageLock('tab_group_templates', async () => {
+      const all = await adapter.getAll();
+      const kept = all.filter((t) => !(t.deletedAt != null && t.deletedAt < beforeTs));
+      const purged = all.length - kept.length;
+      if (purged > 0) await adapter.setAll(kept);
+      return purged;
+    });
+  }
 }

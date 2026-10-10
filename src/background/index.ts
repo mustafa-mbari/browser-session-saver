@@ -2,6 +2,7 @@ import './polyfills';
 import { registerEventListeners } from './event-listeners';
 import { setupSidePanelController } from './side-panel-controller';
 import { initAutoSaveEngine, saveShutdownSnapshot } from './auto-save-engine';
+import { initMaintenance } from './maintenance';
 import { restoreTabGroupNamesOnStartup } from './tab-group-restore';
 import { migrateIfNeeded } from '@core/services/migration.service';
 import { fetchAndCacheGuestLimits } from '@core/services/limits/limits.service';
@@ -14,6 +15,7 @@ registerEventListeners();
 // to wake the SW. Registering after any `await` means alarms and other events can fire
 // without the SW being woken up. The engine loads the user's settings itself.
 initAutoSaveEngine();
+initMaintenance();
 
 chrome.runtime.onStartup.addListener(() => {
   void restoreTabGroupNamesOnStartup();

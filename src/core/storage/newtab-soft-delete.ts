@@ -45,3 +45,28 @@ export async function softDeleteNewTabMany(
   }
   return count;
 }
+
+/** newtab-db stores whose deletes are soft (tombstoned). */
+export const NEWTAB_SOFT_DELETE_STORES = [
+  'boards',
+  'bookmarkCategories',
+  'bookmarkEntries',
+  'quickLinks',
+  'todoLists',
+  'todoItems',
+] as const;
+
+/** Hard-delete tombstones deleted before `beforeTs` (ISO). Returns the count purged. */
+export async function purgeNewTabTombstones(beforeTs: string): Promise<number> {
+  let purged = 0;
+  for (const storeName of NEWTAB_SOFT_DELETE_STORES) {
+    const all = await newtabDB.getAll<{ id: string; deletedAt?: string | null }>(storeName);
+    for (const record of all) {
+      if (record.deletedAt != null && record.deletedAt < beforeTs) {
+        await newtabDB.delete(storeName, record.id);
+        purged++;
+      }
+    }
+  }
+  return purged;
+}
