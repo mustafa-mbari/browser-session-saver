@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Browser Hub is a Chrome extension (Manifest V3) that saves, restores, and manages browser sessions. It includes a Chrome Side Panel (primary UI), Start-Tab with glassmorphism UI, and a Popup for quick actions — all built with React 18 + TypeScript + Tailwind CSS.
+Browser Hub is a Chrome extension (Manifest V3) that saves, restores, and manages browser sessions. It includes a Chrome Side Panel (primary UI) and a Start-Tab with glassmorphism UI — all built with React 18 + TypeScript + Tailwind CSS.
 
 The project also includes two companion Next.js apps:
 - **`web/`** — User-facing web app (port 3000) with dashboard, billing, settings, support, suggestions
@@ -37,9 +37,9 @@ cd admin && npm run build               # Production build
 
 ## Architecture
 
-- **Background service worker** (`src/background/`) — all Chrome API calls, auto-save engine, message handling
+- **Background service worker** (`src/background/`) — all Chrome API calls, auto-save engine, daily maintenance job, message handling
 - **Core layer** (`src/core/`) — framework-agnostic types, services, storage, utilities
-- **UI surfaces** — Side Panel (`src/sidepanel/`), Popup (`src/popup/`), Start-Tab (`src/newtab/`); each has its own `index.html` entry point bundled by `@crxjs/vite-plugin` from `manifest.json`
+- **UI surfaces** — Side Panel (`src/sidepanel/`), Start-Tab (`src/newtab/`); each has its own `index.html` entry point bundled by `@crxjs/vite-plugin` from `manifest.json` (there is no popup)
 - **Shared** (`src/shared/`) — reusable components, hooks, styles, i18n utilities used by all UI surfaces
 
 ### Storage Layer
@@ -63,13 +63,13 @@ All data is stored **locally only** — `chrome.storage.local` and IndexedDB. No
 
 ## Key Conventions
 
-- **Path aliases**: `@core/*`, `@shared/*`, `@background/*`, `@sidepanel/*`, `@popup/*`, `@newtab/*`
+- **Path aliases**: `@core/*`, `@shared/*`, `@background/*`, `@sidepanel/*`, `@newtab/*`
 - **State management**: Zustand stores per UI surface (sidepanel.store.ts; newtab split into newtab-ui.store.ts + newtab-data.store.ts with facade re-export from newtab.store.ts)
 - **Storage**: chrome.storage.local for settings (via `IStorage` / `ChromeStorageAdapter`), IndexedDB (`browser-hub` v2 with `isAutoSave`/`createdAt` indexes) for sessions (via `IRepository` / `IndexedDBRepository`); start-tab uses a separate `newtab-db` (`newtabDB` singleton from `src/core/storage/newtab-storage.ts`) for bookmarks/todos/wallpapers; subscriptions and tab-group templates use flat `chrome.storage.local` keys via `ChromeLocalKeyAdapter<T>`
 - **Messaging**: Typed discriminated union `Message` type between service worker and UI via `chrome.runtime.sendMessage`; 19 action types defined in `messages.types.ts`
 - **Styling**: Tailwind CSS with CSS custom properties for theme tokens, dark mode via `class` strategy. Glassmorphism utilities (`.glass`, `.glass-panel`, `.glass-dark`, `.glass-hover`, `.vignette`) defined in `@layer utilities` in `globals.css`
 - **Components**: All shared components support dark mode and include ARIA attributes
-- **Tests**: Vitest with jsdom, Chrome API mocked in `tests/setup.ts`; 661 tests across 64 files in `tests/unit/`
+- **Tests**: Vitest with jsdom, Chrome API (and an in-memory `BroadcastChannel`) mocked in `tests/setup.ts`; 792 tests across 74 files in `tests/unit/`
 - **i18n**: `_locales/en/messages.json` (~282 keys), `_locales/ar/messages.json`, `_locales/de/messages.json`; `t()` wrapper at `src/shared/utils/i18n.ts`
 - **Virtual scrolling**: `@tanstack/react-virtual` v3 used in `SessionsPanel` (3-column `lanes` grid) and `AutoSavesPanel` (flat list with headers); threshold ≤30 items uses plain DOM, >30 uses virtualizer
 - **Error boundaries**: `src/shared/components/ErrorBoundary.tsx` wraps all major UI sections; reports via `errorBoundaryTitle/Desc/Reload` i18n keys
@@ -112,7 +112,10 @@ All data is stored **locally only** — `chrome.storage.local` and IndexedDB. No
 - `src/core/storage/prompt-storage.ts` — chrome.storage.local adapter; keys: `prompts`, `prompt_categories`, `prompt_tags`, `prompt_folders`; includes `source` field migration
 - `src/core/services/prompt.service.ts` — `extractVariables`, `applyVariables`, `filterPrompts`, `filterBySection`, `buildFolderTree`, `sortPrompts`, `getRecentPrompts`, `getPinnedPrompts`
 - `src/background/event-listeners.ts` — Central message dispatcher; session mutation handlers (SAVE/UPDATE/DELETE) call `guardAction()` before and `trackAction()` after each operation; returns `{ success: false, limitStatus }` when `ActionLimitError` is thrown
-- `src/background/auto-save-engine.ts` — Auto-save trigger management; calls `upsertAutoSaveSession` so each trigger type maintains exactly one pinned entry (updated in place)
+- `src/background/auto-save-engine.ts` — Auto-save trigger management; calls `upsertAutoSaveSession`, which keeps one rolling pinned + locked auto-save entry (updated in place). Loads settings itself and follows `settings` changes via `chrome.storage.onChanged`. "Save on browser close" works by keeping an all-windows snapshot in `chrome.storage.local` (`last_browser_snapshot`) and saving it on `runtime.onStartup` — the SW gets no reliable event on browser exit, and `chrome.storage.session` is cleared on restart
+- `src/background/alarms.ts` — `ensureAlarm(name, period)` creates an alarm only if it is missing or its period changed (`chrome.alarms.create` restarts the countdown, and the SW re-runs startup code on every wake); `onAlarm(name, cb)` routes named alarms through one listener
+- `src/background/maintenance.ts` — daily `browser-hub-maintenance` alarm: soft-deletes sessions older than `autoDeleteAfterDays` (skips pinned/locked/starred) and purges tombstones older than 90 days (`TOMBSTONE_RETENTION_MS`) via `src/core/services/maintenance.service.ts`
+- `src/core/events/data-change-bus.ts` — `notifyDataChanged(...modules)` / `onDataChanged()` over a `BroadcastChannel` (`browser-hub-data`) reaching every extension page and the SW; `useDataChanged(modules, cb)` hook in `src/shared/hooks/`. The session repository announces every write (`onChange` option of `IndexedDBRepository`), so `useSession` refreshes on session changes from any context
 - `src/sidepanel/views/HomeView.tsx` — Slim orchestrator (~250 LOC) for sessions, current tabs, and tab groups tabs
 - `src/sidepanel/components/CurrentTabsPanel.tsx` — Current browser tabs panel (extracted from HomeView)
 - `src/sidepanel/components/HomeTabGroupsPanel.tsx` — Tab groups panel with live/saved sections (extracted from HomeView)
@@ -136,6 +139,7 @@ All data is stored **locally only** — `chrome.storage.local` and IndexedDB. No
 - `src/newtab/components/AutoSavesPanel.tsx` — Auto-saves sidebar with virtualised flat list (>30 entries)
 - `src/newtab/contexts/BookmarkBoardContext.tsx` — React context for `BookmarkBoardActions`; eliminates prop-drilling in start-tab board components
 - `src/shared/components/ErrorBoundary.tsx` — Class component error boundary wrapping all major UI sections
+- `src/shared/components/settings/AutoSaveSettingsSection.tsx` — the single auto-save + session settings UI used by all settings screens (side panel `variant="sidepanel"`, start tab `variant="newtab"` with a `renderGroup` container); control primitives in `glass-controls.tsx` / `panel-controls.tsx`; state via `src/shared/hooks/useAppSettings.ts` (GET/UPDATE_SETTINGS + follows storage changes)
 - `src/core/services/newtab-settings.service.ts` — Read/write NewTabSettings via `getSettingsStorage()`
 
 ## Dashboard Layout — `isSessionView` pattern
@@ -196,7 +200,7 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - **Remote tracking**: `trackAction()` fire-and-forgets an upsert to `user_action_usage` (signed-in) or `guest_action_usage` (guest) Supabase table; local counter is the source of truth
 - **UI**: `LimitReachedModal` in `src/shared/components/LimitReachedModal.tsx`; limit pill in `Header.tsx` (sidepanel); `LimitStatusRow` in `DashboardSidebar.tsx` (start-tab)
 - **Test mocking**: services that call `guardAction`/`trackAction` must mock `@core/services/limits/limit-guard` in their tests: `vi.mock('@core/services/limits/limit-guard', () => ({ guardAction: vi.fn().mockResolvedValue(undefined), trackAction: vi.fn().mockResolvedValue(undefined), ActionLimitError: class ActionLimitError extends Error {} }))`
-- **Supabase migrations**: `029_action_limits.sql` adds `daily_action_limit`/`monthly_action_limit` to plans + `user_action_usage` table + `upsert_action_usage` and `get_user_plan_tier` RPCs; `030_rename_max_to_lifetime.sql` renames plan; `031_drop_sync_tables.sql` drops old sync tables; `036_guest_action_usage.sql` adds `guest_action_usage` table + `upsert_guest_action_usage` and `get_guest_limits` RPCs
+- **Supabase migrations**: `029_action_limits.sql` adds `daily_action_limit`/`monthly_action_limit` to plans + `user_action_usage` table + `upsert_action_usage` and `get_user_plan_tier` RPCs; `030_rename_max_to_lifetime.sql` renames plan; `031_drop_sync_tables.sql` drops old sync tables; `036_guest_action_usage.sql` adds `guest_action_usage` table + `upsert_guest_action_usage` and `get_guest_limits` RPCs; `042_secure_action_rpcs.sql` makes `upsert_action_usage` / `get_user_plan_tier` act only on `auth.uid()` (service role excepted), revokes anon EXECUTE, adds optional `p_count` to both usage RPCs (`trackAction(count)` sends it only when > 1, for servers without 042) and makes the `user_action_usage` policy SELECT-only
 
 ## Guest Migration Feature Notes
 
@@ -217,7 +221,7 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - Live groups queried via `chrome.tabGroups.query({})` + `chrome.tabs.query({})` — available in all extension pages
 - Sidepanel view: `'tab-groups'` in `SidePanelView` union — `src/sidepanel/views/TabGroupsView.tsx` with live/saved sections
 - Start-tab: `TabGroupsCardBody` widget type, `TabGroupsPanel` sidebar view
-- Auto-save: live groups automatically saved as templates when viewed
+- Auto-save: live groups are mirrored into templates when a tab-groups panel loads, via `TabGroupTemplateStorage.syncLiveGroups()` — not a user action, so it is NOT guarded/tracked; keeps `pinned`/`savedAt`, never revives a template the user deleted. `upsert()` (guarded) is for explicit user saves only
 - `ChromeGroupColor` type from `src/core/types/session.types.ts` (9 colors: grey, blue, red, yellow, green, pink, purple, cyan, orange)
 
 ## Testing
@@ -234,7 +238,7 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
   - `tests/unit/stores/` — sidepanel.store, newtab-ui.store, newtab-data.store
   - `tests/unit/background/` — auto-save-engine, event-listeners, alarms, tab-group-restore
   - `tests/unit/config/` — widget-config
-- 677 tests across 65 test files
+- 792 tests across 74 test files
 - Run `npm test` before committing
 - Services that call `guardAction`/`trackAction` must mock `@core/services/limits/limit-guard` in their tests (see Action Limits Feature Notes above)
 
