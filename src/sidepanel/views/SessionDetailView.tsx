@@ -177,7 +177,6 @@ export default function SessionDetailView() {
             onClick: async () => {
               undone = true;
               await sendMessage({ action: 'UNDELETE_SESSION', payload: { session: sessionSnapshot } });
-              window.dispatchEvent(new CustomEvent('session-changed'));
               setToasts((prev) => prev.filter((t) => t.id !== toastId));
               setSession(sessionSnapshot);
             },

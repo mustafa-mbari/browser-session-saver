@@ -2,13 +2,8 @@ import { useState, useCallback, useEffect } from 'react';
 import type { Session } from '@core/types/session.types';
 import type { SessionFilter, SessionSort, RestoreMode, GetSessionsResponse } from '@core/types/messages.types';
 import { useMessaging } from './useMessaging';
+import { useDataChanged } from './useDataChanged';
 import * as SessionService from '@core/services/session.service';
-
-/** Write a timestamp to storage so every extension page sees the change. */
-function notifySessionsChanged(): void {
-  window.dispatchEvent(new CustomEvent('session-changed'));
-  chrome.storage.local.set({ _sessions_updated: Date.now() });
-}
 
 export function useSession() {
   const { sendMessage } = useMessaging();
@@ -42,9 +37,6 @@ export function useSession() {
         action: 'SAVE_SESSION',
         payload: { name: options?.name, closeAfter: options?.closeAfter },
       });
-      if (response.success) {
-        notifySessionsChanged();
-      }
       return response;
     },
     [sendMessage],
@@ -66,9 +58,6 @@ export function useSession() {
         action: 'DELETE_SESSION',
         payload: { sessionId },
       });
-      if (response.success) {
-        notifySessionsChanged();
-      }
       return response;
     },
     [sendMessage],
@@ -80,9 +69,6 @@ export function useSession() {
         action: 'UPDATE_SESSION',
         payload: { sessionId, updates },
       });
-      if (response.success) {
-        notifySessionsChanged();
-      }
       return response;
     },
     [sendMessage],
@@ -94,9 +80,6 @@ export function useSession() {
         action: 'UPDATE_SESSION_TABS',
         payload: { sessionId },
       });
-      if (response.success) {
-        notifySessionsChanged();
-      }
       return response;
     },
     [sendMessage],
@@ -107,25 +90,15 @@ export function useSession() {
     refreshSessions();
   }, [refreshSessions]);
 
-  // In-page refresh (same window)
-  useEffect(() => {
-    const handler = () => { void refreshSessions(); };
-    window.addEventListener('session-changed', handler);
-    return () => window.removeEventListener('session-changed', handler);
-  }, [refreshSessions]);
-
-  // Cross-page refresh (sidepanel ↔ dashboard).
-  // Read directly from IndexedDB to avoid the SW round-trip which can fail
-  // with "message port closed before a response was received" if the SW is sleeping.
-  useEffect(() => {
-    const handler = async () => {
-      const updated = await SessionService.getAllSessions();
+  // Refresh when sessions change anywhere: this page, another page, or the service
+  // worker (saves, deletes, auto-saves). Read directly from IndexedDB to avoid the SW
+  // round-trip, which can fail if the SW is asleep.
+  useDataChanged(['sessions'], () => {
+    void SessionService.getAllSessions().then((updated) => {
       setSessions(updated);
       setTotalCount(updated.length);
-    };
-    chrome.storage.local.onChanged.addListener(handler);
-    return () => chrome.storage.local.onChanged.removeListener(handler);
-  }, []);
+    });
+  });
 
   return {
     sessions,

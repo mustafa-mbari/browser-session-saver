@@ -24,6 +24,8 @@ export interface IndexedDBRepositoryConfig {
    * and `store.put(entity)` is sufficient.
    */
   outOfLineKeys?: boolean;
+  /** Called after every successful write (e.g. to notify other pages). */
+  onChange?: () => void;
 }
 
 export class IndexedDBRepository<T extends BaseEntity>
@@ -86,17 +88,8 @@ export class IndexedDBRepository<T extends BaseEntity>
   }
 
   async save(entity: T): Promise<void> {
-    const stamped = entity;
-    const db = await this.open();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(this.config.storeName, 'readwrite');
-      const store = tx.objectStore(this.config.storeName);
-      const req = this.config.outOfLineKeys
-        ? store.put(stamped, stamped.id)
-        : store.put(stamped);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
+    await this.putRaw(entity);
+    this.changed();
   }
 
   async update(id: string, updates: Partial<T>): Promise<T | null> {
@@ -127,7 +120,10 @@ export class IndexedDBRepository<T extends BaseEntity>
       const tx = db.transaction(this.config.storeName, 'readwrite');
       const store = tx.objectStore(this.config.storeName);
       const req = store.delete(id);
-      req.onsuccess = () => resolve(true);
+      req.onsuccess = () => {
+        this.changed();
+        resolve(true);
+      };
       req.onerror = () => reject(req.error);
     });
   }
@@ -182,7 +178,10 @@ export class IndexedDBRepository<T extends BaseEntity>
           store.put(entity);
         }
       }
-      tx.oncomplete = () => resolve();
+      tx.oncomplete = () => {
+        this.changed();
+        resolve();
+      };
       tx.onerror = () => reject(tx.error);
     });
   }
@@ -200,7 +199,10 @@ export class IndexedDBRepository<T extends BaseEntity>
           store.put(entity);
         }
       }
-      tx.oncomplete = () => resolve();
+      tx.oncomplete = () => {
+        this.changed();
+        resolve();
+      };
       tx.onerror = () => reject(tx.error);
     });
   }
@@ -218,6 +220,7 @@ export class IndexedDBRepository<T extends BaseEntity>
       dirty: true,
     } as T;
     await this.putRaw(tombstoned);
+    this.changed();
     return true;
   }
 
@@ -236,6 +239,7 @@ export class IndexedDBRepository<T extends BaseEntity>
       updatedAt: serverUpdatedAt,
     } as T;
     await this.putRaw(cleaned);
+    this.changed();
   }
 
   async applyRemote(remote: T): Promise<void> {
@@ -245,6 +249,7 @@ export class IndexedDBRepository<T extends BaseEntity>
       lastSyncedAt: new Date().toISOString(),
     } as T;
     await this.putRaw(cleaned);
+    this.changed();
   }
 
   async purgeDeleted(beforeTs: string): Promise<number> {
@@ -262,7 +267,12 @@ export class IndexedDBRepository<T extends BaseEntity>
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
+    this.changed();
     return doomed.length;
+  }
+
+  private changed(): void {
+    this.config.onChange?.();
   }
 
   /** Write WITHOUT stamping (used by sync engine for authoritative writes). */

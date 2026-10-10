@@ -73,7 +73,6 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
           label: 'Undo',
           onClick: async () => {
             await sendMessage({ action: 'UNDELETE_SESSION', payload: { session: sessionSnapshot } });
-            window.dispatchEvent(new CustomEvent('session-changed'));
           },
         },
       });

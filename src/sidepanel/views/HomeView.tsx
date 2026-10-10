@@ -174,7 +174,6 @@ export default function HomeView() {
           for (const session of snapshots) {
             await sendMessage({ action: 'UNDELETE_SESSION', payload: { session } });
           }
-          window.dispatchEvent(new CustomEvent('session-changed'));
         },
       },
     });

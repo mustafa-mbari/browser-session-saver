@@ -76,6 +76,44 @@ const chromeMock = {
 
 Object.defineProperty(globalThis, 'chrome', { value: chromeMock, writable: true });
 
+// In-memory BroadcastChannel: delivers asynchronously to other instances with the
+// same name, like the real one (Node's version can keep test workers alive).
+class FakeBroadcastChannel {
+  private static readonly channels = new Map<string, Set<FakeBroadcastChannel>>();
+  private readonly listeners = new Set<(event: MessageEvent) => void>();
+  onmessage: ((event: MessageEvent) => void) | null = null;
+
+  constructor(readonly name: string) {
+    const peers = FakeBroadcastChannel.channels.get(name) ?? new Set();
+    peers.add(this);
+    FakeBroadcastChannel.channels.set(name, peers);
+  }
+
+  postMessage(data: unknown): void {
+    for (const peer of FakeBroadcastChannel.channels.get(this.name) ?? []) {
+      if (peer === this) continue;
+      const event = { data } as MessageEvent;
+      queueMicrotask(() => {
+        peer.onmessage?.(event);
+        peer.listeners.forEach((listener) => listener(event));
+      });
+    }
+  }
+
+  addEventListener(_type: 'message', listener: (event: MessageEvent) => void): void {
+    this.listeners.add(listener);
+  }
+
+  removeEventListener(_type: 'message', listener: (event: MessageEvent) => void): void {
+    this.listeners.delete(listener);
+  }
+
+  close(): void {
+    FakeBroadcastChannel.channels.get(this.name)?.delete(this);
+  }
+}
+Object.defineProperty(globalThis, 'BroadcastChannel', { value: FakeBroadcastChannel, writable: true });
+
 // fetch stub — override per test with vi.mocked(fetch).mockResolvedValueOnce(...)
 globalThis.fetch = vi.fn();
 

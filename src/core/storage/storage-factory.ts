@@ -3,6 +3,7 @@ import type { Session } from '@core/types/session.types';
 import type { IIndexedRepository, IBulkRepository, SyncableRepository } from './repository';
 import { ChromeStorageAdapter } from './chrome-storage';
 import { IndexedDBRepository } from './indexeddb-repository';
+import { notifyDataChanged } from '@core/events/data-change-bus';
 
 type SessionRepo = IIndexedRepository<Session> &
   IBulkRepository<Session> &
@@ -25,6 +26,7 @@ export function getSessionRepository(): SessionRepo {
       dbVersion: 2,
       storeName: 'sessions',
       outOfLineKeys: true,
+      onChange: () => notifyDataChanged('sessions'),
       onUpgrade: (db, oldVersion, tx) => {
         if (oldVersion < 1) {
           const store = db.createObjectStore('sessions');

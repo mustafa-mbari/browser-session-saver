@@ -10,6 +10,7 @@ vi.mock('@core/services/session.service', () => ({
 
 import { useSession } from '@shared/hooks/useSession';
 import * as SessionService from '@core/services/session.service';
+import { notifyDataChanged } from '@core/events/data-change-bus';
 
 function makeSession(overrides: Partial<Session> = {}): Session {
   return {
@@ -97,9 +98,6 @@ describe('useSession', () => {
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'SAVE_SESSION' }),
     );
-    expect(chrome.storage.local.set).toHaveBeenCalledWith(
-      expect.objectContaining({ _sessions_updated: expect.any(Number) }),
-    );
   });
 
   it('deleteSession sends DELETE_SESSION message', async () => {
@@ -139,44 +137,43 @@ describe('useSession', () => {
     );
   });
 
-  it('cross-page storage change (_sessions_updated) refreshes sessions via service', async () => {
-    // Initial load
-    vi.mocked(chrome.runtime.sendMessage).mockResolvedValueOnce({
-      success: true,
-      data: { sessions: [], totalCount: 0 },
-    });
-
+  it('reloads sessions when a sessions change is announced', async () => {
     vi.mocked(SessionService.getAllSessions).mockResolvedValueOnce([session1, session2]);
 
     const { result } = renderHook(() => useSession());
     await act(async () => { await Promise.resolve(); });
 
-    // Simulate _sessions_updated storage change (cross-page sync)
-    const onChangedListener = vi.mocked(chrome.storage.local.onChanged.addListener).mock.calls[0]?.[0];
-    expect(onChangedListener).toBeDefined();
-
     await act(async () => {
-      await onChangedListener(
-        { _sessions_updated: { newValue: Date.now(), oldValue: null } },
-        'local',
-      );
+      notifyDataChanged('sessions');
+      await vi.waitFor(() => expect(SessionService.getAllSessions).toHaveBeenCalled());
     });
 
-    expect(SessionService.getAllSessions).toHaveBeenCalled();
-    expect(result.current.sessions).toHaveLength(2);
+    await vi.waitFor(() => expect(result.current.sessions).toHaveLength(2));
   });
 
-  it('removes listeners on unmount', async () => {
-    vi.mocked(chrome.runtime.sendMessage).mockResolvedValueOnce({
-      success: true,
-      data: { sessions: [], totalCount: 0 },
-    });
-
-    const { unmount } = renderHook(() => useSession());
+  it('ignores changes to other data and unrelated storage writes', async () => {
+    renderHook(() => useSession());
     await act(async () => { await Promise.resolve(); });
 
+    await act(async () => {
+      notifyDataChanged('prompts');
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+
+    expect(SessionService.getAllSessions).not.toHaveBeenCalled();
+    expect(chrome.storage.local.onChanged.addListener).not.toHaveBeenCalled();
+  });
+
+  it('stops listening after unmount', async () => {
+    const { unmount } = renderHook(() => useSession());
+    await act(async () => { await Promise.resolve(); });
     unmount();
 
-    expect(chrome.storage.local.onChanged.removeListener).toHaveBeenCalled();
+    await act(async () => {
+      notifyDataChanged('sessions');
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+
+    expect(SessionService.getAllSessions).not.toHaveBeenCalled();
   });
 });

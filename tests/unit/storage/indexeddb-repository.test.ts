@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { IndexedDBRepository } from '@core/storage/indexeddb-repository';
 
@@ -10,8 +10,9 @@ interface Row {
   deletedAt?: string | null;
 }
 
-function makeRepo() {
+function makeRepo(onChange?: () => void) {
   return new IndexedDBRepository<Row>({
+    onChange,
     dbName: 'test-db',
     dbVersion: 1,
     storeName: 'rows',
@@ -69,5 +70,29 @@ describe('IndexedDBRepository tombstones', () => {
 
     const remaining = await repo.getAllWithOptions({ includeDeleted: true });
     expect(remaining.map((r) => r.id).sort()).toEqual(['live-auto', 'live-manual']);
+  });
+});
+
+describe('IndexedDBRepository onChange', () => {
+  it('reports every kind of write', async () => {
+    const onChange = vi.fn();
+    const watched = makeRepo(onChange);
+
+    await watched.save(row('a'));
+    await watched.update('a', { isAutoSave: true });
+    await watched.markDeleted('a');
+    await watched.importMany([row('b')]);
+    await watched.delete('b');
+    expect(onChange).toHaveBeenCalledTimes(5);
+  });
+
+  it('does not report reads', async () => {
+    const onChange = vi.fn();
+    const watched = makeRepo(onChange);
+
+    await watched.getAll();
+    await watched.getById('live-auto');
+    await watched.count();
+    expect(onChange).not.toHaveBeenCalled();
   });
 });
