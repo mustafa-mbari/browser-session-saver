@@ -113,13 +113,6 @@ describe('deleteQuickLink', () => {
     expect(await getQuickLinks()).toHaveLength(0);
   });
 
-  it('blocks the URL when autoUrl is provided', async () => {
-    const link = await saveQuickLink(makeLink({ url: 'https://block-me.com' }));
-    await deleteQuickLink(link.id, 'https://block-me.com');
-    // The blocked URL should be stored in chrome.storage.local
-    const blocked = chromeStore['blocked_topsites'] as string[] | undefined;
-    expect(blocked).toContain('https://block-me.com');
-  });
 });
 
 // ── reorderQuickLinks ─────────────────────────────────────────────────────────

@@ -219,9 +219,8 @@ export async function deleteSession(id: string): Promise<boolean> {
   if (!session) return false;
   if (session.isLocked) return false;
 
-  // Soft delete: the sync engine will push the tombstone and the pg_cron
-  // sweep (migration 028) hard-deletes after 30 days. Local compaction
-  // purges older confirmed-synced tombstones to keep the store small.
+  // Soft delete: the tombstone lets the delete reach other browsers sharing the
+  // data; the daily maintenance job purges tombstones after 90 days.
   return repo.markDeleted(id);
 }
 

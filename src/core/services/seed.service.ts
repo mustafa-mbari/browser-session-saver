@@ -16,9 +16,8 @@ interface SeedResult {
 /**
  * Seeds the two default boards (Main + Bookmarks) and a default TodoList.
  * Should only be called when the DB has no boards yet.
- * Pass `{ skipSampleCards: true }` when the user is authenticated — their real
- * folders will be restored from cloud sync, so the demo Private/Work cards
- * should not be created.
+ * Pass `{ skipSampleCards: true }` to create the boards without the demo
+ * Private/Work cards.
  */
 export async function seedDefaultData(
   options?: { skipSampleCards?: boolean },
