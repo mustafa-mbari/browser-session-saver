@@ -99,10 +99,22 @@ async function syncUsageFromServer(userId: string | undefined): Promise<void> {
       .single();
     if (error || !data) return;
     await withStorageLock(USAGE_KEY, async () => {
+      // Local usage is always for today / this month. A server row from an earlier
+      // day or month must not replace it.
       const local = await getActionUsage();
       const usage: ActionUsage = {
-        daily:   { date: data.daily_date,     count: Math.max(local.daily.count,   data.daily_count) },
-        monthly: { month: data.monthly_month, count: Math.max(local.monthly.count, data.monthly_count) },
+        daily: {
+          date: local.daily.date,
+          count: data.daily_date === local.daily.date
+            ? Math.max(local.daily.count, data.daily_count)
+            : local.daily.count,
+        },
+        monthly: {
+          month: local.monthly.month,
+          count: data.monthly_month === local.monthly.month
+            ? Math.max(local.monthly.count, data.monthly_count)
+            : local.monthly.count,
+        },
       };
       await setActionUsage(usage);
     });

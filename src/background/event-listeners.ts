@@ -105,7 +105,7 @@ async function handleSaveSession(payload: {
       });
       sessions.push(session);
     }
-    void trackAction();
+    void trackAction(validWindows.length);
     return { success: true, data: { session: sessions, isDuplicate: false } };
   }
 
@@ -438,7 +438,7 @@ async function handleMergeSessions(payload: {
   const merged = await SessionService.saveSession(mergedTabs, [], {
     name: payload.targetName,
   });
-  void trackAction();
+  void trackAction(sessions.length);
   return { success: true, data: merged };
 }
 

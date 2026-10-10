@@ -43,6 +43,7 @@ vi.mock('@core/supabase/client', () => ({
 
 import { guardAction, trackAction, ActionLimitError } from '@core/services/limits/limit-guard';
 import { checkAndIncrementAction } from '@core/services/limits/action-tracker';
+import { supabase } from '@core/supabase/client';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -131,5 +132,32 @@ describe('trackAction', () => {
   it('does not call checkAndIncrementAction (remote-only)', async () => {
     await trackAction();
     expect(checkAndIncrementAction).not.toHaveBeenCalled();
+  });
+
+  describe('remote report for a signed-in user', () => {
+    beforeEach(() => {
+      vi.mocked(supabase.auth.getSession).mockResolvedValue({
+        data: { session: { user: { id: 'user-1' } } },
+      } as never);
+    });
+
+    async function reportedArgs(): Promise<Record<string, unknown>> {
+      await vi.waitFor(() => expect(supabase.rpc).toHaveBeenCalled());
+      const [fn, args] = vi.mocked(supabase.rpc).mock.calls[0];
+      expect(fn).toBe('upsert_action_usage');
+      return args as Record<string, unknown>;
+    }
+
+    it('omits p_count for a single action (works before migration 042)', async () => {
+      await trackAction();
+      const args = await reportedArgs();
+      expect(args.p_user_id).toBe('user-1');
+      expect(args).not.toHaveProperty('p_count');
+    });
+
+    it('sends p_count for multi-item actions', async () => {
+      await trackAction(3);
+      expect(await reportedArgs()).toMatchObject({ p_user_id: 'user-1', p_count: 3 });
+    });
   });
 });

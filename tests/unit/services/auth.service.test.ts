@@ -397,6 +397,43 @@ describe('syncUsageFromServer local-wins', () => {
   });
 });
 
+describe('syncUsageFromServer — server row from an earlier day', () => {
+  const TODAY = new Date().toISOString().slice(0, 10);
+  const MONTH = new Date().toISOString().slice(0, 7);
+
+  it("keeps today's local daily count and only merges the matching month", async () => {
+    vi.mocked(getActionUsage).mockResolvedValueOnce({
+      daily:   { date: TODAY, count: 2 },
+      monthly: { month: MONTH, count: 5 },
+    });
+    mockSupabase.from.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: {
+            daily_date:    '2000-01-01',
+            daily_count:   9,
+            monthly_month: MONTH,
+            monthly_count: 12,
+          },
+          error: null,
+        }),
+      }),
+    });
+    mockSupabase.auth.signInWithPassword.mockResolvedValueOnce({
+      data: { user: { id: 'user-123', email: 'test@example.com' }, session: null },
+      error: null,
+    });
+
+    await signIn('test@example.com', 'password123');
+    await vi.waitFor(() => expect(setActionUsage).toHaveBeenCalled());
+
+    expect(setActionUsage).toHaveBeenCalledWith({
+      daily:   { date: TODAY, count: 2 },
+      monthly: { month: MONTH, count: 12 },
+    });
+  });
+});
+
 // ── syncUsageFromServer — lock compliance ─────────────────────────────────────
 
 describe('syncUsageFromServer — lock compliance', () => {

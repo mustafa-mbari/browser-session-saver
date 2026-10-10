@@ -18,22 +18,26 @@ export async function guardAction(count = 1): Promise<void> {
  * the web dashboard can display counts. The local counter is already incremented
  * by guardAction — this function only handles remote reporting.
  */
-export async function trackAction(_count = 1): Promise<void> {
-  void reportActionToSupabase();
+export async function trackAction(count = 1): Promise<void> {
+  void reportActionToSupabase(count);
 }
 
-async function reportActionToSupabase(): Promise<void> {
+async function reportActionToSupabase(count: number): Promise<void> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
 
     const dailyDate    = new Date().toISOString().slice(0, 10);
     const monthlyMonth = new Date().toISOString().slice(0, 7);
+    // p_count was added in migration 042; omit it for single actions so servers
+    // without that migration keep accepting the call.
+    const countArg = count > 1 ? { p_count: count } : {};
 
     if (session?.user) {
       await supabase.rpc('upsert_action_usage', {
         p_user_id:       session.user.id,
         p_daily_date:    dailyDate,
         p_monthly_month: monthlyMonth,
+        ...countArg,
       });
       return;
     }
@@ -45,6 +49,7 @@ async function reportActionToSupabase(): Promise<void> {
       p_guest_id:      guestId,
       p_daily_date:    dailyDate,
       p_monthly_month: monthlyMonth,
+      ...countArg,
     });
   } catch {
     // Non-critical — local counter is the source of truth
