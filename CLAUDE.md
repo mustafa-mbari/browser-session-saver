@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Browser Hub is a Chrome extension (Manifest V3) that saves, restores, and manages browser sessions. It includes a Chrome Side Panel (primary UI) and a Start-Tab with glassmorphism UI — all built with React 18 + TypeScript + Tailwind CSS.
+Browser Hub is a Chrome extension (Manifest V3) that saves, restores, and manages browser sessions. It includes a Chrome Side Panel (primary UI) and a Start-Tab with glassmorphism UI — all built with React 19 + TypeScript 6 + Tailwind CSS v4, bundled by Vite 8 + CRXJS 3 (TypeScript 7 waits for typescript-eslint support).
 
 The project also includes two companion Next.js apps:
 - **`web/`** — User-facing web app (port 3000) with dashboard, billing, settings, support, suggestions
@@ -67,9 +67,10 @@ All data is stored **locally only** — `chrome.storage.local` and IndexedDB. No
 - **State management**: Zustand stores per UI surface (sidepanel.store.ts; newtab split into newtab-ui.store.ts + newtab-data.store.ts with facade re-export from newtab.store.ts)
 - **Storage**: chrome.storage.local for settings (via `IStorage` / `ChromeStorageAdapter`), IndexedDB (`browser-hub` v2 with `isAutoSave`/`createdAt` indexes) for sessions (via `IRepository` / `IndexedDBRepository`); start-tab uses a separate `newtab-db` (`newtabDB` singleton from `src/core/storage/newtab-storage.ts`) for bookmarks/todos/wallpapers; subscriptions and tab-group templates use flat `chrome.storage.local` keys via `ChromeLocalKeyAdapter<T>`
 - **Messaging**: Typed discriminated union `Message` type between service worker and UI via `chrome.runtime.sendMessage`; 19 action types defined in `messages.types.ts`
-- **Styling**: Tailwind CSS with CSS custom properties for theme tokens, dark mode via `class` strategy. Glassmorphism utilities (`.glass`, `.glass-panel`, `.glass-dark`, `.glass-hover`, `.vignette`) defined in `@layer utilities` in `globals.css`
+- **Styling**: Tailwind CSS v4 via `@tailwindcss/vite` (no `tailwind.config.ts` / PostCSS): design tokens in `@theme` in `src/shared/styles/globals.css`, dark mode via `@custom-variant dark` (`dark` class on `<html>`), animations from `tw-animate-css`. Glassmorphism helpers (`glass`, `glass-panel`, `glass-dark`, `glass-hover`, `vignette`, `newtab-page-card`) are `@utility` rules there. A base block keeps Tailwind v3 defaults (gray-200 borders, gray-400 placeholders, pointer cursor on buttons); v4 makes form controls transparent, so inputs need an explicit background
 - **Components**: All shared components support dark mode and include ARIA attributes
-- **Tests**: Vitest with jsdom, Chrome API (and an in-memory `BroadcastChannel`) mocked in `tests/setup.ts`; 792 tests across 74 files in `tests/unit/`
+- **Tests**: Vitest 5 with jsdom, Chrome API (and an in-memory `BroadcastChannel`) mocked in `tests/setup.ts`; 797 tests across 75 files in `tests/unit/`
+- **Lint**: ESLint 10 flat config (`defineConfig`) with typescript-eslint and react-hooks 7 (React Compiler rules); `set-state-in-effect` is a warning, everything else must pass
 - **i18n**: `_locales/en/messages.json` (~282 keys), `_locales/ar/messages.json`, `_locales/de/messages.json`; `t()` wrapper at `src/shared/utils/i18n.ts`
 - **Virtual scrolling**: `@tanstack/react-virtual` v3 used in `SessionsPanel` (3-column `lanes` grid) and `AutoSavesPanel` (flat list with headers); threshold ≤30 items uses plain DOM, >30 uses virtualizer
 - **Error boundaries**: `src/shared/components/ErrorBoundary.tsx` wraps all major UI sections; reports via `errorBoundaryTitle/Desc/Reload` i18n keys
@@ -159,7 +160,7 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - NewTabSettings stored as `newtab_settings` key in `chrome.storage.local` (NOT merged into the existing `Settings` type)
 - Three layout modes: `minimal`, `focus`, `dashboard` — cycled with `Ctrl+Shift+L`
 - Feature toggle: when `settings.enabled === false`, start-tab shows a disabled message (redirecting to chrome://newtab/ is blocked by Chrome security)
-- Glassmorphism CSS: `.glass` (16px blur), `.glass-panel` (24px blur), `.glass-dark` — defined in `globals.css @layer utilities`
+- Glassmorphism CSS: `glass` (20px blur), `glass-panel` (24px blur), `glass-dark` — `@utility` rules in `globals.css`
 - `BackgroundLayer` renders behind all content (z-index 0); dimming overlay and vignette are separate child divs
 - Drag-and-drop: @dnd-kit/sortable with `horizontalListSortingStrategy` for quick links, `verticalListSortingStrategy` for bookmark entries, `rectSortingStrategy` for category grid
 - Six widget types: bookmark, clock, note, todo, subscription, tab-groups — rendered by `BookmarkCategoryCard.tsx` dispatching to dedicated body components (`BookmarkCardBody`, `NoteCardBody`, `TodoCardBody`, `SubscriptionCardBody`, `TabGroupsCardBody`)
@@ -238,7 +239,7 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
   - `tests/unit/stores/` — sidepanel.store, newtab-ui.store, newtab-data.store
   - `tests/unit/background/` — auto-save-engine, event-listeners, alarms, tab-group-restore
   - `tests/unit/config/` — widget-config
-- 792 tests across 74 test files
+- 797 tests across 75 test files
 - Run `npm test` before committing
 - Services that call `guardAction`/`trackAction` must mock `@core/services/limits/limit-guard` in their tests (see Action Limits Feature Notes above)
 
