@@ -213,7 +213,7 @@ export default function ImportExportView() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Tab bar */}
-      <div className="flex border-b border-[var(--color-border)] shrink-0">
+      <div className="flex border-b border-(--color-border) shrink-0">
         {(['export', 'import'] as ImportExportTab[]).map((tab) => (
           <button
             key={tab}
@@ -221,7 +221,7 @@ export default function ImportExportView() {
             className={`flex-1 py-2.5 text-xs font-medium capitalize transition-colors ${
               activeTab === tab
                 ? 'border-b-2 border-primary text-primary'
-                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
+                : 'text-(--color-text-secondary) hover:text-(--color-text)'
             }`}
           >
             {tab}
@@ -233,10 +233,10 @@ export default function ImportExportView() {
         {/* ── Premium gate ─────────────────────────────────────────────────── */}
         {!planLoading && !isPremium && (
           <div className="flex flex-col items-center gap-3 py-10 text-center px-4">
-            <p className="text-sm font-semibold text-[var(--color-text)]">
+            <p className="text-sm font-semibold text-(--color-text)">
               Import &amp; Export is a PRO feature
             </p>
-            <p className="text-xs text-[var(--color-text)] opacity-60">
+            <p className="text-xs text-(--color-text) opacity-60">
               Upgrade to PRO or Lifetime to back up and restore all your data.
             </p>
           </div>
@@ -251,7 +251,7 @@ export default function ImportExportView() {
                 <Download size={15} />
                 Full Backup
               </h3>
-              <p className="text-xs text-[var(--color-text-secondary)] mb-3">
+              <p className="text-xs text-(--color-text-secondary) mb-3">
                 Exports selected data as a single versioned JSON file (v2.0).
               </p>
               <div className="space-y-1.5 mb-3">
@@ -262,7 +262,7 @@ export default function ImportExportView() {
                     : MODULE_LABELS[mod];
                   return (
                     <label key={mod} className="flex items-center gap-2 cursor-pointer select-none group">
-                      <span className={`text-[var(--color-text-secondary)] group-hover:text-primary ${checked ? 'text-primary' : ''}`}>
+                      <span className={`text-(--color-text-secondary) group-hover:text-primary ${checked ? 'text-primary' : ''}`}>
                         {checked ? <CheckSquare size={15} /> : <Square size={15} />}
                       </span>
                       <input
@@ -283,10 +283,10 @@ export default function ImportExportView() {
                 >
                   Select All
                 </button>
-                <span className="text-xs text-[var(--color-text-secondary)]">·</span>
+                <span className="text-xs text-(--color-text-secondary)">·</span>
                 <button
                   onClick={() => setModuleSelection({ ...NO_MODULES_SELECTED })}
-                  className="text-xs text-[var(--color-text-secondary)] hover:underline"
+                  className="text-xs text-(--color-text-secondary) hover:underline"
                 >
                   Deselect All
                 </button>
@@ -306,7 +306,7 @@ export default function ImportExportView() {
               </Button>
             </section>
 
-            <hr className="border-[var(--color-border)]" />
+            <hr className="border-(--color-border)" />
 
             {/* Session Formats */}
             <section>
@@ -322,16 +322,16 @@ export default function ImportExportView() {
                     className={`p-3 rounded-card border text-left transition-colors ${
                       sessionExportFormat === key
                         ? 'border-primary bg-blue-50 dark:bg-blue-900/20'
-                        : 'border-[var(--color-border)] hover:border-gray-400'
+                        : 'border-(--color-border) hover:border-gray-400'
                     }`}
                   >
-                    <Icon size={18} className={sessionExportFormat === key ? 'text-primary' : 'text-[var(--color-text-secondary)]'} />
+                    <Icon size={18} className={sessionExportFormat === key ? 'text-primary' : 'text-(--color-text-secondary)'} />
                     <p className="text-sm font-medium mt-1">{label}</p>
-                    <p className="text-xs text-[var(--color-text-secondary)]">{description}</p>
+                    <p className="text-xs text-(--color-text-secondary)">{description}</p>
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-[var(--color-text-secondary)] mb-2">
+              <p className="text-xs text-(--color-text-secondary) mb-2">
                 Export {sessions.length} session{sessions.length !== 1 ? 's' : ''}
               </p>
               <Button icon={Download} size="sm" fullWidth onClick={() => { void handleSessionExport(); }}>
@@ -339,7 +339,7 @@ export default function ImportExportView() {
               </Button>
             </section>
 
-            <hr className="border-[var(--color-border)]" />
+            <hr className="border-(--color-border)" />
 
             {/* Supplementary formats */}
             <section>
@@ -349,7 +349,7 @@ export default function ImportExportView() {
                 { fmt: 'prompts-markdown' as SupplementaryFormat, label: 'Prompts as Markdown' },
                 { fmt: 'todos-csv' as SupplementaryFormat, label: 'Todos as CSV' },
               ]).map(({ fmt, label }) => (
-                <div key={fmt} className="flex items-center justify-between py-2 border-b border-[var(--color-border)] last:border-0">
+                <div key={fmt} className="flex items-center justify-between py-2 border-b border-(--color-border) last:border-0">
                   <span className="text-xs">{label}</span>
                   <button
                     onClick={() => { void handleSuppExport(fmt); }}
@@ -394,8 +394,8 @@ export default function ImportExportView() {
               <>
                 {/* Mode toggle */}
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs text-[var(--color-text-secondary)]">Mode:</span>
-                  <div className="flex rounded-full border border-[var(--color-border)] overflow-hidden">
+                  <span className="text-xs text-(--color-text-secondary)">Mode:</span>
+                  <div className="flex rounded-full border border-(--color-border) overflow-hidden">
                     {(['merge', 'replace'] as ImportMode[]).map((m) => (
                       <button
                         key={m}
@@ -403,7 +403,7 @@ export default function ImportExportView() {
                         className={`px-3 py-1 text-xs capitalize transition-colors ${
                           importMode === m
                             ? 'bg-primary text-white'
-                            : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+                            : 'text-(--color-text-secondary) hover:bg-(--color-bg-hover)'
                         }`}
                       >
                         {m}
@@ -416,7 +416,7 @@ export default function ImportExportView() {
                 </div>
 
                 <div
-                  className="border-2 border-dashed border-[var(--color-border)] rounded-card p-6 text-center cursor-pointer hover:border-primary transition-colors"
+                  className="border-2 border-dashed border-(--color-border) rounded-card p-6 text-center cursor-pointer hover:border-primary transition-colors"
                   onClick={() => jsonFileRef.current?.click()}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
@@ -425,11 +425,11 @@ export default function ImportExportView() {
                     if (file) void handleJsonFileDrop(file);
                   }}
                 >
-                  <Upload size={24} className="mx-auto mb-2 text-[var(--color-text-secondary)]" />
-                  <p className="text-sm text-[var(--color-text-secondary)]">
+                  <Upload size={24} className="mx-auto mb-2 text-(--color-text-secondary)" />
+                  <p className="text-sm text-(--color-text-secondary)">
                     Drop a JSON file or click to browse
                   </p>
-                  <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+                  <p className="text-xs text-(--color-text-secondary) mt-1">
                     Full backup, dashboard backup, or sessions backup
                   </p>
                 </div>
@@ -441,7 +441,7 @@ export default function ImportExportView() {
                   className="hidden"
                 />
 
-                <hr className="border-[var(--color-border)]" />
+                <hr className="border-(--color-border)" />
 
                 {/* Legacy import */}
                 <section>
@@ -450,7 +450,7 @@ export default function ImportExportView() {
                     Import Sessions (HTML / URL list)
                   </h3>
                   <div
-                    className="border-2 border-dashed border-[var(--color-border)] rounded-card p-5 text-center cursor-pointer hover:border-primary transition-colors"
+                    className="border-2 border-dashed border-(--color-border) rounded-card p-5 text-center cursor-pointer hover:border-primary transition-colors"
                     onClick={() => legacyFileRef.current?.click()}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => {
@@ -459,8 +459,8 @@ export default function ImportExportView() {
                       if (file) void handleLegacyImport(file);
                     }}
                   >
-                    <Upload size={20} className="mx-auto mb-1.5 text-[var(--color-text-secondary)]" />
-                    <p className="text-xs text-[var(--color-text-secondary)]">
+                    <Upload size={20} className="mx-auto mb-1.5 text-(--color-text-secondary)" />
+                    <p className="text-xs text-(--color-text-secondary)">
                       HTML bookmarks or URL list (.txt)
                     </p>
                   </div>
@@ -520,7 +520,7 @@ function ImportPreviewPanel({
       <div className="rounded-card border border-error bg-red-50 dark:bg-red-900/20 p-4 space-y-2">
         <p className="text-sm font-medium text-error">Cannot import this file</p>
         {preview.errors.map((e, i) => <p key={i} className="text-xs text-error">{e}</p>)}
-        <button onClick={onCancel} className="text-xs text-[var(--color-text-secondary)] hover:underline">
+        <button onClick={onCancel} className="text-xs text-(--color-text-secondary) hover:underline">
           Choose a different file
         </button>
       </div>
@@ -549,25 +549,25 @@ function ImportPreviewPanel({
   const anySelected = Object.values(moduleSelection).some(Boolean);
 
   return (
-    <div className="rounded-card border border-[var(--color-border)] p-4 space-y-3">
+    <div className="rounded-card border border-(--color-border) p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold">{fileTypeLabel[preview.fileType]}</p>
           {preview.exportedAt && (
-            <p className="text-xs text-[var(--color-text-secondary)]">
+            <p className="text-xs text-(--color-text-secondary)">
               Exported {new Date(preview.exportedAt).toLocaleDateString()}
             </p>
           )}
         </div>
-        <button onClick={onCancel} className="text-xs text-[var(--color-text-secondary)] hover:underline">
+        <button onClick={onCancel} className="text-xs text-(--color-text-secondary) hover:underline">
           Cancel
         </button>
       </div>
 
       {/* Mode */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-[var(--color-text-secondary)]">Mode:</span>
-        <div className="flex rounded-full border border-[var(--color-border)] overflow-hidden">
+        <span className="text-xs text-(--color-text-secondary)">Mode:</span>
+        <div className="flex rounded-full border border-(--color-border) overflow-hidden">
           {(['merge', 'replace'] as ImportMode[]).map((m) => (
             <button
               key={m}
@@ -575,7 +575,7 @@ function ImportPreviewPanel({
               className={`px-3 py-1 text-xs capitalize transition-colors ${
                 importMode === m
                   ? 'bg-primary text-white'
-                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+                  : 'text-(--color-text-secondary) hover:bg-(--color-bg-hover)'
               }`}
             >
               {m}
@@ -594,7 +594,7 @@ function ImportPreviewPanel({
               key={mod}
               className={`flex items-center gap-2 select-none ${available ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}
             >
-              <span className={checked ? 'text-primary' : 'text-[var(--color-text-secondary)]'}>
+              <span className={checked ? 'text-primary' : 'text-(--color-text-secondary)'}>
                 {checked ? <CheckSquare size={14} /> : <Square size={14} />}
               </span>
               <input
@@ -607,7 +607,7 @@ function ImportPreviewPanel({
               <span className="text-xs flex-1">
                 {MODULE_LABELS[mod]}
                 {available && (
-                  <span className="text-[var(--color-text-secondary)]"> — {moduleCountText(mod)}</span>
+                  <span className="text-(--color-text-secondary)"> — {moduleCountText(mod)}</span>
                 )}
               </span>
             </label>
@@ -628,7 +628,7 @@ function ImportPreviewPanel({
         {importMode === 'replace' && (
           <button
             onClick={onDownloadAutoBackup}
-            className="text-xs flex items-center gap-1 text-[var(--color-text-secondary)] hover:text-[var(--color-text)] border border-[var(--color-border)] rounded-btn px-2.5 py-1.5 hover:bg-[var(--color-bg-hover)] transition-colors"
+            className="text-xs flex items-center gap-1 text-(--color-text-secondary) hover:text-(--color-text) border border-(--color-border) rounded-btn px-2.5 py-1.5 hover:bg-(--color-bg-hover) transition-colors"
           >
             <Download size={12} />
             {autoBackupDownloaded ? 'Backup saved ✓' : 'Download Backup'}
@@ -661,7 +661,7 @@ function ImportResultPanel({
         {result.success ? 'Import complete' : 'Import completed with errors'}
       </p>
       {entries.map(([key, count]) => (
-        <p key={key} className="text-xs text-[var(--color-text)]">✓ {key}: {count}</p>
+        <p key={key} className="text-xs text-(--color-text)">✓ {key}: {count}</p>
       ))}
       {result.errors.map((e, i) => (
         <p key={i} className="text-xs text-error">✗ {e}</p>

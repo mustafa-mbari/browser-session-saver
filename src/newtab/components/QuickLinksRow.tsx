@@ -24,7 +24,7 @@ function FaviconChip({ url, title, favIconUrl, hovered }: { url: string; title: 
         <img
           src={src}
           alt=""
-          className="w-7 h-7 rounded"
+          className="w-7 h-7 rounded-sm"
           onError={() => setTryIdx((i) => i + 1)}
         />
       ) : (

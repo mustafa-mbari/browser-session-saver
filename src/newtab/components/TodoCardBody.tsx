@@ -65,7 +65,7 @@ export default function TodoCardBody({ rawContent, onUpdate }: TodoCardBodyProps
           </span>
           <button
             onClick={() => remove(item.id)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/10"
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-sm hover:bg-white/10"
             aria-label="Remove item"
           >
             <Trash2 size={11} style={{ color: 'rgba(255,100,100,0.7)' }} />
@@ -86,13 +86,13 @@ export default function TodoCardBody({ rawContent, onUpdate }: TodoCardBodyProps
           onChange={(e) => setNewText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
           placeholder="Add item…"
-          className="flex-1 bg-white/10 rounded px-2 py-1 text-xs outline-none placeholder-white/30"
+          className="flex-1 bg-white/10 rounded-sm px-2 py-1 text-xs outline-hidden placeholder-white/30"
           style={{ color: 'var(--newtab-text)' }}
         />
         <button
           onClick={add}
           disabled={!newText.trim()}
-          className="p-1 rounded hover:bg-white/15 transition-colors disabled:opacity-30"
+          className="p-1 rounded-sm hover:bg-white/15 transition-colors disabled:opacity-30"
           aria-label="Add item"
         >
           <Plus size={13} style={{ color: 'var(--newtab-text)' }} />

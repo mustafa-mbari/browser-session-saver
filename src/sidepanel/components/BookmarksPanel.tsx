@@ -112,7 +112,7 @@ function BookmarkDialog({
             {FOLDER_COLORS.map((color) => (
               <button
                 key={color}
-                className="w-8 h-8 rounded-lg transition-all hover:scale-110 focus:outline-none"
+                className="w-8 h-8 rounded-lg transition-all hover:scale-110 focus:outline-hidden"
                 style={{
                   backgroundColor: color,
                   boxShadow: current === color ? `0 0 0 2px white, 0 0 0 3px ${color}` : undefined,
@@ -123,7 +123,7 @@ function BookmarkDialog({
           </div>
           <DialogFooter className="mt-1">
             <button
-              className="px-2.5 py-1 rounded text-xs text-white/60 hover:bg-white/10 transition-colors"
+              className="px-2.5 py-1 rounded-sm text-xs text-white/60 hover:bg-white/10 transition-colors"
               onClick={onClose}
             >
               Cancel
@@ -217,7 +217,7 @@ function BookmarkDialog({
 
         <DialogFooter className="gap-1.5 mt-1">
           <button
-            className="px-2.5 py-1 rounded text-xs text-white/60 hover:bg-white/10 transition-colors"
+            className="px-2.5 py-1 rounded-sm text-xs text-white/60 hover:bg-white/10 transition-colors"
             onClick={onClose}
           >
             Cancel
@@ -246,7 +246,7 @@ function EntryItem({
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <button
-          className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--color-bg-hover)] transition-colors text-left group"
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-(--color-bg-hover) transition-colors text-left group"
           onDoubleClick={() => window.open(entry.url, '_blank', 'noopener')}
           title={entry.url}
         >
@@ -254,7 +254,7 @@ function EntryItem({
             <img
               src={entry.favIconUrl}
               alt=""
-              className="w-3.5 h-3.5 shrink-0 rounded-sm"
+              className="w-3.5 h-3.5 shrink-0 rounded-xs"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           ) : (
@@ -331,7 +331,7 @@ function FolderRow({ folder, depth, allCategories, getEntries, onDialog, saveTab
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <button
-            className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-[var(--color-bg-hover)] transition-colors text-left"
+            className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-sm hover:bg-(--color-bg-hover) transition-colors text-left"
             style={{ paddingLeft: `${8 + depth * 14}px` }}
             onClick={() => setOpen((v) => !v)}
           >
@@ -470,7 +470,7 @@ export default function BookmarksPanel() {
           Bookmarks
         </span>
         <button
-          className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors hover:bg-[var(--color-bg-hover)]"
+          className="flex items-center gap-1.5 px-2 py-1 rounded-sm text-xs transition-colors hover:bg-(--color-bg-hover)"
           style={{ color: 'var(--color-text-secondary)' }}
           onClick={() => void handleSaveCurrentTab()}
           title="Save current tab to the last used folder"
@@ -521,7 +521,7 @@ export default function BookmarksPanel() {
                     {board.icon} {board.name}
                   </span>
                   <button
-                    className="shrink-0 p-0.5 rounded hover:bg-[var(--color-bg-hover)] transition-colors opacity-50 hover:opacity-100"
+                    className="shrink-0 p-0.5 rounded-sm hover:bg-(--color-bg-hover) transition-colors opacity-50 hover:opacity-100"
                     style={{ color: 'var(--color-text)' }}
                     title="New folder in this board"
                     onClick={() => setDialogState({ type: 'new-folder', boardId: board.id })}

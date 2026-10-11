@@ -82,7 +82,7 @@ export default function SessionRestoreReminder() {
         </span>
         <button
           onClick={handleDismiss}
-          className="p-0.5 rounded hover:bg-white/10 transition-colors text-white/60 hover:text-white/90"
+          className="p-0.5 rounded-sm hover:bg-white/10 transition-colors text-white/60 hover:text-white/90"
           aria-label="Dismiss"
         >
           <X size={14} />

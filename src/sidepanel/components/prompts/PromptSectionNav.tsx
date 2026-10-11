@@ -142,7 +142,7 @@ function FolderTreeItem({
         className={`group flex items-center gap-1.5 py-1.5 rounded-lg cursor-pointer select-none transition-colors ${
           isActive
             ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-            : 'hover:bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)]'
+            : 'hover:bg-(--color-bg-hover) text-(--color-text-secondary)'
         }`}
         style={{ paddingLeft: `${indentPx}px`, paddingRight: '6px' }}
         onClick={() => {
@@ -179,7 +179,7 @@ function FolderTreeItem({
             }}
             onBlur={() => void handleRenameSubmit()}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 min-w-0 text-xs bg-transparent border-b border-amber-400 outline-none text-[var(--color-text)]"
+            className="flex-1 min-w-0 text-xs bg-transparent border-b border-amber-400 outline-hidden text-(--color-text)"
           />
         ) : (
           <span className="flex-1 min-w-0 text-xs truncate" title={folder.name}>
@@ -200,21 +200,21 @@ function FolderTreeItem({
           >
             <button
               onClick={() => setAddingChild(true)}
-              className="p-0.5 rounded hover:bg-amber-500/20 text-[var(--color-text-secondary)] hover:text-amber-500 transition-colors"
+              className="p-0.5 rounded-sm hover:bg-amber-500/20 text-(--color-text-secondary) hover:text-amber-500 transition-colors"
               title="Add sub-folder"
             >
               <Plus size={10} />
             </button>
             <button
               onClick={() => { setRenaming(true); setRenameName(folder.name); setRenameColor(folder.color ?? ''); }}
-              className="p-0.5 rounded hover:bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] transition-colors"
+              className="p-0.5 rounded-sm hover:bg-(--color-bg-hover) text-(--color-text-secondary) transition-colors"
               title="Rename / change color"
             >
               <Pencil size={10} />
             </button>
             <button
               onClick={() => setMoving((v) => !v)}
-              className="p-0.5 rounded hover:bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] transition-colors"
+              className="p-0.5 rounded-sm hover:bg-(--color-bg-hover) text-(--color-text-secondary) transition-colors"
               title="Move folder"
             >
               <ArrowRightLeft size={10} />
@@ -224,7 +224,7 @@ function FolderTreeItem({
               className={`p-0.5 rounded transition-colors ${
                 confirmDelete
                   ? 'text-red-500 bg-red-50 dark:bg-red-900/20'
-                  : 'text-[var(--color-text-secondary)] hover:text-red-500'
+                  : 'text-(--color-text-secondary) hover:text-red-500'
               }`}
               title={confirmDelete ? 'Click again to confirm' : 'Delete folder'}
             >
@@ -263,10 +263,10 @@ function FolderTreeItem({
           style={{ paddingLeft: `${indentPx + 16}px`, paddingRight: '6px' }}
           onClick={(e) => e.stopPropagation()}
         >
-          <p className="text-[10px] text-[var(--color-text-secondary)] opacity-60 mb-1">Move to:</p>
+          <p className="text-[10px] text-(--color-text-secondary) opacity-60 mb-1">Move to:</p>
           <button
             onClick={() => void handleMove(undefined)}
-            className="w-full text-left text-xs px-2 py-1 rounded hover:bg-amber-500/15 hover:text-amber-600 text-[var(--color-text-secondary)] transition-colors"
+            className="w-full text-left text-xs px-2 py-1 rounded-sm hover:bg-amber-500/15 hover:text-amber-600 text-(--color-text-secondary) transition-colors"
           >
             Root level
           </button>
@@ -274,7 +274,7 @@ function FolderTreeItem({
             <button
               key={t.id}
               onClick={() => void handleMove(t.id)}
-              className="w-full text-left text-xs px-2 py-1 rounded hover:bg-amber-500/15 hover:text-amber-600 text-[var(--color-text-secondary)] transition-colors truncate"
+              className="w-full text-left text-xs px-2 py-1 rounded-sm hover:bg-amber-500/15 hover:text-amber-600 text-(--color-text-secondary) transition-colors truncate"
             >
               <Folder size={10} className="inline mr-1" style={{ color: t.color ?? 'currentColor' }} />
               {t.name}
@@ -282,7 +282,7 @@ function FolderTreeItem({
           ))}
           <button
             onClick={() => setMoving(false)}
-            className="w-full text-left text-xs px-2 py-1 rounded text-[var(--color-text-secondary)] opacity-50 hover:opacity-100 transition-opacity"
+            className="w-full text-left text-xs px-2 py-1 rounded-sm text-(--color-text-secondary) opacity-50 hover:opacity-100 transition-opacity"
           >
             Cancel
           </button>
@@ -295,7 +295,7 @@ function FolderTreeItem({
           className="flex items-center gap-1.5 py-1"
           style={{ paddingLeft: `${indentPx + 16}px`, paddingRight: '6px' }}
         >
-          <Folder size={11} className="shrink-0 text-[var(--color-text-secondary)]" />
+          <Folder size={11} className="shrink-0 text-(--color-text-secondary)" />
           <input
             autoFocus
             value={newChildName}
@@ -305,12 +305,12 @@ function FolderTreeItem({
               if (e.key === 'Escape') { setAddingChild(false); setNewChildName(''); }
             }}
             placeholder="Sub-folder name…"
-            className="flex-1 text-xs bg-transparent border-b border-amber-400 outline-none text-[var(--color-text)] placeholder:text-[var(--color-text-secondary)]"
+            className="flex-1 text-xs bg-transparent border-b border-amber-400 outline-hidden text-(--color-text) placeholder:text-(--color-text-secondary)"
           />
           <button onClick={() => void handleAddChild()} className="p-0.5 text-amber-500 hover:text-amber-600">
             <Check size={10} />
           </button>
-          <button onClick={() => { setAddingChild(false); setNewChildName(''); }} className="p-0.5 text-[var(--color-text-secondary)]">
+          <button onClick={() => { setAddingChild(false); setNewChildName(''); }} className="p-0.5 text-(--color-text-secondary)">
             <X size={10} />
           </button>
         </div>
@@ -398,7 +398,7 @@ function SourceSection({
         className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
           isSourceActive
             ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-            : 'hover:bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)]'
+            : 'hover:bg-(--color-bg-hover) text-(--color-text-secondary)'
         }`}
         onClick={() => onNavigate({ kind: 'source', source })}
       >
@@ -429,7 +429,7 @@ function SourceSection({
         {!readonly && (
           <button
             onClick={(e) => { e.stopPropagation(); setAddingRoot(true); setExpanded(true); }}
-            className="hidden group-hover:flex shrink-0 p-0.5 rounded hover:bg-amber-500/15 hover:text-amber-500 text-[var(--color-text-secondary)] transition-colors"
+            className="hidden group-hover:flex shrink-0 p-0.5 rounded-sm hover:bg-amber-500/15 hover:text-amber-500 text-(--color-text-secondary) transition-colors"
             title={`New folder in ${label}`}
           >
             <Plus size={12} />
@@ -443,7 +443,7 @@ function SourceSection({
           {/* New root folder inline input */}
           {addingRoot && !readonly && (
             <div className="flex items-center gap-1.5 py-1 pl-8 pr-2">
-              <Folder size={12} className="shrink-0 text-[var(--color-text-secondary)]" />
+              <Folder size={12} className="shrink-0 text-(--color-text-secondary)" />
               <input
                 autoFocus
                 value={newRootName}
@@ -453,14 +453,14 @@ function SourceSection({
                   if (e.key === 'Escape') { setAddingRoot(false); setNewRootName(''); }
                 }}
                 placeholder="Folder name…"
-                className="flex-1 text-xs bg-transparent border-b border-amber-400 outline-none text-[var(--color-text)] placeholder:text-[var(--color-text-secondary)]"
+                className="flex-1 text-xs bg-transparent border-b border-amber-400 outline-hidden text-(--color-text) placeholder:text-(--color-text-secondary)"
               />
               <button onClick={() => void handleAddRootFolder()} className="p-0.5 text-amber-500 hover:text-amber-600">
                 <Check size={10} />
               </button>
               <button
                 onClick={() => { setAddingRoot(false); setNewRootName(''); }}
-                className="p-0.5 text-[var(--color-text-secondary)]"
+                className="p-0.5 text-(--color-text-secondary)"
               >
                 <X size={10} />
               </button>
@@ -469,7 +469,7 @@ function SourceSection({
 
           {/* Empty hint */}
           {rootFolders.length === 0 && !addingRoot && !readonly && (
-            <p className="pl-6 py-1 text-xs text-[var(--color-text-secondary)] opacity-40 italic">
+            <p className="pl-6 py-1 text-xs text-(--color-text-secondary) opacity-40 italic">
               Click + to create a folder
             </p>
           )}
@@ -530,7 +530,7 @@ export default function PromptSectionNav({
               className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors ${
                 isActive
                   ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold'
-                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text)]'
+                  : 'text-(--color-text-secondary) hover:bg-(--color-bg-hover) hover:text-(--color-text)'
               }`}
             >
               <span className="shrink-0">{icon}</span>
@@ -546,7 +546,7 @@ export default function PromptSectionNav({
       </div>
 
       {/* Divider */}
-      <div className="mx-1 mb-3 border-t border-[var(--color-border)]" />
+      <div className="mx-1 mb-3 border-t border-(--color-border)" />
 
       {/* ── MY PROMPTS (local) ───────────────────────────────── */}
       <SourceSection
@@ -564,7 +564,7 @@ export default function PromptSectionNav({
       />
 
       {/* Divider */}
-      <div className="mx-1 my-2 border-t border-[var(--color-border)]" />
+      <div className="mx-1 my-2 border-t border-(--color-border)" />
 
       {/* ── APP PROMPTS (read-only) ───────────────────────────── */}
       <SourceSection

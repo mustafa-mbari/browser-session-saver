@@ -17,7 +17,7 @@ export default function AutoSaveBadge() {
         <span
           className={`w-2 h-2 rounded-full ${isActive ? 'bg-success' : 'bg-warning'}`}
         />
-        <span className="text-xs text-[var(--color-text-secondary)]">
+        <span className="text-xs text-(--color-text-secondary)">
           {isActive ? 'Auto' : 'Paused'}
         </span>
       </div>

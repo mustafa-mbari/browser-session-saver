@@ -46,7 +46,7 @@ export default function SettingsPanel({ settings, onUpdate, onClose, onClearData
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs"
         onClick={onClose}
       />
 
@@ -151,7 +151,7 @@ export default function SettingsPanel({ settings, onUpdate, onClose, onClearData
                 value={settings.customSearchUrl ?? ''}
                 onChange={(e) => onUpdate({ customSearchUrl: e.target.value })}
                 placeholder="https://search.example.com/?q="
-                className="mt-2 w-full rounded-lg px-3 py-2 text-sm outline-none placeholder-white/25"
+                className="mt-2 w-full rounded-lg px-3 py-2 text-sm outline-hidden placeholder-white/25"
                 style={{
                   background: 'rgba(255,255,255,0.08)',
                   border: '1px solid rgba(255,255,255,0.12)',

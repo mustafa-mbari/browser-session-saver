@@ -78,7 +78,7 @@ export function GlassToggle({ label, description, icon, checked, onChange }: Tog
         }`}
       >
         <span
-          className={`absolute top-[3px] left-[3px] w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+          className={`absolute top-[3px] left-[3px] w-4 h-4 bg-white rounded-full shadow-xs transition-transform duration-200 ${
             checked ? 'translate-x-[18px]' : 'translate-x-0'
           }`}
         />
@@ -98,7 +98,7 @@ export function GlassRange({ label, value, min, max, step, unit, onChange }: Ran
         type="range" min={min} max={max} step={step} value={value}
         aria-label={label}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1.5 rounded-full appearance-none"
+        className="w-full h-1.5 rounded-full appearance-none bg-white"
         style={{ accentColor: '#6366f1' }}
       />
     </div>
@@ -113,7 +113,7 @@ export function GlassSelect({ label, description, icon, value, options, onChange
         value={value}
         aria-label={label}
         onChange={(e) => onChange(e.target.value)}
-        className="shrink-0 px-2 py-1.5 text-sm rounded-lg outline-none"
+        className="shrink-0 px-2 py-1.5 text-sm rounded-lg outline-hidden"
         style={{
           background: 'rgba(255,255,255,0.08)',
           border: '1px solid rgba(255,255,255,0.12)',

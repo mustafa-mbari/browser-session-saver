@@ -117,7 +117,7 @@ export default function BookmarkCategoryCard({
       {/* Header */}
       <div className="flex items-center gap-1 px-2 py-1.5" {...attributes}>
         <div
-          className="p-0.5 rounded cursor-grab active:cursor-grabbing hover:bg-white/10 transition-colors shrink-0"
+          className="p-0.5 rounded-sm cursor-grab active:cursor-grabbing hover:bg-white/10 transition-colors shrink-0"
           {...listeners}
           aria-label="Drag to reorder"
         >
@@ -125,7 +125,7 @@ export default function BookmarkCategoryCard({
         </div>
 
         {cardType === 'bookmark'
-          ? <img src="/icons/bs_logo.png" alt="" className="w-4 h-4 shrink-0 rounded-sm" />
+          ? <img src="/icons/bs_logo.png" alt="" className="w-4 h-4 shrink-0 rounded-xs" />
           : <span className="text-base shrink-0">{category.icon}</span>
         }
 
@@ -141,7 +141,7 @@ export default function BookmarkCategoryCard({
               e.stopPropagation();
             }}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 min-w-0 bg-white/10 rounded px-1.5 py-0.5 text-sm font-semibold outline-none"
+            className="flex-1 min-w-0 bg-white/10 rounded-sm px-1.5 py-0.5 text-sm font-semibold outline-hidden"
             style={{ color: 'var(--newtab-text)' }}
           />
         ) : (
@@ -172,7 +172,7 @@ export default function BookmarkCategoryCard({
         <button
           ref={resizeBtnRef}
           onClick={openResize}
-          className="p-0.5 rounded hover:bg-white/10 transition-colors shrink-0"
+          className="p-0.5 rounded-sm hover:bg-white/10 transition-colors shrink-0"
           aria-label="Resize widget"
           title={`${colSpan}w × ${rowSpan}h`}
         >
@@ -181,7 +181,7 @@ export default function BookmarkCategoryCard({
 
         <ContextMenu items={menuItems}>
           <button
-            className="p-0.5 rounded hover:bg-white/10 transition-colors shrink-0"
+            className="p-0.5 rounded-sm hover:bg-white/10 transition-colors shrink-0"
             aria-label="Widget options"
           >
             <MoreHorizontal size={14} style={{ color: 'var(--newtab-text-secondary)' }} />

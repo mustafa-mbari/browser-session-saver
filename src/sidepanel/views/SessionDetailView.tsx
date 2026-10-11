@@ -132,7 +132,7 @@ export default function SessionDetailView() {
   }, []);
 
   if (loading) return <LoadingSpinner />;
-  if (!session) return <div className="p-4 text-center text-[var(--color-text-secondary)]">Session not found</div>;
+  if (!session) return <div className="p-4 text-center text-(--color-text-secondary)">Session not found</div>;
 
   const handleSaveName = async () => {
     if (nameInput.trim() && nameInput !== session.name) {
@@ -264,7 +264,7 @@ export default function SessionDetailView() {
   return (
     <div className="flex flex-col h-full">
       {/* Session Header */}
-      <div className="px-3 py-3 border-b border-[var(--color-border)]">
+      <div className="px-3 py-3 border-b border-(--color-border)">
         <div className="flex items-center gap-2">
           {editingName ? (
             <div className="flex items-center gap-1 flex-1">
@@ -272,7 +272,7 @@ export default function SessionDetailView() {
                 type="text"
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
-                className="flex-1 px-2 py-1 text-sm rounded border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-primary"
+                className="flex-1 px-2 py-1 text-sm rounded-sm border border-(--color-border) bg-(--color-bg) text-(--color-text) focus:outline-hidden focus:ring-2 focus:ring-primary"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSaveName();
@@ -288,7 +288,7 @@ export default function SessionDetailView() {
               <h2 className="font-semibold text-sm flex-1 truncate">{session.name}</h2>
               <button
                 onClick={() => setEditingName(true)}
-                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="p-1 rounded-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 aria-label="Edit name"
               >
                 <Edit2 size={14} />
@@ -297,7 +297,7 @@ export default function SessionDetailView() {
           )}
         </div>
         <div className="flex items-center gap-2 mt-1">
-          <span className="text-xs text-[var(--color-text-secondary)]">
+          <span className="text-xs text-(--color-text-secondary)">
             {formatTimestamp(session.createdAt)}
           </span>
           <Badge>{session.tabCount} tabs</Badge>
@@ -311,7 +311,7 @@ export default function SessionDetailView() {
       </div>
 
       {/* Action Buttons */}
-      <div className="px-3 py-2 flex gap-2 border-b border-[var(--color-border)]">
+      <div className="px-3 py-2 flex gap-2 border-b border-(--color-border)">
         <Button icon={RotateCcw} size="sm" className="flex-1" onClick={handleOpenRestoreModal}>
           Restore
         </Button>
@@ -320,12 +320,12 @@ export default function SessionDetailView() {
             Export
           </Button>
           {showExportMenu && (
-            <div className="absolute top-full right-0 mt-1 z-20 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-card shadow-card min-w-[100px]">
+            <div className="absolute top-full right-0 mt-1 z-20 bg-(--color-bg) border border-(--color-border) rounded-card shadow-card min-w-[100px]">
               {EXPORT_FORMATS.map((fmt) => (
                 <button
                   key={fmt.value}
                   onClick={() => handleExport(fmt.value)}
-                  className="block w-full px-3 py-1.5 text-xs text-left hover:bg-[var(--color-bg-secondary)] transition-colors"
+                  className="block w-full px-3 py-1.5 text-xs text-left hover:bg-(--color-bg-secondary) transition-colors"
                 >
                   {fmt.label}
                 </button>
@@ -348,7 +348,7 @@ export default function SessionDetailView() {
       </div>
 
       {/* Tags Section */}
-      <div className="px-3 py-2 border-b border-[var(--color-border)]">
+      <div className="px-3 py-2 border-b border-(--color-border)">
         <div className="flex items-center gap-1 flex-wrap min-h-[24px]">
           {session.tags.map((tag) => (
             <span
@@ -374,20 +374,20 @@ export default function SessionDetailView() {
             }}
             onBlur={handleAddTag}
             placeholder="+ add tag"
-            className="text-xs px-1 py-0.5 bg-transparent border-none focus:outline-none text-[var(--color-text-secondary)] w-16 min-w-0"
+            className="text-xs px-1 py-0.5 bg-transparent border-none focus:outline-hidden text-(--color-text-secondary) w-16 min-w-0"
           />
         </div>
       </div>
 
       {/* Notes Section */}
-      <div className="px-3 py-1.5 border-b border-[var(--color-border)]">
+      <div className="px-3 py-1.5 border-b border-(--color-border)">
         <textarea
           value={notesValue}
           onChange={(e) => { setNotesValue(e.target.value); setNotesDirty(true); }}
           onBlur={handleSaveNotes}
           placeholder="Add notes..."
           rows={2}
-          className="w-full text-xs bg-transparent border-none resize-none focus:outline-none text-[var(--color-text-secondary)] placeholder-[var(--color-text-secondary)]"
+          className="w-full text-xs bg-transparent border-none resize-none focus:outline-hidden text-(--color-text-secondary) placeholder-(--color-text-secondary)"
         />
       </div>
 
@@ -395,13 +395,13 @@ export default function SessionDetailView() {
       <div className="flex-1 overflow-auto">
         {groupedTabs.map(({ group, tabs }) => (
           <div key={group.id}>
-            <div className="px-3 py-1.5 bg-[var(--color-bg-secondary)] flex items-center gap-2 sticky top-0">
+            <div className="px-3 py-1.5 bg-(--color-bg-secondary) flex items-center gap-2 sticky top-0">
               <span
                 className="w-2 h-2 rounded-full shrink-0"
                 style={{ backgroundColor: `var(--group-${group.color})` }}
               />
               <span className="text-xs font-medium">{group.title || 'Unnamed group'}</span>
-              <span className="text-xs text-[var(--color-text-secondary)]">{tabs.length}</span>
+              <span className="text-xs text-(--color-text-secondary)">{tabs.length}</span>
             </div>
             {tabs.map((tab) => (
               <TabRow
@@ -417,7 +417,7 @@ export default function SessionDetailView() {
         {ungroupedTabs.length > 0 && (
           <>
             {groupedTabs.length > 0 && (
-              <div className="px-3 py-1.5 bg-[var(--color-bg-secondary)] text-xs font-medium sticky top-0">
+              <div className="px-3 py-1.5 bg-(--color-bg-secondary) text-xs font-medium sticky top-0">
                 Ungrouped
               </div>
             )}
@@ -468,7 +468,7 @@ export default function SessionDetailView() {
 
         {/* Select all toggle */}
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-[var(--color-text-secondary)]">
+          <span className="text-xs text-(--color-text-secondary)">
             {restore.selectedTabIds.size} / {session.tabs.length} selected
           </span>
           <button
@@ -490,7 +490,7 @@ export default function SessionDetailView() {
           {session.tabs.map((tab) => (
             <label
               key={tab.id}
-              className="flex items-center gap-2 px-2 py-1 rounded hover:bg-[var(--color-bg-secondary)] cursor-pointer"
+              className="flex items-center gap-2 px-2 py-1 rounded-sm hover:bg-(--color-bg-secondary) cursor-pointer"
             >
               <input
                 type="checkbox"
@@ -499,9 +499,9 @@ export default function SessionDetailView() {
                 className="accent-primary shrink-0"
               />
               {tab.favIconUrl ? (
-                <img src={tab.favIconUrl} alt="" className="w-4 h-4 rounded-sm shrink-0" />
+                <img src={tab.favIconUrl} alt="" className="w-4 h-4 rounded-xs shrink-0" />
               ) : (
-                <div className="w-4 h-4 rounded-sm bg-gray-200 dark:bg-gray-600 shrink-0" />
+                <div className="w-4 h-4 rounded-xs bg-gray-200 dark:bg-gray-600 shrink-0" />
               )}
               <span className="text-xs truncate">{tab.title || tab.url}</span>
             </label>
@@ -531,7 +531,7 @@ function TabRow({
   onRemove?: () => void;
 }) {
   return (
-    <div className="px-3 py-1.5 flex items-center gap-2 hover:bg-[var(--color-bg-secondary)] transition-colors group">
+    <div className="px-3 py-1.5 flex items-center gap-2 hover:bg-(--color-bg-secondary) transition-colors group">
       {editMode && (
         <button
           onClick={onRemove}
@@ -542,9 +542,9 @@ function TabRow({
         </button>
       )}
       {tab.favIconUrl ? (
-        <img src={tab.favIconUrl} alt="" className="w-4 h-4 rounded-sm shrink-0" />
+        <img src={tab.favIconUrl} alt="" className="w-4 h-4 rounded-xs shrink-0" />
       ) : (
-        <div className="w-4 h-4 rounded-sm bg-gray-200 dark:bg-gray-600 shrink-0" />
+        <div className="w-4 h-4 rounded-xs bg-gray-200 dark:bg-gray-600 shrink-0" />
       )}
       <span className="text-sm truncate flex-1" title={tab.title}>
         {tab.title || tab.url}
@@ -558,7 +558,7 @@ function TabRow({
           aria-label={`Open ${tab.title}`}
           onClick={(e) => e.stopPropagation()}
         >
-          <ExternalLink size={12} className="text-[var(--color-text-secondary)]" />
+          <ExternalLink size={12} className="text-(--color-text-secondary)" />
         </a>
       )}
     </div>

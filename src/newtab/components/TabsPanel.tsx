@@ -38,7 +38,7 @@ export default function TabsPanel() {
           }`}
         >
           {tab.favIconUrl ? (
-            <img src={tab.favIconUrl} alt="" className="w-4 h-4 rounded shrink-0" />
+            <img src={tab.favIconUrl} alt="" className="w-4 h-4 rounded-sm shrink-0" />
           ) : (
             <Globe size={16} className="shrink-0 opacity-50" style={{ color: 'var(--newtab-text)' }} />
           )}

@@ -67,7 +67,7 @@ export default function ResizePopover({ colSpan, rowSpan, sizeConfig, anchorRect
                 aria-label={outOfRange ? `${col}×${row} (not available)` : `${col}×${row}`}
                 className={`w-4 h-4 rounded border transition-all duration-75 ${
                   outOfRange
-                    ? 'bg-white/[0.03] border-white/[0.05] opacity-25 cursor-not-allowed'
+                    ? 'bg-white/3 border-white/5 opacity-25 cursor-not-allowed'
                     : filled
                     ? 'bg-indigo-500/70 border-indigo-400/90'
                     : current

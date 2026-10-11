@@ -123,7 +123,7 @@ export default function OnboardingModal({ isOpen, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      className="fixed inset-0 z-9999 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -138,7 +138,7 @@ export default function OnboardingModal({ isOpen, onClose }: Props) {
       >
         {/* Accent header */}
         <div
-          className={`bg-gradient-to-br ${current.accent} px-5 pt-5 pb-6 text-white relative`}
+          className={`bg-linear-to-br ${current.accent} px-5 pt-5 pb-6 text-white relative`}
         >
           <button
             onClick={onClose}
@@ -148,7 +148,7 @@ export default function OnboardingModal({ isOpen, onClose }: Props) {
             <X size={16} />
           </button>
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 rounded-xl bg-white/20 backdrop-blur-sm">
+            <div className="p-2.5 rounded-xl bg-white/20 backdrop-blur-xs">
               <Icon size={22} className="text-white" />
             </div>
             <span className="text-[10px] font-semibold uppercase tracking-widest opacity-80">
@@ -217,7 +217,7 @@ export default function OnboardingModal({ isOpen, onClose }: Props) {
             </button>
             <button
               onClick={next}
-              className={`flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-md text-white transition-opacity hover:opacity-90 bg-gradient-to-br ${current.accent}`}
+              className={`flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-md text-white transition-opacity hover:opacity-90 bg-linear-to-br ${current.accent}`}
             >
               {isLast ? 'Get started' : 'Next'}
               {!isLast && <ChevronRight size={13} />}

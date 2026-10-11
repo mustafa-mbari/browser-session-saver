@@ -1,3 +1,29 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* Class-based dark mode: the app toggles `dark` on <html>. */
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-primary: #1a73e8;
+  --color-success: #34a853;
+  --color-warning: #fbbc04;
+  --color-error: #ea4335;
+
+  --font-sans: Inter, system-ui, sans-serif;
+
+  --radius-card: 8px;
+  --radius-btn: 6px;
+  --radius-modal: 12px;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --default-transition-duration: 150ms;
+}
+
 /* Inter variable font — bundled locally, no external CDN dependency */
 @font-face {
   font-family: 'Inter';
@@ -16,16 +42,39 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/*
+  Tailwind v3 defaults kept for an unchanged look after the v4 upgrade:
+  gray-200 borders (v4 uses currentColor), gray-400 placeholders, and a pointer
+  cursor on buttons (v4's preflight uses the default cursor).
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400);
+  }
+
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}
 
 @layer base {
   :root {
+    /* Also in @theme; kept here because components read them in inline styles. */
     --color-primary: #1A73E8;
     --color-success: #34A853;
     --color-warning: #FBBC04;
     --color-error: #EA4335;
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.06);
     --color-bg: #ffffff;
     --color-bg-secondary: #f8f9fa;
     --color-bg-hover: #f1f3f4;
@@ -35,8 +84,7 @@
     --color-border: #dadce0;
     --scrollbar-thumb: rgba(0, 0, 0, 0.18);
     --scrollbar-thumb-hover: rgba(0, 0, 0, 0.35);
-    --shadow-card: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.06);
-    --shadow-hover: 0 4px 12px rgba(0,0,0,0.15);
+    --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
     --transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
     --newtab-text: rgba(255, 255, 255, 0.92);
     --newtab-text-secondary: rgba(255, 255, 255, 0.60);
@@ -77,66 +125,69 @@
   html[data-text-size="large"]  .text-\[11px\] { font-size: 15px; }
 }
 
-@layer utilities {
-  .glass {
-    background: rgba(10, 10, 20, 0.45);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-  }
+/* ── Glassmorphism ── */
+@utility glass {
+  background: rgba(10, 10, 20, 0.45);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 
-  .dark .glass {
+  .dark & {
     background: rgba(0, 0, 0, 0.68);
     border-color: rgba(255, 255, 255, 0.18);
   }
+}
 
-  .glass-dark {
-    background: rgba(0, 0, 0, 0.60);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-  }
+@utility glass-dark {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 
-  .dark .glass-dark {
+  .dark & {
     background: rgba(0, 0, 0, 0.82);
     border-color: rgba(255, 255, 255, 0.12);
   }
+}
 
-  .glass-panel {
-    background: rgba(10, 10, 20, 0.55);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  }
+@utility glass-panel {
+  background: rgba(10, 10, 20, 0.55);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 
-  .dark .glass-panel {
+  .dark & {
     background: rgba(0, 0, 0, 0.75);
     border-color: rgba(255, 255, 255, 0.16);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
   }
+}
 
-  /* ── Start-tab page cards (Settings, etc.) ── */
-  .newtab-page-card {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-  }
+/* Start-tab page cards (Settings, etc.) */
+@utility newtab-page-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 
-  .dark .newtab-page-card {
+  .dark & {
     background: rgba(0, 0, 0, 0.45);
     border-color: rgba(255, 255, 255, 0.13);
   }
+}
 
-  .glass-hover {
-    transition: transform 200ms ease, box-shadow 200ms ease;
-  }
+@utility glass-hover {
+  transition:
+    transform 200ms ease,
+    box-shadow 200ms ease;
 
-  .glass-hover:hover {
+  &:hover {
     transform: translateY(-1px);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   }
+}
 
-  .vignette::after {
+@utility vignette {
+  &::after {
     content: '';
     position: fixed;
     inset: 0;
@@ -144,8 +195,10 @@
     pointer-events: none;
     z-index: 1;
   }
+}
 
-  /* ── Thin custom scrollbar for all scrollable areas ── */
+/* ── Thin custom scrollbar for all scrollable areas ── */
+@layer base {
   ::-webkit-scrollbar {
     width: 4px;
     height: 4px;

@@ -37,7 +37,7 @@ function ModelSelectDropdown({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs rounded-lg border border-white/15 bg-white/5 hover:border-amber-400/40 focus:outline-none focus:ring-1 focus:ring-amber-400 transition-colors"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs rounded-lg border border-white/15 bg-white/5 hover:border-amber-400/40 focus:outline-hidden focus:ring-1 focus:ring-amber-400 transition-colors"
         style={{ color: 'var(--newtab-text)' }}
       >
         <span className="truncate text-left">
@@ -73,10 +73,10 @@ function ModelSelectDropdown({
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAdd(); } }}
               placeholder="Add custom model…"
-              className="flex-1 px-2 py-1 text-xs rounded border border-white/15 bg-white/5 focus:outline-none focus:ring-1 focus:ring-amber-400 placeholder:opacity-30"
+              className="flex-1 px-2 py-1 text-xs rounded-sm border border-white/15 bg-white/5 focus:outline-hidden focus:ring-1 focus:ring-amber-400 placeholder:opacity-30"
               style={{ color: 'var(--newtab-text)' }}
             />
-            <button onClick={onAdd} disabled={!newName.trim()} className="px-2 py-1 text-xs rounded bg-amber-500/80 text-white hover:bg-amber-500 disabled:opacity-30 transition-colors">+</button>
+            <button onClick={onAdd} disabled={!newName.trim()} className="px-2 py-1 text-xs rounded-sm bg-amber-500/80 text-white hover:bg-amber-500 disabled:opacity-30 transition-colors">+</button>
           </div>
         </div>
       )}
@@ -139,7 +139,7 @@ function FolderPickerDropdown({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs rounded-lg border border-white/15 bg-white/5 hover:border-amber-400/40 focus:outline-none focus:ring-1 focus:ring-amber-400 transition-colors"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs rounded-lg border border-white/15 bg-white/5 hover:border-amber-400/40 focus:outline-hidden focus:ring-1 focus:ring-amber-400 transition-colors"
         style={{ color: 'var(--newtab-text)' }}
       >
         <div className="flex items-center gap-2 min-w-0">
@@ -192,7 +192,7 @@ function FolderPickerDropdown({
                       if (e.key === 'Escape') { setCreatingFolder(false); setNewFolderName(''); }
                     }}
                     placeholder="Folder name…"
-                    className="flex-1 px-2 py-0.5 text-[10px] rounded border border-amber-400/50 bg-white/5 focus:outline-none"
+                    className="flex-1 px-2 py-0.5 text-[10px] rounded-sm border border-amber-400/50 bg-white/5 focus:outline-hidden"
                     style={{ color: 'var(--newtab-text)' }}
                   />
                   <button onClick={() => void handleCreate()} disabled={!newFolderName.trim()} className="p-1 text-amber-400 disabled:opacity-30">
@@ -249,7 +249,7 @@ function CategoryPickerDropdown({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs rounded-lg border border-white/15 bg-white/5 hover:border-amber-400/40 focus:outline-none focus:ring-1 focus:ring-amber-400 transition-colors"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs rounded-lg border border-white/15 bg-white/5 hover:border-amber-400/40 focus:outline-hidden focus:ring-1 focus:ring-amber-400 transition-colors"
         style={{ color: 'var(--newtab-text)' }}
       >
         <span className="truncate">
@@ -428,7 +428,7 @@ function PanelPromptCard({
       {expanded && (
         <div className="px-4 pb-4 space-y-2.5 border-t border-white/10">
           <div className="mt-3 rounded-lg bg-white/5 p-3">
-            <p className="text-sm whitespace-pre-wrap break-words leading-relaxed" style={T}>{prompt.content}</p>
+            <p className="text-sm whitespace-pre-wrap wrap-break-word leading-relaxed" style={T}>{prompt.content}</p>
           </div>
           {hasVars && (
             <p className="text-xs text-amber-400 font-medium">⚡ Contains variables — use "Fill & Copy" to fill them in</p>
@@ -607,7 +607,7 @@ function InlinePromptForm({
     });
   };
 
-  const inputCls = 'w-full px-3 py-2.5 text-base rounded-lg border border-white/15 bg-white/5 focus:outline-none focus:ring-1 focus:ring-amber-400 transition-colors placeholder:opacity-40';
+  const inputCls = 'w-full px-3 py-2.5 text-base rounded-lg border border-white/15 bg-white/5 focus:outline-hidden focus:ring-1 focus:ring-amber-400 transition-colors placeholder:opacity-40';
   const localFolders = folders.filter((f) => f.source === 'local');
 
   return (
@@ -618,7 +618,7 @@ function InlinePromptForm({
           <Sparkles size={16} className="text-amber-400" />
           <span className="text-base font-semibold" style={T}>{initial ? 'Edit Prompt' : 'New Prompt'}</span>
         </div>
-        <button onClick={onCancel} className="p-1 rounded hover:bg-white/10" style={TS} aria-label="Cancel">
+        <button onClick={onCancel} className="p-1 rounded-sm hover:bg-white/10" style={TS} aria-label="Cancel">
           <X size={13} />
         </button>
       </div>
@@ -699,7 +699,7 @@ function InlinePromptForm({
                       if (e.key === 'Escape') { setAddingTag(false); setNewTagName(''); }
                     }}
                     placeholder="Tag name…"
-                    className="flex-1 px-2 py-1 text-xs rounded border border-amber-400/50 bg-white/5 focus:outline-none"
+                    className="flex-1 px-2 py-1 text-xs rounded-sm border border-amber-400/50 bg-white/5 focus:outline-hidden"
                     style={T}
                   />
                   <button onClick={() => void handleCreateNewTag()} disabled={!newTagName.trim()} className="p-1 text-amber-400 disabled:opacity-30">
@@ -746,7 +746,7 @@ function InlinePromptForm({
               <button
                 type="button"
                 onClick={handleInsertVariable}
-                className="px-2 py-0.5 text-xs font-mono rounded border border-amber-400/40 text-amber-400 hover:bg-amber-500/10 transition-colors"
+                className="px-2 py-0.5 text-xs font-mono rounded-sm border border-amber-400/40 text-amber-400 hover:bg-amber-500/10 transition-colors"
                 title="Insert variable placeholder"
               >
                 {'{{}}'}
@@ -822,7 +822,7 @@ function VariablesModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" onClick={onClose} aria-hidden />
       <div className="relative w-full max-w-4xl glass-panel rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh]">
 
         {/* Header */}
@@ -832,7 +832,7 @@ function VariablesModal({
             <span className="text-base font-semibold" style={T}>Fill Variables</span>
             <span className="text-sm opacity-40 truncate max-w-[240px]" style={TS}>— {prompt.title}</span>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded hover:bg-white/10 transition-colors" style={TS}>
+          <button onClick={onClose} className="p-1.5 rounded-sm hover:bg-white/10 transition-colors" style={TS}>
             <X size={15} />
           </button>
         </div>
@@ -849,7 +849,7 @@ function VariablesModal({
                   value={values[v] ?? ''}
                   onChange={(e) => setValues((prev) => ({ ...prev, [v]: e.target.value }))}
                   placeholder={`Enter ${v}…`}
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-white/15 bg-white/5 focus:outline-none focus:ring-1 focus:ring-amber-400 transition-colors"
+                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-white/15 bg-white/5 focus:outline-hidden focus:ring-1 focus:ring-amber-400 transition-colors"
                   style={T}
                 />
               </div>
@@ -862,7 +862,7 @@ function VariablesModal({
             <textarea
               readOnly
               value={preview}
-              className="flex-1 w-full px-4 py-3 text-sm rounded-lg border border-white/15 bg-white/5 resize-none focus:outline-none font-mono leading-relaxed"
+              className="flex-1 w-full px-4 py-3 text-sm rounded-lg border border-white/15 bg-white/5 resize-none focus:outline-hidden font-mono leading-relaxed"
               style={T}
             />
           </div>
@@ -1018,7 +1018,7 @@ function MiniFolderItem({
             }}
             onBlur={() => void handleRenameSubmit()}
             onClick={(e) => e.stopPropagation()}
-            className="flex-1 min-w-0 text-xs bg-transparent border-b border-amber-400 outline-none"
+            className="flex-1 min-w-0 text-xs bg-transparent border-b border-amber-400 outline-hidden"
             style={T}
           />
         ) : (
@@ -1037,7 +1037,7 @@ function MiniFolderItem({
             {onCreateFolder && (
               <button
                 onClick={() => setAddingChild(true)}
-                className="p-0.5 rounded hover:bg-amber-500/20 hover:text-amber-300 transition-colors"
+                className="p-0.5 rounded-sm hover:bg-amber-500/20 hover:text-amber-300 transition-colors"
                 style={TS}
                 title="Add sub-folder"
               >
@@ -1047,7 +1047,7 @@ function MiniFolderItem({
             {onUpdateFolder && (
               <button
                 onClick={() => { setRenaming(true); setRenameName(folder.name); setRenameColor(folder.color ?? ''); }}
-                className="p-0.5 rounded hover:bg-white/10 transition-colors"
+                className="p-0.5 rounded-sm hover:bg-white/10 transition-colors"
                 style={TS}
                 title="Rename / color"
               >
@@ -1057,7 +1057,7 @@ function MiniFolderItem({
             {onMoveFolder && (
               <button
                 onClick={() => setMoving((v) => !v)}
-                className="p-0.5 rounded hover:bg-white/10 transition-colors"
+                className="p-0.5 rounded-sm hover:bg-white/10 transition-colors"
                 style={TS}
                 title="Move folder"
               >
@@ -1114,7 +1114,7 @@ function MiniFolderItem({
           <p className="text-[9px] opacity-40 mb-1" style={TS}>Move to:</p>
           <button
             onClick={() => void handleMove(undefined)}
-            className="w-full text-left text-xs px-2 py-0.5 rounded hover:bg-amber-500/20 hover:text-amber-300 transition-colors"
+            className="w-full text-left text-xs px-2 py-0.5 rounded-sm hover:bg-amber-500/20 hover:text-amber-300 transition-colors"
             style={TS}
           >
             Root level
@@ -1123,7 +1123,7 @@ function MiniFolderItem({
             <button
               key={t.id}
               onClick={() => void handleMove(t.id)}
-              className="w-full text-left text-xs px-2 py-0.5 rounded hover:bg-amber-500/20 hover:text-amber-300 transition-colors truncate"
+              className="w-full text-left text-xs px-2 py-0.5 rounded-sm hover:bg-amber-500/20 hover:text-amber-300 transition-colors truncate"
               style={TS}
             >
               <Folder size={9} className="inline mr-1" style={{ color: t.color ?? 'currentColor' }} />
@@ -1132,7 +1132,7 @@ function MiniFolderItem({
           ))}
           <button
             onClick={() => setMoving(false)}
-            className="w-full text-left text-xs px-2 py-0.5 rounded opacity-40 hover:opacity-70 transition-opacity"
+            className="w-full text-left text-xs px-2 py-0.5 rounded-sm opacity-40 hover:opacity-70 transition-opacity"
             style={TS}
           >
             Cancel
@@ -1156,7 +1156,7 @@ function MiniFolderItem({
               if (e.key === 'Escape') { setAddingChild(false); setNewChildName(''); }
             }}
             placeholder="Sub-folder name…"
-            className="flex-1 text-xs bg-transparent border-b border-amber-400 outline-none placeholder:opacity-30"
+            className="flex-1 text-xs bg-transparent border-b border-amber-400 outline-hidden placeholder:opacity-30"
             style={T}
           />
           <button onClick={() => void handleAddChild()} className="p-0.5 text-amber-400 hover:text-amber-300">
@@ -1263,7 +1263,7 @@ function MiniSourceSection({
         {!readonly && (
           <button
             onClick={(e) => { e.stopPropagation(); setAddingRoot(true); setExpanded(true); }}
-            className="hidden group-hover:flex shrink-0 p-0.5 rounded hover:bg-amber-500/20 hover:text-amber-300 transition-colors"
+            className="hidden group-hover:flex shrink-0 p-0.5 rounded-sm hover:bg-amber-500/20 hover:text-amber-300 transition-colors"
             title={`New folder in ${label}`}
           >
             <Plus size={10} />
@@ -1285,7 +1285,7 @@ function MiniSourceSection({
                   if (e.key === 'Escape') { setAddingRoot(false); setNewRootName(''); }
                 }}
                 placeholder="Folder name…"
-                className="flex-1 text-xs bg-transparent border-b border-amber-400 outline-none placeholder:opacity-30"
+                className="flex-1 text-xs bg-transparent border-b border-amber-400 outline-hidden placeholder:opacity-30"
                 style={T}
               />
               <button onClick={() => void handleAddRoot()} className="p-0.5 text-amber-400 hover:text-amber-300">
@@ -1710,7 +1710,7 @@ export default function PromptsPanel() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search prompts…"
-                className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-white/15 bg-white/5 focus:outline-none focus:ring-1 focus:ring-amber-400 transition-colors"
+                className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-white/15 bg-white/5 focus:outline-hidden focus:ring-1 focus:ring-amber-400 transition-colors"
                 style={T}
               />
               {search && (

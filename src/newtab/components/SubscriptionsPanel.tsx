@@ -207,26 +207,26 @@ function SubRow({
           {/* Actions */}
           <div className="flex flex-wrap gap-1.5 pt-1 border-t border-white/8">
             {s.url && (
-              <button onClick={() => safeOpenUrl(s.url)} className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition-colors" style={T}>
+              <button onClick={() => safeOpenUrl(s.url)} className="text-xs px-2 py-1 rounded-sm bg-white/10 hover:bg-white/20 transition-colors" style={T}>
                 Open site
               </button>
             )}
-            <button onClick={() => onEdit(s)} className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition-colors" style={T}>
+            <button onClick={() => onEdit(s)} className="text-xs px-2 py-1 rounded-sm bg-white/10 hover:bg-white/20 transition-colors" style={T}>
               Edit
             </button>
             <button
               onClick={() => onStatusChange(s.id, s.status !== 'paused' ? 'paused' : 'active')}
-              className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 transition-colors"
+              className="text-xs px-2 py-1 rounded-sm bg-white/10 hover:bg-white/20 transition-colors"
               style={T}
             >
               {s.status !== 'paused' ? 'Pause' : 'Resume'}
             </button>
             {s.status !== 'canceled' && (
-              <button onClick={() => onStatusChange(s.id, 'canceled')} className="text-xs px-2 py-1 rounded bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 transition-colors">
+              <button onClick={() => onStatusChange(s.id, 'canceled')} className="text-xs px-2 py-1 rounded-sm bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 transition-colors">
                 Cancel
               </button>
             )}
-            <button onClick={() => onDelete(s.id)} className="text-xs px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors ml-auto">
+            <button onClick={() => onDelete(s.id)} className="text-xs px-2 py-1 rounded-sm bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors ml-auto">
               Delete
             </button>
           </div>
@@ -273,7 +273,7 @@ function ListTab({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search…"
-            className="flex-1 bg-transparent outline-none text-sm"
+            className="flex-1 bg-transparent outline-hidden text-sm"
             style={T}
           />
         </div>
@@ -437,9 +437,9 @@ function CalendarTab({ subs }: { subs: Subscription[] }) {
           ))}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={prev} className="p-1 rounded hover:bg-white/10 transition-colors" style={TS}><ChevronLeft size={14} /></button>
+          <button onClick={prev} className="p-1 rounded-sm hover:bg-white/10 transition-colors" style={TS}><ChevronLeft size={14} /></button>
           <span className="text-xs font-medium min-w-[130px] text-center" style={T}>{label}</span>
-          <button onClick={next} className="p-1 rounded hover:bg-white/10 transition-colors" style={TS}><ChevronRight size={14} /></button>
+          <button onClick={next} className="p-1 rounded-sm hover:bg-white/10 transition-colors" style={TS}><ChevronRight size={14} /></button>
         </div>
       </div>
 
@@ -771,7 +771,7 @@ function SubForm({
   };
 
   // inline style wins over browser UA stylesheet (which forces white bg on inputs/selects)
-  const inputBase = 'w-full border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-violet-400/60 transition-all';
+  const inputBase = 'w-full border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-hidden focus:border-violet-400/60 transition-all';
   const inputStyle: React.CSSProperties = { backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--newtab-text)' };
 
   if (showTemplates) {
@@ -928,7 +928,7 @@ function SubForm({
                   type="number"
                   min="0"
                   step="0.01"
-                  className="flex-1 bg-transparent px-2 py-2.5 text-sm outline-none"
+                  className="flex-1 bg-transparent px-2 py-2.5 text-sm outline-hidden"
                   style={{ color: 'var(--newtab-text)', colorScheme: 'dark' }}
                   value={form.price || ''}
                   onChange={(e) => set('price', parseFloat(e.target.value) || 0)}
@@ -1019,7 +1019,7 @@ function SubForm({
               <div className="flex flex-col gap-2 p-3 rounded-xl bg-white/5 border border-white/10 mt-0.5">
                 <div className="flex gap-2">
                   <input
-                    className="w-14 text-center text-xl border border-white/10 rounded-xl py-2 outline-none focus:border-violet-400/60 transition-all"
+                    className="w-14 text-center text-xl border border-white/10 rounded-xl py-2 outline-hidden focus:border-violet-400/60 transition-all"
                     style={{ backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--newtab-text)' }}
                     value={newCatEmoji}
                     onChange={(e) => setNewCatEmoji(e.target.value)}
@@ -1027,7 +1027,7 @@ function SubForm({
                     maxLength={2}
                   />
                   <input
-                    className="flex-1 border border-white/10 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400/60 transition-all"
+                    className="flex-1 border border-white/10 rounded-xl px-3 py-2 text-sm outline-hidden focus:border-violet-400/60 transition-all"
                     style={{ backgroundColor: 'rgba(255,255,255,0.07)', color: 'var(--newtab-text)' }}
                     value={newCatLabel}
                     onChange={(e) => setNewCatLabel(e.target.value)}
@@ -1107,7 +1107,7 @@ function SubForm({
                   type="number"
                   min="0"
                   max="30"
-                  className="w-full bg-transparent px-1.5 py-2.5 text-sm outline-none"
+                  className="w-full bg-transparent px-1.5 py-2.5 text-sm outline-hidden"
                   style={{ color: 'var(--newtab-text)', colorScheme: 'dark' }}
                   value={form.reminder ?? 3}
                   onChange={(e) => set('reminder', parseInt(e.target.value) || 0)}

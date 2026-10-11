@@ -58,7 +58,7 @@ export default function AddQuickLinkModal({ isOpen, onClose, onSave, editLink }:
             value={url}
             onChange={(e) => { setUrl(e.target.value); setError(''); }}
             placeholder="https://example.com"
-            className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+            className="w-full bg-(--color-bg-secondary) border border-(--color-border) rounded-lg px-3 py-2 text-sm outline-hidden focus:border-primary"
             autoFocus
           />
           {error && <p className="text-xs text-error mt-1">{error}</p>}
@@ -71,7 +71,7 @@ export default function AddQuickLinkModal({ isOpen, onClose, onSave, editLink }:
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
             placeholder="My Link"
-            className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+            className="w-full bg-(--color-bg-secondary) border border-(--color-border) rounded-lg px-3 py-2 text-sm outline-hidden focus:border-primary"
           />
         </div>
       </div>

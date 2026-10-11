@@ -23,12 +23,12 @@ function SmallFavicon({ url, name }: { url?: string; name: string }) {
   const faviconUrl = url ? resolveFavIcon('', url) : '';
   if (!faviconUrl || failed) {
     return (
-      <span className="w-4 h-4 flex items-center justify-center rounded-sm bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 font-bold text-[8px] shrink-0">
+      <span className="w-4 h-4 flex items-center justify-center rounded-xs bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 font-bold text-[8px] shrink-0">
         {getFaviconInitial(name, url ?? '')}
       </span>
     );
   }
-  return <img src={faviconUrl} alt={name} className="w-4 h-4 rounded-sm shrink-0" onError={() => setFailed(true)} />;
+  return <img src={faviconUrl} alt={name} className="w-4 h-4 rounded-xs shrink-0" onError={() => setFailed(true)} />;
 }
 
 export default function SubscriptionCalendar({ subscriptions }: Props) {
@@ -105,20 +105,20 @@ export default function SubscriptionCalendar({ subscriptions }: Props) {
     const currency = subs[0]?.currency ?? 'USD';
 
     return (
-      <div className="absolute z-50 left-1/2 -translate-x-1/2 top-full mt-1 min-w-[140px] bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg shadow-lg p-2 flex flex-col gap-1.5 pointer-events-none">
+      <div className="absolute z-50 left-1/2 -translate-x-1/2 top-full mt-1 min-w-[140px] bg-(--color-bg) border border-(--color-border) rounded-lg shadow-lg p-2 flex flex-col gap-1.5 pointer-events-none">
         {subs.map((s) => (
           <div key={s.id} className="flex items-center gap-1.5">
             <SmallFavicon url={s.url} name={s.name} />
-            <span className="text-xs text-[var(--color-text)] truncate flex-1">{s.name}</span>
-            <span className="text-xs font-medium text-[var(--color-text)] shrink-0">
+            <span className="text-xs text-(--color-text) truncate flex-1">{s.name}</span>
+            <span className="text-xs font-medium text-(--color-text) shrink-0">
               {SubscriptionService.formatCurrency(s.price, s.currency)}
             </span>
           </div>
         ))}
         {subs.length > 1 && (
-          <div className="border-t border-[var(--color-border)] pt-1 flex justify-between">
-            <span className="text-[10px] text-[var(--color-text-secondary)]">Total</span>
-            <span className="text-xs font-semibold text-[var(--color-text)]">
+          <div className="border-t border-(--color-border) pt-1 flex justify-between">
+            <span className="text-[10px] text-(--color-text-secondary)">Total</span>
+            <span className="text-xs font-semibold text-(--color-text)">
               {SubscriptionService.formatCurrency(total, currency)}
             </span>
           </div>
@@ -130,12 +130,12 @@ export default function SubscriptionCalendar({ subscriptions }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)]">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-(--color-border)">
         <div className="flex items-center gap-1">
           <button
             onClick={() => setViewMode('month')}
             className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
-              viewMode === 'month' ? 'bg-violet-600 text-white' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
+              viewMode === 'month' ? 'bg-violet-600 text-white' : 'text-(--color-text-secondary) hover:bg-(--color-bg-secondary)'
             }`}
           >
             <Calendar size={12} />
@@ -144,7 +144,7 @@ export default function SubscriptionCalendar({ subscriptions }: Props) {
           <button
             onClick={() => setViewMode('week')}
             className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
-              viewMode === 'week' ? 'bg-violet-600 text-white' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'
+              viewMode === 'week' ? 'bg-violet-600 text-white' : 'text-(--color-text-secondary) hover:bg-(--color-bg-secondary)'
             }`}
           >
             <BarChart3 size={12} />
@@ -155,17 +155,17 @@ export default function SubscriptionCalendar({ subscriptions }: Props) {
         <div className="flex items-center gap-1">
           <button
             onClick={viewMode === 'month' ? prevMonth : prevWeek}
-            className="p-1 rounded hover:bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] transition-colors"
+            className="p-1 rounded-sm hover:bg-(--color-bg-secondary) text-(--color-text-secondary) transition-colors"
             aria-label="Previous"
           >
             <ChevronLeft size={14} />
           </button>
-          <span className="text-xs font-medium text-[var(--color-text)] min-w-[120px] text-center">
+          <span className="text-xs font-medium text-(--color-text) min-w-[120px] text-center">
             {viewMode === 'month' ? monthLabel : weekLabel}
           </span>
           <button
             onClick={viewMode === 'month' ? nextMonth : nextWeek}
-            className="p-1 rounded hover:bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] transition-colors"
+            className="p-1 rounded-sm hover:bg-(--color-bg-secondary) text-(--color-text-secondary) transition-colors"
             aria-label="Next"
           >
             <ChevronRight size={14} />
@@ -179,7 +179,7 @@ export default function SubscriptionCalendar({ subscriptions }: Props) {
             {/* Day headers */}
             <div className="grid grid-cols-7 mb-1">
               {DAY_LABELS.map((d) => (
-                <div key={d} className="text-center text-[10px] font-medium text-[var(--color-text-secondary)] py-1">
+                <div key={d} className="text-center text-[10px] font-medium text-(--color-text-secondary) py-1">
                   {d}
                 </div>
               ))}
@@ -198,12 +198,12 @@ export default function SubscriptionCalendar({ subscriptions }: Props) {
                     key={dateStr}
                     className={`relative flex flex-col items-center py-1 px-0.5 rounded-md min-h-[40px] cursor-default ${
                       isToday ? 'bg-violet-100 dark:bg-violet-900/30' :
-                      isPast ? 'opacity-50' : 'hover:bg-[var(--color-bg-secondary)]'
+                      isPast ? 'opacity-50' : 'hover:bg-(--color-bg-secondary)'
                     }`}
                     onMouseEnter={() => daySubs.length > 0 && setHoveredDate(dateStr)}
                     onMouseLeave={() => setHoveredDate(null)}
                   >
-                    <span className={`text-[11px] font-medium ${isToday ? 'text-violet-700 dark:text-violet-300' : 'text-[var(--color-text-secondary)]'}`}>
+                    <span className={`text-[11px] font-medium ${isToday ? 'text-violet-700 dark:text-violet-300' : 'text-(--color-text-secondary)'}`}>
                       {day.getDate()}
                     </span>
                     {daySubs.length > 0 && (
@@ -215,7 +215,7 @@ export default function SubscriptionCalendar({ subscriptions }: Props) {
                           />
                         ))}
                         {daySubs.length > 3 && (
-                          <span className="text-[8px] text-[var(--color-text-secondary)]">+{daySubs.length - 3}</span>
+                          <span className="text-[8px] text-(--color-text-secondary)">+{daySubs.length - 3}</span>
                         )}
                       </div>
                     )}
@@ -240,30 +240,30 @@ export default function SubscriptionCalendar({ subscriptions }: Props) {
                   className={`flex items-start gap-3 p-2 rounded-lg transition-colors ${
                     isToday ? 'bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800' :
                     isPast ? 'opacity-50' :
-                    daySubs.length > 0 ? 'bg-[var(--color-bg-secondary)]' : ''
+                    daySubs.length > 0 ? 'bg-(--color-bg-secondary)' : ''
                   }`}
                 >
                   <div className="flex flex-col items-center w-10 shrink-0">
-                    <span className={`text-[10px] font-medium ${isToday ? 'text-violet-600 dark:text-violet-400' : 'text-[var(--color-text-secondary)]'}`}>
+                    <span className={`text-[10px] font-medium ${isToday ? 'text-violet-600 dark:text-violet-400' : 'text-(--color-text-secondary)'}`}>
                       {day.toLocaleString('default', { weekday: 'short' })}
                     </span>
-                    <span className={`text-lg font-bold leading-none ${isToday ? 'text-violet-700 dark:text-violet-300' : 'text-[var(--color-text)]'}`}>
+                    <span className={`text-lg font-bold leading-none ${isToday ? 'text-violet-700 dark:text-violet-300' : 'text-(--color-text)'}`}>
                       {day.getDate()}
                     </span>
                   </div>
 
                   <div className="flex-1 flex flex-col gap-1">
                     {daySubs.length === 0 ? (
-                      <span className="text-xs text-[var(--color-text-secondary)] opacity-50 py-1">No renewals</span>
+                      <span className="text-xs text-(--color-text-secondary) opacity-50 py-1">No renewals</span>
                     ) : (
                       daySubs.map((s) => {
                         const urgency = SubscriptionService.getUrgency(s);
                         return (
                           <div key={s.id} className="flex items-center gap-1.5">
                             <SmallFavicon url={s.url} name={s.name} />
-                            <span className="text-xs text-[var(--color-text)] flex-1 truncate">{s.name}</span>
+                            <span className="text-xs text-(--color-text) flex-1 truncate">{s.name}</span>
                             <span className={`w-2 h-2 rounded-full shrink-0 ${urgencyDot[urgency]}`} />
-                            <span className="text-xs font-medium text-[var(--color-text)] shrink-0">
+                            <span className="text-xs font-medium text-(--color-text) shrink-0">
                               {SubscriptionService.formatCurrency(s.price, s.currency)}
                             </span>
                           </div>

@@ -176,7 +176,7 @@ export default function DownloadsCardBody({ colSpan: _colSpan, rowSpan: _rowSpan
                     onClick={() => {
                       void chrome.runtime.sendMessage({ action: 'OPEN_DOWNLOAD', payload: { downloadId: item.id } });
                     }}
-                    className="p-1 rounded transition-colors hover:bg-white/10"
+                    className="p-1 rounded-sm transition-colors hover:bg-white/10"
                     title="Open file"
                     aria-label="Open file"
                     style={{ color: 'var(--newtab-text-secondary)' }}
@@ -192,7 +192,7 @@ export default function DownloadsCardBody({ colSpan: _colSpan, rowSpan: _rowSpan
                     onClick={() => {
                       void chrome.runtime.sendMessage({ action: 'SHOW_DOWNLOAD', payload: { downloadId: item.id } });
                     }}
-                    className="p-1 rounded transition-colors hover:bg-white/10"
+                    className="p-1 rounded-sm transition-colors hover:bg-white/10"
                     title="Show in folder"
                     aria-label="Show in folder"
                     style={{ color: 'var(--newtab-text-secondary)' }}

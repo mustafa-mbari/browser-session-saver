@@ -79,18 +79,18 @@ export default function SubscriptionList({ subscriptions, onEdit, onDelete, onSt
     <div className="flex flex-col h-full">
       {/* Search bar */}
       <div className="px-3 pt-2 pb-1">
-        <div className="flex items-center gap-2 bg-[var(--color-bg-secondary)] rounded-lg px-3 py-1.5">
-          <Search size={14} className="text-[var(--color-text-secondary)] shrink-0" />
+        <div className="flex items-center gap-2 bg-(--color-bg-secondary) rounded-lg px-3 py-1.5">
+          <Search size={14} className="text-(--color-text-secondary) shrink-0" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search subscriptions…"
-            className="flex-1 bg-transparent outline-none text-sm text-[var(--color-text)] placeholder-[var(--color-text-secondary)]"
+            className="flex-1 bg-transparent outline-hidden text-sm text-(--color-text) placeholder-(--color-text-secondary)"
           />
           <button
             onClick={() => setShowFilters((v) => !v)}
-            className={`p-0.5 rounded transition-colors ${showFilters ? 'text-violet-500' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'}`}
+            className={`p-0.5 rounded-sm transition-colors ${showFilters ? 'text-violet-500' : 'text-(--color-text-secondary) hover:text-(--color-text)'}`}
             aria-label="Toggle filters"
           >
             <SlidersHorizontal size={14} />
@@ -100,10 +100,10 @@ export default function SubscriptionList({ subscriptions, onEdit, onDelete, onSt
 
       {/* Filters */}
       {showFilters && (
-        <div className="px-3 pb-2 flex flex-col gap-1.5 border-b border-[var(--color-border)]">
+        <div className="px-3 pb-2 flex flex-col gap-1.5 border-b border-(--color-border)">
           {/* Status */}
           <div className="flex items-center gap-1 flex-wrap">
-            <span className="text-[11px] text-[var(--color-text-secondary)] w-14 shrink-0">Status:</span>
+            <span className="text-[11px] text-(--color-text-secondary) w-14 shrink-0">Status:</span>
             {(['all', 'active', 'trial', 'paused', 'canceled'] as const).map((s) => (
               <button
                 key={s}
@@ -111,7 +111,7 @@ export default function SubscriptionList({ subscriptions, onEdit, onDelete, onSt
                 className={`text-[11px] px-1.5 py-0.5 rounded-full transition-colors ${
                   filterStatus === s
                     ? 'bg-violet-600 text-white'
-                    : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+                    : 'bg-(--color-bg-secondary) text-(--color-text-secondary) hover:bg-(--color-bg-hover)'
                 }`}
               >
                 {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
@@ -121,7 +121,7 @@ export default function SubscriptionList({ subscriptions, onEdit, onDelete, onSt
 
           {/* Category */}
           <div className="flex items-center gap-1 flex-wrap">
-            <span className="text-[11px] text-[var(--color-text-secondary)] w-14 shrink-0">Category:</span>
+            <span className="text-[11px] text-(--color-text-secondary) w-14 shrink-0">Category:</span>
             {(['all', 'work', 'personal', 'saas', 'streaming', 'utility', 'other'] as const).map((c) => (
               <button
                 key={c}
@@ -129,7 +129,7 @@ export default function SubscriptionList({ subscriptions, onEdit, onDelete, onSt
                 className={`text-[11px] px-1.5 py-0.5 rounded-full transition-colors ${
                   filterCategory === c
                     ? 'bg-violet-600 text-white'
-                    : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+                    : 'bg-(--color-bg-secondary) text-(--color-text-secondary) hover:bg-(--color-bg-hover)'
                 }`}
               >
                 {c === 'all' ? 'All' : c.charAt(0).toUpperCase() + c.slice(1)}
@@ -139,7 +139,7 @@ export default function SubscriptionList({ subscriptions, onEdit, onDelete, onSt
 
           {/* Billing cycle */}
           <div className="flex items-center gap-1 flex-wrap">
-            <span className="text-[11px] text-[var(--color-text-secondary)] w-14 shrink-0">Cycle:</span>
+            <span className="text-[11px] text-(--color-text-secondary) w-14 shrink-0">Cycle:</span>
             {(['all', 'monthly', 'yearly', 'weekly', 'custom'] as const).map((c) => (
               <button
                 key={c}
@@ -147,7 +147,7 @@ export default function SubscriptionList({ subscriptions, onEdit, onDelete, onSt
                 className={`text-[11px] px-1.5 py-0.5 rounded-full transition-colors ${
                   filterCycle === c
                     ? 'bg-violet-600 text-white'
-                    : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+                    : 'bg-(--color-bg-secondary) text-(--color-text-secondary) hover:bg-(--color-bg-hover)'
                 }`}
               >
                 {c === 'all' ? 'All' : c.charAt(0).toUpperCase() + c.slice(1)}
@@ -157,7 +157,7 @@ export default function SubscriptionList({ subscriptions, onEdit, onDelete, onSt
 
           {/* Sort + group */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] text-[var(--color-text-secondary)] w-14 shrink-0">Sort:</span>
+            <span className="text-[11px] text-(--color-text-secondary) w-14 shrink-0">Sort:</span>
             {([['nextBillingDate', 'Date'], ['price', 'Price'], ['name', 'Name']] as [SortKey, string][]).map(([key, label]) => (
               <button
                 key={key}
@@ -165,7 +165,7 @@ export default function SubscriptionList({ subscriptions, onEdit, onDelete, onSt
                 className={`text-[11px] px-1.5 py-0.5 rounded-full transition-colors ${
                   sortBy === key
                     ? 'bg-violet-600 text-white'
-                    : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+                    : 'bg-(--color-bg-secondary) text-(--color-text-secondary) hover:bg-(--color-bg-hover)'
                 }`}
               >
                 {label}
@@ -176,7 +176,7 @@ export default function SubscriptionList({ subscriptions, onEdit, onDelete, onSt
               className={`text-[11px] px-1.5 py-0.5 rounded-full transition-colors ml-2 ${
                 groupByCategory
                   ? 'bg-violet-600 text-white'
-                  : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+                  : 'bg-(--color-bg-secondary) text-(--color-text-secondary) hover:bg-(--color-bg-hover)'
               }`}
             >
               Group by category
@@ -190,7 +190,7 @@ export default function SubscriptionList({ subscriptions, onEdit, onDelete, onSt
         {sorted.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 gap-2">
             <span className="text-3xl">💳</span>
-            <p className="text-sm text-[var(--color-text-secondary)]">
+            <p className="text-sm text-(--color-text-secondary)">
               {search || filterStatus !== 'all' ? 'No matching subscriptions' : 'No subscriptions yet'}
             </p>
           </div>
@@ -203,7 +203,7 @@ export default function SubscriptionList({ subscriptions, onEdit, onDelete, onSt
               <div key={category} className="flex flex-col gap-1">
                 <button
                   onClick={() => toggleGroup(category)}
-                  className="flex items-center gap-2 px-1 py-0.5 text-xs font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
+                  className="flex items-center gap-2 px-1 py-0.5 text-xs font-semibold text-(--color-text-secondary) hover:text-(--color-text) transition-colors"
                 >
                   <span>{CATEGORY_LABELS[category as SubscriptionCategory] ?? category}</span>
                   <span className="opacity-60 text-[10px]">

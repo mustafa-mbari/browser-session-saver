@@ -72,7 +72,7 @@ export default function PromptCard({
       className={`rounded-xl border transition-all glass ${
         prompt.isPinned
           ? 'border-amber-300 dark:border-amber-700'
-          : 'border-[var(--color-border)]'
+          : 'border-(--color-border)'
       }`}
     >
       {/* Main row */}
@@ -86,7 +86,7 @@ export default function PromptCard({
             {prompt.isPinned && (
               <Pin size={12} className="text-amber-500 shrink-0" />
             )}
-            <span className="text-base font-semibold text-[var(--color-text)] truncate min-w-0">
+            <span className="text-base font-semibold text-(--color-text) truncate min-w-0">
               {prompt.title}
             </span>
             {prompt.isFavorite && (
@@ -94,7 +94,7 @@ export default function PromptCard({
             )}
             {folderPath.length > 0 && (
               <span
-                className="ml-auto shrink-0 text-[10px] text-[var(--color-text-secondary)] opacity-60 truncate max-w-[40%] text-right"
+                className="ml-auto shrink-0 text-[10px] text-(--color-text-secondary) opacity-60 truncate max-w-[40%] text-right"
                 title={folderPath.join(' / ')}
               >
                 {folderPath.join(' / ')}
@@ -102,7 +102,7 @@ export default function PromptCard({
             )}
           </div>
           {!expanded && (
-            <p className="text-sm text-[var(--color-text-secondary)] truncate">
+            <p className="text-sm text-(--color-text-secondary) truncate">
               {prompt.content}
             </p>
           )}
@@ -121,23 +121,23 @@ export default function PromptCard({
             </div>
           )}
         </div>
-        <div className="shrink-0 text-[var(--color-text-secondary)] mt-0.5">
+        <div className="shrink-0 text-(--color-text-secondary) mt-0.5">
           {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
       </button>
 
       {/* Expanded detail */}
       {expanded && (
-        <div className="px-2.5 pb-2.5 space-y-2 border-t border-[var(--color-border)]">
+        <div className="px-2.5 pb-2.5 space-y-2 border-t border-(--color-border)">
           {/* Full content */}
-          <div className="mt-2 rounded-lg bg-[var(--color-bg-secondary)] p-3">
-            <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap break-words leading-relaxed">
+          <div className="mt-2 rounded-lg bg-(--color-bg-secondary) p-3">
+            <p className="text-sm text-(--color-text) whitespace-pre-wrap wrap-break-word leading-relaxed">
               {prompt.content}
             </p>
           </div>
 
           {/* Meta */}
-          <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-(--color-text-secondary)">
             {/* Source badge */}
             <span className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-medium ${
               prompt.source === 'app'
@@ -176,7 +176,7 @@ export default function PromptCard({
             {hasVars && (
               <button
                 onClick={(e) => { e.stopPropagation(); onUse(prompt); }}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[var(--color-bg-secondary)] border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text)] transition-colors"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-(--color-bg-secondary) border border-(--color-border) hover:bg-(--color-bg-hover) text-(--color-text) transition-colors"
                 title="Fill variables and copy"
               >
                 <Zap size={12} />
@@ -187,7 +187,7 @@ export default function PromptCard({
             {/* Share */}
             <button
               onClick={(e) => { e.stopPropagation(); onShare(prompt); }}
-              className="p-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] transition-colors"
+              className="p-1.5 rounded-lg border border-(--color-border) hover:bg-(--color-bg-hover) text-(--color-text-secondary) transition-colors"
               title="Share prompt"
             >
               <Share2 size={12} />
@@ -196,7 +196,7 @@ export default function PromptCard({
             {/* Edit */}
             <button
               onClick={(e) => { e.stopPropagation(); onEdit(prompt); }}
-              className="p-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] transition-colors"
+              className="p-1.5 rounded-lg border border-(--color-border) hover:bg-(--color-bg-hover) text-(--color-text-secondary) transition-colors"
               title="Edit"
             >
               <Pencil size={12} />
@@ -208,7 +208,7 @@ export default function PromptCard({
               className={`p-1.5 rounded-lg border transition-colors ${
                 prompt.isPinned
                   ? 'border-amber-400 text-amber-500 bg-amber-50 dark:bg-amber-900/20'
-                  : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+                  : 'border-(--color-border) text-(--color-text-secondary) hover:bg-(--color-bg-hover)'
               }`}
               title={prompt.isPinned ? 'Unpin' : 'Pin'}
             >
@@ -221,7 +221,7 @@ export default function PromptCard({
               className={`p-1.5 rounded-lg border transition-colors ${
                 prompt.isFavorite
                   ? 'border-amber-400 text-amber-500 bg-amber-50 dark:bg-amber-900/20'
-                  : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+                  : 'border-(--color-border) text-(--color-text-secondary) hover:bg-(--color-bg-hover)'
               }`}
               title={prompt.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             >
@@ -234,7 +234,7 @@ export default function PromptCard({
               className={`ml-auto p-1.5 rounded-lg border transition-colors ${
                 confirmDelete
                   ? 'border-red-400 text-red-500 bg-red-50 dark:bg-red-900/20'
-                  : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-red-300 hover:text-red-500'
+                  : 'border-(--color-border) text-(--color-text-secondary) hover:border-red-300 hover:text-red-500'
               }`}
               title={confirmDelete ? 'Click again to confirm' : 'Delete'}
             >

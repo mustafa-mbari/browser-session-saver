@@ -162,7 +162,7 @@ export default function SettingsView({ settings, boards, onUpdate, onClearData }
               value={settings.customSearchUrl ?? ''}
               onChange={(e) => onUpdate({ customSearchUrl: e.target.value })}
               placeholder="https://search.example.com/?q="
-              className="mt-2 w-full rounded-lg px-3 py-2 text-sm outline-none placeholder-white/25"
+              className="mt-2 w-full rounded-lg px-3 py-2 text-sm outline-hidden placeholder-white/25"
               style={{
                 background: 'rgba(255,255,255,0.08)',
                 border: '1px solid rgba(255,255,255,0.12)',

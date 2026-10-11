@@ -34,7 +34,7 @@ function SubFolderRow({ folder, allCategories, allEntries, depth }: SubFolderRow
     <div style={{ paddingLeft: depth > 0 ? `${depth * 12}px` : undefined }}>
       <button
         onClick={() => setIsExpanded((v) => !v)}
-        className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/10 transition-colors text-left w-full"
+        className="flex items-center gap-1.5 px-2 py-1 rounded-sm hover:bg-white/10 transition-colors text-left w-full"
         aria-expanded={isExpanded}
       >
         {isExpanded
@@ -73,13 +73,13 @@ function SubFolderRow({ folder, allCategories, allEntries, depth }: SubFolderRow
               href={entry.url}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/10 transition-colors min-w-0"
+              className="flex items-center gap-2 px-2 py-1 rounded-sm hover:bg-white/10 transition-colors min-w-0"
               style={{ paddingLeft: `${(depth + 1) * 12 + 8}px` }}
             >
               <img
                 src={entry.favIconUrl || `https://www.google.com/s2/favicons?domain=${new URL(entry.url).hostname}`}
                 alt=""
-                className="w-3 h-3 shrink-0 rounded-sm"
+                className="w-3 h-3 shrink-0 rounded-xs"
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
               />
               <span className="text-xs truncate" style={{ color: 'var(--newtab-text)' }}>{entry.title || entry.url}</span>
@@ -193,7 +193,7 @@ export default function BookmarkCardBody({
             value={addUrl}
             onChange={(e) => setAddUrl(e.target.value)}
             placeholder="URL"
-            className="bg-white/10 rounded px-2 py-1 text-xs outline-none placeholder-white/30"
+            className="bg-white/10 rounded-sm px-2 py-1 text-xs outline-hidden placeholder-white/30"
             style={{ color: 'var(--newtab-text)' }}
             autoFocus
           />
@@ -203,20 +203,20 @@ export default function BookmarkCardBody({
             onChange={(e) => setAddTitle(e.target.value)}
             placeholder="Title (optional)"
             onKeyDown={(e) => e.key === 'Enter' && handleAddSubmit()}
-            className="bg-white/10 rounded px-2 py-1 text-xs outline-none placeholder-white/30"
+            className="bg-white/10 rounded-sm px-2 py-1 text-xs outline-hidden placeholder-white/30"
             style={{ color: 'var(--newtab-text)' }}
           />
           <div className="flex gap-1">
             <button
               onClick={handleAddSubmit}
-              className="flex-1 text-xs py-1 bg-white/20 rounded hover:bg-white/30 transition-colors"
+              className="flex-1 text-xs py-1 bg-white/20 rounded-sm hover:bg-white/30 transition-colors"
               style={{ color: 'var(--newtab-text)' }}
             >
               Add
             </button>
             <button
               onClick={() => setShowAdd(false)}
-              className="text-xs px-2 py-1 hover:bg-white/10 rounded transition-colors"
+              className="text-xs px-2 py-1 hover:bg-white/10 rounded-sm transition-colors"
               style={{ color: 'var(--newtab-text-secondary)' }}
             >
               Cancel
@@ -226,7 +226,7 @@ export default function BookmarkCardBody({
       ) : (
         <button
           onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1 mt-1 px-2 py-1 rounded hover:bg-white/10 transition-colors opacity-50 hover:opacity-100"
+          className="flex items-center gap-1 mt-1 px-2 py-1 rounded-sm hover:bg-white/10 transition-colors opacity-50 hover:opacity-100"
           aria-label="Add bookmark"
         >
           <Plus size={12} style={{ color: 'var(--newtab-text)' }} />

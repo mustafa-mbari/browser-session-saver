@@ -137,7 +137,7 @@ export default function TabGroupsCardBody({ colSpan }: Props) {
                 </span>
                 {g.collapsed && (
                   <span
-                    className="text-[9px] px-1 py-0.5 rounded bg-white/10"
+                    className="text-[9px] px-1 py-0.5 rounded-sm bg-white/10"
                     style={{ color: 'var(--newtab-text-secondary)' }}
                     title="Group is collapsed in browser"
                   >

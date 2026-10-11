@@ -92,7 +92,7 @@ export default function SubscriptionsView() {
       <SubscriptionSummaryStrip subscriptions={subscriptions} onAdd={openAddForm} />
 
       {/* Sub-view tabs */}
-      <div className="flex items-center border-b border-[var(--color-border)] px-3">
+      <div className="flex items-center border-b border-(--color-border) px-3">
         {(['list', 'calendar', 'analytics'] as SubView[]).map((tab) => (
           <button
             key={tab}
@@ -100,7 +100,7 @@ export default function SubscriptionsView() {
             className={`px-3 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
               activeTab === tab
                 ? 'text-violet-600 dark:text-violet-400 border-violet-500'
-                : 'text-[var(--color-text-secondary)] border-transparent hover:text-[var(--color-text)]'
+                : 'text-(--color-text-secondary) border-transparent hover:text-(--color-text)'
             }`}
           >
             {tab === 'list' ? '📋 List' : tab === 'calendar' ? '📅 Calendar' : '📊 Analytics'}

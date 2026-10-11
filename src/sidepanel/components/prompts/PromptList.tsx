@@ -90,12 +90,12 @@ export default function PromptList({
       {/* Search + filter toggle */}
       <div className="px-2 pt-2 pb-1 flex gap-2">
         <div className="relative flex-1">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]" />
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-(--color-text-secondary)" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search prompts..."
-            className="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-1 focus:ring-amber-400 transition-colors"
+            className="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg border border-(--color-border) bg-(--color-bg-secondary) text-(--color-text) placeholder:text-(--color-text-secondary) focus:outline-hidden focus:ring-1 focus:ring-amber-400 transition-colors"
           />
         </div>
         <button
@@ -103,7 +103,7 @@ export default function PromptList({
           className={`p-1.5 rounded-lg border transition-colors ${
             showFilters || hasFilters
               ? 'border-amber-400 text-amber-500 bg-amber-50 dark:bg-amber-900/20'
-              : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+              : 'border-(--color-border) text-(--color-text-secondary) hover:bg-(--color-bg-hover)'
           }`}
           aria-label="Toggle filters"
         >
@@ -113,18 +113,18 @@ export default function PromptList({
 
       {/* Filter panel */}
       {showFilters && (
-        <div className="px-2 pb-2 space-y-2 border-b border-[var(--color-border)]">
+        <div className="px-2 pb-2 space-y-2 border-b border-(--color-border)">
           {/* Category filter */}
           {categories.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-1">Category</p>
+              <p className="text-xs font-medium text-(--color-text-secondary) mb-1">Category</p>
               <div className="flex flex-wrap gap-1">
                 <button
                   onClick={() => setFilterCategoryId('')}
                   className={`px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
                     !filterCategoryId
                       ? 'bg-amber-500 text-white border-transparent'
-                      : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-amber-400'
+                      : 'border-(--color-border) text-(--color-text-secondary) hover:border-amber-400'
                   }`}
                 >
                   All
@@ -136,7 +136,7 @@ export default function PromptList({
                     className={`px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
                       filterCategoryId === c.id
                         ? 'text-white border-transparent'
-                        : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-amber-400'
+                        : 'border-(--color-border) text-(--color-text-secondary) hover:border-amber-400'
                     }`}
                     style={filterCategoryId === c.id ? { backgroundColor: c.color } : undefined}
                   >
@@ -150,7 +150,7 @@ export default function PromptList({
           {/* Tag filter */}
           {tags.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-1">Tags</p>
+              <p className="text-xs font-medium text-(--color-text-secondary) mb-1">Tags</p>
               <div className="flex flex-wrap gap-1">
                 {tags.map((tag) => (
                   <button
@@ -159,7 +159,7 @@ export default function PromptList({
                     className={`px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
                       filterTagIds.includes(tag.id)
                         ? 'text-white border-transparent'
-                        : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-amber-400'
+                        : 'border-(--color-border) text-(--color-text-secondary) hover:border-amber-400'
                     }`}
                     style={filterTagIds.includes(tag.id) ? { backgroundColor: tag.color } : undefined}
                   >
@@ -179,7 +179,7 @@ export default function PromptList({
                 onChange={(e) => setFavoritesOnly(e.target.checked)}
                 className="w-3.5 h-3.5 accent-amber-500"
               />
-              <span className="text-xs text-[var(--color-text-secondary)]">Favorites only</span>
+              <span className="text-xs text-(--color-text-secondary)">Favorites only</span>
             </label>
             <label className="flex items-center gap-1.5 cursor-pointer">
               <input
@@ -188,13 +188,13 @@ export default function PromptList({
                 onChange={(e) => setGroupByCategory(e.target.checked)}
                 className="w-3.5 h-3.5 accent-amber-500"
               />
-              <span className="text-xs text-[var(--color-text-secondary)]">Group by category</span>
+              <span className="text-xs text-(--color-text-secondary)">Group by category</span>
             </label>
           </div>
 
           {/* Sort */}
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-[var(--color-text-secondary)]">Sort:</span>
+            <span className="text-xs text-(--color-text-secondary)">Sort:</span>
             {(['updatedAt', 'createdAt', 'title', 'usageCount'] as PromptSortField[]).map((f) => (
               <button
                 key={f}
@@ -202,7 +202,7 @@ export default function PromptList({
                 className={`px-2 py-0.5 rounded text-xs transition-colors border ${
                   sortBy === f
                     ? 'border-amber-400 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20'
-                    : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-amber-300'
+                    : 'border-(--color-border) text-(--color-text-secondary) hover:border-amber-300'
                 }`}
               >
                 {f === 'updatedAt' ? 'Updated' : f === 'createdAt' ? 'Created' : f === 'usageCount' ? 'Used' : 'Title'}
@@ -219,8 +219,8 @@ export default function PromptList({
         {recent.length > 0 && !search && !hasFilters && (
           <div className="mb-3">
             <div className="flex items-center gap-1.5 mb-1.5">
-              <Clock size={11} className="text-[var(--color-text-secondary)]" />
-              <span className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide">
+              <Clock size={11} className="text-(--color-text-secondary)" />
+              <span className="text-xs font-semibold text-(--color-text-secondary) uppercase tracking-wide">
                 Recently Used
               </span>
             </div>
@@ -248,12 +248,12 @@ export default function PromptList({
         {/* Main list */}
         {sorted.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Star size={28} className="text-[var(--color-text-secondary)] opacity-40 mb-2" />
-            <p className="text-sm text-[var(--color-text-secondary)]">
+            <Star size={28} className="text-(--color-text-secondary) opacity-40 mb-2" />
+            <p className="text-sm text-(--color-text-secondary)">
               {search || hasFilters ? 'No prompts match your filters' : 'No prompts yet'}
             </p>
             {!search && !hasFilters && (
-              <p className="text-xs text-[var(--color-text-secondary)] mt-1 opacity-70">
+              <p className="text-xs text-(--color-text-secondary) mt-1 opacity-70">
                 Click "+ Add Prompt" to get started
               </p>
             )}
@@ -264,7 +264,7 @@ export default function PromptList({
             const cat = categories.find((c) => c.id === catId);
             return (
               <div key={catId} className="mb-3">
-                <p className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                <p className="text-xs font-semibold text-(--color-text-secondary) uppercase tracking-wide mb-1.5 flex items-center gap-1">
                   {cat ? `${cat.icon} ${cat.name}` : 'Uncategorized'}
                   <span className="font-normal opacity-60">({items.length})</span>
                 </p>

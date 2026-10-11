@@ -59,8 +59,8 @@ export default function HomeSavedGroupRow({ template, onRestore, onDelete, onRen
   ], [template, onRestore, onDelete, startEdit]);
 
   return (
-    <div className="border-b border-[var(--color-border)]">
-      <div className="flex items-center gap-2 px-3 py-2 hover:bg-[var(--color-bg-secondary)] transition-colors group">
+    <div className="border-b border-(--color-border)">
+      <div className="flex items-center gap-2 px-3 py-2 hover:bg-(--color-bg-secondary) transition-colors group">
         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: accentColor }} />
         {editing ? (
           <>
@@ -72,12 +72,12 @@ export default function HomeSavedGroupRow({ template, onRestore, onDelete, onRen
                 if (e.key === 'Enter') void saveRename();
                 if (e.key === 'Escape') setEditing(false);
               }}
-              className="flex-1 text-xs bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded px-2 py-0.5 text-[var(--color-text)] outline-none focus:border-blue-500"
+              className="flex-1 text-xs bg-(--color-bg-secondary) border border-(--color-border) rounded-sm px-2 py-0.5 text-(--color-text) outline-hidden focus:border-blue-500"
             />
-            <button onClick={() => void saveRename()} disabled={busy} className="p-1 rounded text-blue-400 hover:bg-blue-500/20 disabled:opacity-50">
+            <button onClick={() => void saveRename()} disabled={busy} className="p-1 rounded-sm text-blue-400 hover:bg-blue-500/20 disabled:opacity-50">
               <Check size={12} />
             </button>
-            <button onClick={() => setEditing(false)} className="p-1 rounded hover:bg-[var(--color-bg-secondary)]" style={{ color: 'var(--color-text-secondary)' }}>
+            <button onClick={() => setEditing(false)} className="p-1 rounded-sm hover:bg-(--color-bg-secondary)" style={{ color: 'var(--color-text-secondary)' }}>
               <X size={12} />
             </button>
           </>
@@ -102,7 +102,7 @@ export default function HomeSavedGroupRow({ template, onRestore, onDelete, onRen
             ) : (
               <ContextMenu items={menuItems}>
                 <button
-                  className="p-0.5 rounded hover:bg-[var(--color-bg-secondary)] transition-colors shrink-0"
+                  className="p-0.5 rounded-sm hover:bg-(--color-bg-secondary) transition-colors shrink-0"
                   style={{ color: 'var(--color-text-secondary)' }}
                   aria-label="More actions"
                 >
@@ -114,12 +114,12 @@ export default function HomeSavedGroupRow({ template, onRestore, onDelete, onRen
         )}
       </div>
       {expanded && !editing && (
-        <div className="border-t border-[var(--color-border)] max-h-36 overflow-auto" style={{ background: 'var(--color-bg-secondary)', opacity: 0.9 }}>
+        <div className="border-t border-(--color-border) max-h-36 overflow-auto" style={{ background: 'var(--color-bg-secondary)', opacity: 0.9 }}>
           {template.tabs.slice(0, 20).map((tab, i) => (
             <div key={i} className="flex items-center gap-2 px-5 py-1.5">
               {tab.favIconUrl
-                ? <img src={tab.favIconUrl} alt="" className="w-3.5 h-3.5 rounded-sm shrink-0" />
-                : <div className="w-3.5 h-3.5 rounded-sm bg-white/10 shrink-0" />}
+                ? <img src={tab.favIconUrl} alt="" className="w-3.5 h-3.5 rounded-xs shrink-0" />
+                : <div className="w-3.5 h-3.5 rounded-xs bg-white/10 shrink-0" />}
               <span className="text-xs truncate flex-1" style={{ color: 'var(--color-text)' }}>
                 {tab.title || tab.url || 'Unknown'}
               </span>

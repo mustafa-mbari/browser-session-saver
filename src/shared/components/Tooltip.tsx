@@ -69,7 +69,7 @@ export default function Tooltip({ content, children, position = 'bottom' }: Tool
               transform: transformMap[position],
               zIndex: 9999,
             }}
-            className="px-2 py-1 text-xs rounded bg-gray-900 text-white whitespace-nowrap pointer-events-none"
+            className="px-2 py-1 text-xs rounded-sm bg-gray-900 text-white whitespace-nowrap pointer-events-none"
             role="tooltip"
           >
             {content}

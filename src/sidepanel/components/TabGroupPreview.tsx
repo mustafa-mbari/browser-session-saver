@@ -2,15 +2,15 @@ import type { TabGroup } from '@core/types/session.types';
 import Tooltip from '@shared/components/Tooltip';
 
 const colorMap: Record<string, string> = {
-  grey: 'bg-[var(--group-grey)]',
-  blue: 'bg-[var(--group-blue)]',
-  red: 'bg-[var(--group-red)]',
-  yellow: 'bg-[var(--group-yellow)]',
-  green: 'bg-[var(--group-green)]',
-  pink: 'bg-[var(--group-pink)]',
-  purple: 'bg-[var(--group-purple)]',
-  cyan: 'bg-[var(--group-cyan)]',
-  orange: 'bg-[var(--group-orange)]',
+  grey: 'bg-(--group-grey)',
+  blue: 'bg-(--group-blue)',
+  red: 'bg-(--group-red)',
+  yellow: 'bg-(--group-yellow)',
+  green: 'bg-(--group-green)',
+  pink: 'bg-(--group-pink)',
+  purple: 'bg-(--group-purple)',
+  cyan: 'bg-(--group-cyan)',
+  orange: 'bg-(--group-orange)',
 };
 
 interface TabGroupPreviewProps {
@@ -34,7 +34,7 @@ export default function TabGroupPreview({ groups, maxVisible = 5 }: TabGroupPrev
         </Tooltip>
       ))}
       {remaining > 0 && (
-        <span className="text-[10px] text-[var(--color-text-secondary)]">+{remaining}</span>
+        <span className="text-[10px] text-(--color-text-secondary)">+{remaining}</span>
       )}
     </div>
   );

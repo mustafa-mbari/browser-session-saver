@@ -82,7 +82,7 @@ export default function CurrentTabsPanel({ query, onToast }: CurrentTabsPanelPro
       {filtered.map((tab) => (
         <div
           key={tab.id}
-          className="flex items-center gap-2.5 px-3 py-2 border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors cursor-pointer group"
+          className="flex items-center gap-2.5 px-3 py-2 border-b border-(--color-border) hover:bg-(--color-bg-secondary) transition-colors cursor-pointer group"
           onClick={() => tab.id && chrome.tabs.update(tab.id, { active: true })}
           role="button"
           tabIndex={0}
@@ -90,13 +90,13 @@ export default function CurrentTabsPanel({ query, onToast }: CurrentTabsPanelPro
           aria-label={tab.title ?? tab.url ?? 'Tab'}
         >
           {tab.favIconUrl ? (
-            <img src={tab.favIconUrl} alt="" className="w-4 h-4 shrink-0 rounded-sm" />
+            <img src={tab.favIconUrl} alt="" className="w-4 h-4 shrink-0 rounded-xs" />
           ) : (
-            <div className="w-4 h-4 shrink-0 rounded-sm bg-gray-200 dark:bg-gray-600" />
+            <div className="w-4 h-4 shrink-0 rounded-xs bg-gray-200 dark:bg-gray-600" />
           )}
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium truncate">{tab.title || tab.url}</p>
-            <p className="text-[10px] text-[var(--color-text-secondary)] truncate">{tab.url}</p>
+            <p className="text-[10px] text-(--color-text-secondary) truncate">{tab.url}</p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {tab.active && <Badge variant="primary">Active</Badge>}
@@ -122,7 +122,7 @@ export default function CurrentTabsPanel({ query, onToast }: CurrentTabsPanelPro
               ]}
             >
               <button
-                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors opacity-0 group-hover:opacity-100"
+                className="p-1 rounded-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors opacity-0 group-hover:opacity-100"
                 aria-label="Tab actions"
               >
                 <MoreVertical size={14} />

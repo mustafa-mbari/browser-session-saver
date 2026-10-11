@@ -39,11 +39,11 @@ export default function SettingsView() {
           ]}
           onChange={(v) => void updateSetting('theme', v as Settings['theme'])}
         />
-        <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border)]">
+        <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-(--color-bg-secondary) border border-(--color-border)">
           <MoveHorizontal size={16} className="text-primary shrink-0 mt-0.5" />
           <div>
-            <p className="text-xs font-medium text-[var(--color-text)]">Resize Side Panel</p>
-            <p className="text-[11px] text-[var(--color-text-secondary)] mt-0.5 leading-relaxed">
+            <p className="text-xs font-medium text-(--color-text)">Resize Side Panel</p>
+            <p className="text-[11px] text-(--color-text-secondary) mt-0.5 leading-relaxed">
               Drag the left edge of this panel to adjust its width. Chrome remembers your preferred size.
             </p>
           </div>
@@ -64,7 +64,7 @@ export default function SettingsView() {
       <PanelSection title="Data">
         <button
           onClick={() => navigateTo('import-export')}
-          className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-[var(--color-bg-secondary)] rounded transition-colors"
+          className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-(--color-bg-secondary) rounded-sm transition-colors"
         >
           Import / Export Sessions
         </button>
@@ -74,11 +74,11 @@ export default function SettingsView() {
       <PanelSection title="Help">
         <button
           onClick={() => void resetOnboarding()}
-          className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-[var(--color-bg-secondary)] rounded transition-colors"
+          className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-(--color-bg-secondary) rounded-sm transition-colors"
         >
           Show welcome tour
         </button>
-        <p className="text-[11px] text-[var(--color-text-secondary)] leading-snug px-3">
+        <p className="text-[11px] text-(--color-text-secondary) leading-snug px-3">
           Replays the 7-step first-launch tutorial in every open Browser Hub surface.
         </p>
       </PanelSection>

@@ -11,11 +11,11 @@ interface SessionDiffModalProps {
 function TabRow({ tab, bg }: { tab: Tab; bg: string }) {
   return (
     <li
-      className="flex items-center gap-2 px-2 py-1 rounded text-xs"
+      className="flex items-center gap-2 px-2 py-1 rounded-sm text-xs"
       style={{ background: bg }}
     >
       {tab.favIconUrl && (
-        <img src={tab.favIconUrl} alt="" className="w-4 h-4 shrink-0 rounded-sm" />
+        <img src={tab.favIconUrl} alt="" className="w-4 h-4 shrink-0 rounded-xs" />
       )}
       <span className="truncate" style={{ color: 'var(--newtab-text)' }}>
         {tab.title || tab.url}
@@ -33,7 +33,7 @@ export default function SessionDiffModal({ diffResult, sessions, onClose }: Sess
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs"
         onClick={onClose}
       />
 

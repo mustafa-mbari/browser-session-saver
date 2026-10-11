@@ -156,7 +156,7 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
 
   return (
     <div
-      className={`relative px-3 py-2.5 border-b border-[var(--color-border)] cursor-pointer transition-colors${isSelected ? ' bg-[var(--color-bg-selected)]' : ' hover:bg-[var(--color-bg-hover)]'}`}
+      className={`relative px-3 py-2.5 border-b border-(--color-border) cursor-pointer transition-colors${isSelected ? ' bg-(--color-bg-selected)' : ' hover:bg-(--color-bg-hover)'}`}
       onClick={handleCardClick}
       role="button"
       tabIndex={0}
@@ -191,16 +191,16 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
           <div className="flex items-center gap-1.5 mb-0.5">
             {session.isStarred && <Star size={11} className="text-warning shrink-0 fill-warning" />}
             {session.isPinned && <Pin size={11} className="text-primary shrink-0" />}
-            {session.isLocked && <Lock size={11} className="text-[var(--color-text-secondary)] shrink-0" />}
-            <span className="font-medium text-sm truncate text-[var(--color-text)]">{session.name}</span>
+            {session.isLocked && <Lock size={11} className="text-(--color-text-secondary) shrink-0" />}
+            <span className="font-medium text-sm truncate text-(--color-text)">{session.name}</span>
           </div>
 
           {/* Metadata row */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs text-[var(--color-text-secondary)]">
+            <span className="text-xs text-(--color-text-secondary)">
               {formatRelative(session.createdAt)}
             </span>
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]">
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-(--color-bg-secondary) text-(--color-text-secondary)">
               {session.tabCount} tab{session.tabCount !== 1 ? 's' : ''}
             </span>
             {session.isAutoSave && (
@@ -211,7 +211,7 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
             {session.tags.length > 0 && session.tags.slice(0, 2).map((tag) => (
               <span
                 key={tag}
-                className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]"
+                className="text-[10px] px-1.5 py-0.5 rounded-full bg-(--color-bg-secondary) text-(--color-text-secondary)"
               >
                 {tag}
               </span>
@@ -232,7 +232,7 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
               onClick={handleRestore}
               disabled={restoring}
               title="Restore session"
-              className="p-1.5 rounded-btn text-primary hover:bg-[var(--color-bg-hover)] transition-colors disabled:opacity-50"
+              className="p-1.5 rounded-btn text-primary hover:bg-(--color-bg-hover) transition-colors disabled:opacity-50"
               aria-label="Restore session"
             >
               {restoring ? (
@@ -247,11 +247,11 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
               onClick={handleUpdate}
               disabled={updating}
               title="Update with current tabs"
-              className="p-1.5 rounded-btn text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text)] transition-colors disabled:opacity-50"
+              className="p-1.5 rounded-btn text-(--color-text-secondary) hover:bg-(--color-bg-hover) hover:text-(--color-text) transition-colors disabled:opacity-50"
               aria-label="Update session with current tabs"
             >
               {updating ? (
-                <span className="animate-spin inline-block w-3.5 h-3.5 border border-[var(--color-border)] border-t-transparent rounded-full" />
+                <span className="animate-spin inline-block w-3.5 h-3.5 border border-(--color-border) border-t-transparent rounded-full" />
               ) : (
                 <RefreshCw size={14} />
               )}
@@ -260,7 +260,7 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
             {/* More menu */}
             <ContextMenu items={menuItems}>
               <button
-                className="p-1.5 rounded-btn text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] transition-colors"
+                className="p-1.5 rounded-btn text-(--color-text-secondary) hover:bg-(--color-bg-hover) transition-colors"
                 aria-label="More actions"
               >
                 <MoreVertical size={14} />

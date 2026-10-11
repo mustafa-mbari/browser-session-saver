@@ -77,7 +77,7 @@ function arcPath(cx: number, cy: number, r: number, startAngle: number, endAngle
 
 function DonutChart({ data }: { data: { category: string; total: number; color: string }[] }) {
   const total = data.reduce((s, d) => s + d.total, 0);
-  if (total === 0) return <p className="text-xs text-center text-[var(--color-text-secondary)] py-4">No data</p>;
+  if (total === 0) return <p className="text-xs text-center text-(--color-text-secondary) py-4">No data</p>;
 
   const CX = 60;
   const CY = 60;
@@ -111,10 +111,10 @@ function DonutChart({ data }: { data: { category: string; total: number; color: 
         {arcs.map((arc) => (
           <div key={arc.category} className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: arc.color }} />
-            <span className="text-xs text-[var(--color-text-secondary)] truncate flex-1">
+            <span className="text-xs text-(--color-text-secondary) truncate flex-1">
               {CATEGORY_LABELS[arc.category as keyof typeof CATEGORY_LABELS] ?? arc.category}
             </span>
-            <span className="text-xs font-medium text-[var(--color-text)] shrink-0">
+            <span className="text-xs font-medium text-(--color-text) shrink-0">
               {((arc.total / total) * 100).toFixed(0)}%
             </span>
           </div>
@@ -174,14 +174,14 @@ export default function SubscriptionAnalytics({ subscriptions, onImport }: Props
       <div className="flex items-center gap-2">
         <button
           onClick={handleExport}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[var(--color-bg-secondary)] border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] text-xs text-[var(--color-text)] transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-(--color-bg-secondary) border border-(--color-border) hover:bg-(--color-bg-hover) text-xs text-(--color-text) transition-colors"
         >
           <Download size={12} />
           <span>Export CSV</span>
         </button>
         <button
           onClick={() => fileRef.current?.click()}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[var(--color-bg-secondary)] border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] text-xs text-[var(--color-text)] transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-(--color-bg-secondary) border border-(--color-border) hover:bg-(--color-bg-hover) text-xs text-(--color-text) transition-colors"
         >
           <Upload size={12} />
           <span>Import CSV</span>
@@ -190,32 +190,32 @@ export default function SubscriptionAnalytics({ subscriptions, onImport }: Props
       </div>
 
       {/* Monthly spend bar chart */}
-      <div className="bg-[var(--color-bg-secondary)] rounded-lg p-3">
-        <h4 className="text-xs font-semibold text-[var(--color-text)] mb-2">Monthly Spend (last 6 months)</h4>
-        <div className="text-[var(--color-text)]">
+      <div className="bg-(--color-bg-secondary) rounded-lg p-3">
+        <h4 className="text-xs font-semibold text-(--color-text) mb-2">Monthly Spend (last 6 months)</h4>
+        <div className="text-(--color-text)">
           <BarChart data={monthlyTotals} />
         </div>
       </div>
 
       {/* Category breakdown donut */}
-      <div className="bg-[var(--color-bg-secondary)] rounded-lg p-3">
-        <h4 className="text-xs font-semibold text-[var(--color-text)] mb-2">Spend by Category</h4>
+      <div className="bg-(--color-bg-secondary) rounded-lg p-3">
+        <h4 className="text-xs font-semibold text-(--color-text) mb-2">Spend by Category</h4>
         <DonutChart data={categoryBreakdown} />
       </div>
 
       {/* Savings tracker */}
-      <div className="bg-[var(--color-bg-secondary)] rounded-lg p-3">
-        <h4 className="text-xs font-semibold text-[var(--color-text)] mb-1">Savings Tracker</h4>
+      <div className="bg-(--color-bg-secondary) rounded-lg p-3">
+        <h4 className="text-xs font-semibold text-(--color-text) mb-1">Savings Tracker</h4>
         <p className="text-sm font-bold text-green-600 dark:text-green-400 mb-2">
           {SubscriptionService.formatCurrency(savings, currency)}/yr saved
         </p>
         {canceledSubs.length === 0 ? (
-          <p className="text-xs text-[var(--color-text-secondary)]">No canceled subscriptions yet.</p>
+          <p className="text-xs text-(--color-text-secondary)">No canceled subscriptions yet.</p>
         ) : (
           <div className="flex flex-col gap-1">
             {canceledSubs.map((s) => (
               <div key={s.id} className="flex items-center justify-between text-xs">
-                <span className="text-[var(--color-text-secondary)] truncate flex-1">{s.name}</span>
+                <span className="text-(--color-text-secondary) truncate flex-1">{s.name}</span>
                 <span className="text-green-600 dark:text-green-400 font-medium shrink-0 ml-2">
                   +{SubscriptionService.formatCurrency(SubscriptionService.normalizeToMonthly(s) * 12, s.currency)}/yr
                 </span>

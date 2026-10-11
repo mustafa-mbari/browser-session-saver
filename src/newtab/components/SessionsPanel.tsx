@@ -211,7 +211,7 @@ const ManualSessionCard = memo(function ManualSessionCard({
         checked={selected}
         onChange={(e) => { e.stopPropagation(); onToggleSelect(session.id); }}
         onClick={(e) => e.stopPropagation()}
-        className="mt-1 w-3.5 h-3.5 shrink-0 rounded accent-indigo-500 cursor-pointer"
+        className="mt-1 w-3.5 h-3.5 shrink-0 rounded-sm accent-indigo-500 cursor-pointer"
         aria-label={`Select ${session.name}`}
       />
       <FolderOpen size={14} className="shrink-0 mt-1 opacity-40" style={{ color: 'var(--newtab-text)' }} />
@@ -516,7 +516,7 @@ export default function SessionsPanel() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('searchSessionsPlaceholder')}
-            className="w-full pl-9 pr-4 py-2 rounded-xl text-sm outline-none"
+            className="w-full pl-9 pr-4 py-2 rounded-xl text-sm outline-hidden"
             style={{
               color: 'var(--newtab-text)',
               background: 'rgba(255,255,255,0.08)',

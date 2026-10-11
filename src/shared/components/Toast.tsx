@@ -44,7 +44,7 @@ export default function Toast({ toast, onDismiss }: ToastProps) {
     <div
       className={`
         flex items-center gap-2 px-3 py-2 rounded-card border-l-4
-        bg-[var(--color-bg)] shadow-card text-sm
+        bg-(--color-bg) shadow-card text-sm
         transition-all duration-200
         ${styles[toast.type]}
         ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}
@@ -52,7 +52,7 @@ export default function Toast({ toast, onDismiss }: ToastProps) {
       role="alert"
     >
       <Icon size={16} className="shrink-0" />
-      <span className="flex-1 text-[var(--color-text)]">{toast.message}</span>
+      <span className="flex-1 text-(--color-text)">{toast.message}</span>
       {toast.action && (
         <button
           onClick={toast.action.onClick}
@@ -63,7 +63,7 @@ export default function Toast({ toast, onDismiss }: ToastProps) {
       )}
       <button
         onClick={() => onDismiss(toast.id)}
-        className="shrink-0 p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+        className="shrink-0 p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-sm"
         aria-label="Dismiss"
       >
         <X size={14} />

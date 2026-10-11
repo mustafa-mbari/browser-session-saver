@@ -147,7 +147,7 @@ export default function ContextMenu({ items, children }: ContextMenuProps) {
           <div
             ref={menuRef}
             style={{ position: 'fixed', top: pos.top, right: pos.right }}
-            className="z-[9999] min-w-[160px] rounded-card bg-[var(--color-bg)] shadow-lg border border-[var(--color-border)] py-1"
+            className="z-9999 min-w-[160px] rounded-card bg-(--color-bg) shadow-lg border border-(--color-border) py-1"
             role="menu"
             aria-orientation="vertical"
             onKeyDown={handleMenuKeyDown}
@@ -161,8 +161,8 @@ export default function ContextMenu({ items, children }: ContextMenuProps) {
                   className={`
                     w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left
                     hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors
-                    focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-700
-                    ${item.danger ? 'text-error' : 'text-[var(--color-text)]'}
+                    focus:outline-hidden focus:bg-gray-100 dark:focus:bg-gray-700
+                    ${item.danger ? 'text-error' : 'text-(--color-text)'}
                   `}
                   role="menuitem"
                   tabIndex={activeIndex === index ? 0 : -1}

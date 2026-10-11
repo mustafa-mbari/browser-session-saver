@@ -44,7 +44,7 @@ export default function DashboardRestoreModal({ configJson, onApply, onDismiss, 
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      className="fixed inset-0 z-60 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.6)' }}
     >
       <div className="glass-panel rounded-2xl w-full max-w-sm p-6 flex flex-col gap-4">

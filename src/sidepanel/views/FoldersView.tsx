@@ -110,7 +110,7 @@ function FolderDialog({
             {FOLDER_COLORS.map((color) => (
               <button
                 key={color}
-                className="w-8 h-8 rounded-lg transition-all hover:scale-110 focus:outline-none"
+                className="w-8 h-8 rounded-lg transition-all hover:scale-110 focus:outline-hidden"
                 style={{
                   backgroundColor: color,
                   boxShadow: current === color ? `0 0 0 2px white, 0 0 0 3px ${color}` : undefined,
@@ -120,7 +120,7 @@ function FolderDialog({
             ))}
           </div>
           <DialogFooter className="mt-1">
-            <button className="px-2.5 py-1 rounded text-xs text-white/60 hover:bg-white/10 transition-colors" onClick={onClose}>Cancel</button>
+            <button className="px-2.5 py-1 rounded-sm text-xs text-white/60 hover:bg-white/10 transition-colors" onClick={onClose}>Cancel</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -189,7 +189,7 @@ function FolderDialog({
                 <div>
                   <label className="block text-[10px] opacity-50 mb-1" style={{ color: 'var(--color-text)' }}>Folder</label>
                   <select
-                    className="w-full rounded bg-white/10 text-xs px-2 py-1.5 border border-white/15 focus:outline-none focus:border-white/40"
+                    className="w-full rounded-sm bg-white/10 text-xs px-2 py-1.5 border border-white/15 focus:outline-hidden focus:border-white/40"
                     style={{ color: 'var(--color-text)' }}
                     value={editCategoryId}
                     onChange={(e) => setEditCategoryId(e.target.value)}
@@ -213,9 +213,9 @@ function FolderDialog({
           </div>
         )}
         <DialogFooter className="gap-1.5 mt-1">
-          <button className="px-2.5 py-1 rounded text-xs text-white/60 hover:bg-white/10 transition-colors" onClick={onClose}>Cancel</button>
+          <button className="px-2.5 py-1 rounded-sm text-xs text-white/60 hover:bg-white/10 transition-colors" onClick={onClose}>Cancel</button>
           <button
-            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${isDelete ? 'bg-red-500/80 hover:bg-red-500 text-white' : 'bg-white/15 hover:bg-white/25 text-white'}`}
+            className={`px-2.5 py-1 rounded-sm text-xs font-medium transition-colors ${isDelete ? 'bg-red-500/80 hover:bg-red-500 text-white' : 'bg-white/15 hover:bg-white/25 text-white'}`}
             onClick={() => void confirm()}
           >
             {isDelete ? 'Delete' : 'Confirm'}
@@ -233,12 +233,12 @@ function EntryRow({ entry, onDialog }: { entry: BookmarkEntry; onDialog: (d: Dia
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <button
-          className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--color-bg-hover)] transition-colors text-left group"
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-(--color-bg-hover) transition-colors text-left group"
           onDoubleClick={() => window.open(entry.url, '_blank', 'noopener')}
           title={entry.url}
         >
           {entry.favIconUrl ? (
-            <img src={entry.favIconUrl} alt="" className="w-3.5 h-3.5 shrink-0 rounded-sm" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <img src={entry.favIconUrl} alt="" className="w-3.5 h-3.5 shrink-0 rounded-xs" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           ) : (
             <Bookmark size={12} className="shrink-0 opacity-40" style={{ color: 'var(--color-text)' }} />
           )}
@@ -312,7 +312,7 @@ function FolderRow({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <button
-            className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded transition-colors text-left ${isSelected ? 'bg-primary/10' : 'hover:bg-[var(--color-bg-hover)]'}`}
+            className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded-sm transition-colors text-left ${isSelected ? 'bg-primary/10' : 'hover:bg-(--color-bg-hover)'}`}
             style={{ paddingLeft: `${8 + depth * 16}px` }}
             onClick={() => onSelect(folder.id)}
           >
@@ -466,7 +466,7 @@ function BrowserFolderNode({ node, depth }: { node: chrome.bookmarks.BookmarkTre
     return (
       <div>
         <button
-          className="w-full flex items-center gap-1 py-1 text-xs hover:bg-[var(--color-bg-hover)] rounded-md transition-colors"
+          className="w-full flex items-center gap-1 py-1 text-xs hover:bg-(--color-bg-hover) rounded-md transition-colors"
           style={{ paddingLeft: `${6 + depth * 14}px`, paddingRight: '6px', color: 'var(--color-text)' }}
           onClick={() => setExpanded((v) => !v)}
         >
@@ -486,7 +486,7 @@ function BrowserFolderNode({ node, depth }: { node: chrome.bookmarks.BookmarkTre
 
   return (
     <button
-      className="w-full flex items-center gap-1 py-1 text-[11px] opacity-60 hover:bg-[var(--color-bg-hover)] hover:opacity-100 rounded-md transition-colors truncate text-left"
+      className="w-full flex items-center gap-1 py-1 text-[11px] opacity-60 hover:bg-(--color-bg-hover) hover:opacity-100 rounded-md transition-colors truncate text-left"
       style={{ paddingLeft: `${6 + depth * 14}px`, paddingRight: '6px', color: 'var(--color-text)' }}
       onClick={() => window.open(node.url, '_blank', 'noopener')}
       title={node.url}
@@ -609,7 +609,7 @@ export default function FoldersView() {
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
       {/* Header bar */}
-      <div className="flex items-center gap-1 px-3 py-2 border-b border-[var(--color-border)]">
+      <div className="flex items-center gap-1 px-3 py-2 border-b border-(--color-border)">
         {pathLabel ? (
           <span
             className="flex-1 truncate text-xs font-semibold text-primary min-w-0"
@@ -624,7 +624,7 @@ export default function FoldersView() {
         <button
           disabled={!selectedFolderId}
           onClick={() => void handleSaveTab()}
-          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-[var(--color-bg-hover)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium hover:bg-(--color-bg-hover) transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
           style={{ color: saveMsg === '✓ Saved' ? 'var(--color-success, #22c55e)' : saveMsg === 'Failed' ? '#ef4444' : 'var(--color-text)' }}
           title={selectedFolderId ? 'Save current browser tab to this folder' : 'Select a folder first'}
         >
@@ -633,7 +633,7 @@ export default function FoldersView() {
         </button>
         <button
           onClick={() => setDialog({ type: 'new-folder', boardId: defaultBoardId })}
-          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-primary hover:bg-[var(--color-bg-hover)] transition-colors shrink-0"
+          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-primary hover:bg-(--color-bg-hover) transition-colors shrink-0"
         >
           <FolderPlus size={12} />
           New Folder

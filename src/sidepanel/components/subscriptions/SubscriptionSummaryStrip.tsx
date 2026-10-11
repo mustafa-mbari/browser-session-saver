@@ -14,7 +14,7 @@ export default function SubscriptionSummaryStrip({ subscriptions, onAdd }: Props
   const currency = subscriptions.find((s) => s.status === 'active')?.currency ?? subscriptions[0]?.currency ?? 'USD';
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-border)] flex-wrap">
+    <div className="flex items-center gap-2 px-3 py-2 border-b border-(--color-border) flex-wrap">
       <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 text-xs font-medium shrink-0">
         <span>💳</span>
         <span>{SubscriptionService.formatCurrency(monthlyTotal, currency)}/mo</span>

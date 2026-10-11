@@ -5,8 +5,8 @@ import type { ToggleControlProps, RangeControlProps, SelectControlProps } from '
 
 export function PanelSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="border-b border-[var(--color-border)]">
-      <h3 className="px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
+    <div className="border-b border-(--color-border)">
+      <h3 className="px-3 py-2 text-xs font-semibold text-(--color-text-secondary) uppercase tracking-wider">
         {title}
       </h3>
       <div className="px-3 pb-3 space-y-3">{children}</div>
@@ -36,7 +36,7 @@ export function PanelToggle({ label, description, checked, onChange }: ToggleCon
         </button>
       </label>
       {description && (
-        <p className="text-[11px] text-[var(--color-text-secondary)] leading-snug">{description}</p>
+        <p className="text-[11px] text-(--color-text-secondary) leading-snug">{description}</p>
       )}
     </div>
   );
@@ -47,7 +47,7 @@ export function PanelSlider({ label, value, min, max, step, unit, onChange }: Ra
     <div>
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm">{label}</span>
-        <span className="text-xs text-[var(--color-text-secondary)]">
+        <span className="text-xs text-(--color-text-secondary)">
           {value}
           {unit}
         </span>
@@ -75,7 +75,7 @@ export function PanelSelect({ label, description, value, options, onChange }: Se
           value={value}
           aria-label={label}
           onChange={(e) => onChange(e.target.value)}
-          className="px-2 py-1 text-sm rounded border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-1 focus:ring-primary"
+          className="px-2 py-1 text-sm rounded-sm border border-(--color-border) bg-(--color-bg) text-(--color-text) focus:outline-hidden focus:ring-1 focus:ring-primary"
         >
           {options.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -85,7 +85,7 @@ export function PanelSelect({ label, description, value, options, onChange }: Se
         </select>
       </div>
       {description && (
-        <p className="text-[11px] text-[var(--color-text-secondary)] leading-snug">{description}</p>
+        <p className="text-[11px] text-(--color-text-secondary) leading-snug">{description}</p>
       )}
     </div>
   );

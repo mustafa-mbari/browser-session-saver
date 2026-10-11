@@ -60,9 +60,9 @@ export default function BookmarkEntryRow({ entry, density, onDelete, onRename }:
   const favSources = [resolveFavIcon(entry.favIconUrl, entry.url), getChromeInternalFaviconUrl(entry.url), getFaviconFallbackUrl(entry.url)].filter(Boolean);
   const favSrc = favSources[favTryIdx] ?? '';
   const favicon = favSrc ? (
-    <img src={favSrc} alt="" className={`${iconCls} rounded shrink-0`} onError={() => setFavTryIdx((i) => i + 1)} />
+    <img src={favSrc} alt="" className={`${iconCls} rounded-sm shrink-0`} onError={() => setFavTryIdx((i) => i + 1)} />
   ) : (
-    <span className={`${iconCls} flex items-center justify-center rounded bg-white/20 font-bold shrink-0`} style={{ color: 'var(--newtab-text)' }}>
+    <span className={`${iconCls} flex items-center justify-center rounded-sm bg-white/20 font-bold shrink-0`} style={{ color: 'var(--newtab-text)' }}>
       {getFaviconInitial(entry.title, entry.url)}
     </span>
   );
@@ -75,7 +75,7 @@ export default function BookmarkEntryRow({ entry, density, onDelete, onRename }:
 
   if (isRenaming) {
     return (
-      <div ref={setNodeRef} style={itemStyle} className="flex flex-col gap-1 px-2 py-1.5 rounded bg-white/5" {...attributes}>
+      <div ref={setNodeRef} style={itemStyle} className="flex flex-col gap-1 px-2 py-1.5 rounded-sm bg-white/5" {...attributes}>
         <input
           ref={inputRef}
           autoFocus
@@ -87,7 +87,7 @@ export default function BookmarkEntryRow({ entry, density, onDelete, onRename }:
             e.stopPropagation();
           }}
           placeholder="Title"
-          className="w-full bg-white/10 rounded px-1.5 py-0.5 text-xs outline-none placeholder-white/30"
+          className="w-full bg-white/10 rounded-sm px-1.5 py-0.5 text-xs outline-hidden placeholder-white/30"
           style={{ color: 'var(--newtab-text)' }}
         />
         <input
@@ -101,7 +101,7 @@ export default function BookmarkEntryRow({ entry, density, onDelete, onRename }:
             e.stopPropagation();
           }}
           placeholder="URL"
-          className="w-full bg-white/10 rounded px-1.5 py-0.5 text-xs outline-none placeholder-white/30"
+          className="w-full bg-white/10 rounded-sm px-1.5 py-0.5 text-xs outline-hidden placeholder-white/30"
           style={{ color: 'var(--newtab-text)' }}
         />
       </div>
@@ -114,12 +114,12 @@ export default function BookmarkEntryRow({ entry, density, onDelete, onRename }:
         ref={setNodeRef}
         style={itemStyle}
         {...attributes}
-        className={`flex items-center gap-2 ${rowH} px-1 rounded hover:bg-white/10 cursor-pointer group`}
+        className={`flex items-center gap-2 ${rowH} px-1 rounded-sm hover:bg-white/10 cursor-pointer group`}
         onClick={() => safeOpenUrl(entry.url, '_self')}
       >
         <div
           {...listeners}
-          className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing shrink-0 p-0.5 rounded hover:bg-white/10"
+          className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing shrink-0 p-0.5 rounded-sm hover:bg-white/10"
           onClick={(e) => e.stopPropagation()}
           aria-label="Drag to reorder"
         >
@@ -136,7 +136,7 @@ export default function BookmarkEntryRow({ entry, density, onDelete, onRename }:
         >
           <button
             onClick={startRename}
-            className="p-0.5 rounded hover:bg-white/20 transition-colors"
+            className="p-0.5 rounded-sm hover:bg-white/20 transition-colors"
             aria-label="Edit bookmark"
             tabIndex={-1}
           >
@@ -144,7 +144,7 @@ export default function BookmarkEntryRow({ entry, density, onDelete, onRename }:
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(entry.id); }}
-            className="p-0.5 rounded hover:bg-red-500/30 transition-colors"
+            className="p-0.5 rounded-sm hover:bg-red-500/30 transition-colors"
             aria-label="Delete bookmark"
             tabIndex={-1}
           >

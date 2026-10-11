@@ -141,15 +141,15 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
     );
   }
 
-  const inputCls = 'w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md px-3 py-1.5 text-sm text-[var(--color-text)] outline-none focus:border-violet-400 transition-colors';
-  const labelCls = 'text-xs font-medium text-[var(--color-text-secondary)] mb-1';
+  const inputCls = 'w-full bg-(--color-bg-secondary) border border-(--color-border) rounded-md px-3 py-1.5 text-sm text-(--color-text) outline-hidden focus:border-violet-400 transition-colors';
+  const labelCls = 'text-xs font-medium text-(--color-text-secondary) mb-1';
   const selectStyle: React.CSSProperties = { colorScheme: 'dark' };
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)]">
-        <h3 className="text-sm font-semibold text-[var(--color-text)]">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-(--color-border)">
+        <h3 className="text-sm font-semibold text-(--color-text)">
           {initial ? 'Edit Subscription' : 'Add Subscription'}
         </h3>
         <div className="flex items-center gap-2">
@@ -164,7 +164,7 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
           )}
           <button
             onClick={onClose}
-            className="p-0.5 rounded hover:bg-[var(--color-bg-secondary)] transition-colors text-[var(--color-text-secondary)]"
+            className="p-0.5 rounded-sm hover:bg-(--color-bg-secondary) transition-colors text-(--color-text-secondary)"
             aria-label="Close"
           >
             <X size={16} />
@@ -297,10 +297,10 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
               )}
             </select>
             {showAddCat && (
-              <div className="flex flex-col gap-1.5 mt-1 p-2 rounded-md bg-[var(--color-bg-secondary)] border border-[var(--color-border)]">
+              <div className="flex flex-col gap-1.5 mt-1 p-2 rounded-md bg-(--color-bg-secondary) border border-(--color-border)">
                 <div className="flex gap-1.5">
                   <input
-                    className="w-10 text-center text-base border border-[var(--color-border)] rounded-md bg-[var(--color-bg-secondary)] text-[var(--color-text)] outline-none py-1"
+                    className="w-10 text-center text-base border border-(--color-border) rounded-md bg-(--color-bg-secondary) text-(--color-text) outline-hidden py-1"
                     value={newCatEmoji}
                     onChange={(e) => setNewCatEmoji(e.target.value)}
                     placeholder="🎮"
@@ -315,7 +315,7 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-[var(--color-text-secondary)]">Color:</span>
+                  <span className="text-[10px] text-(--color-text-secondary)">Color:</span>
                   {SIDEPANEL_CAT_COLORS.map((c) => (
                     <button
                       key={c}
@@ -330,13 +330,13 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
                   <button
                     onClick={() => void handleAddCustomCat()}
                     disabled={!newCatLabel.trim()}
-                    className="flex-1 py-1 rounded text-xs bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-40 transition-colors"
+                    className="flex-1 py-1 rounded-sm text-xs bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-40 transition-colors"
                   >
                     Add
                   </button>
                   <button
                     onClick={() => { setShowAddCat(false); setNewCatEmoji(''); setNewCatLabel(''); }}
-                    className="px-2 py-1 rounded text-xs hover:bg-[var(--color-bg-hover)] text-[var(--color-text-secondary)] transition-colors"
+                    className="px-2 py-1 rounded-sm text-xs hover:bg-(--color-bg-hover) text-(--color-text-secondary) transition-colors"
                   >
                     Cancel
                   </button>
@@ -427,7 +427,7 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
             />
             <button
               onClick={addTag}
-              className="px-2 py-1 rounded-md bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] transition-colors"
+              className="px-2 py-1 rounded-md bg-(--color-bg-secondary) border border-(--color-border) text-xs text-(--color-text-secondary) hover:bg-(--color-bg-hover) transition-colors"
             >
               Add
             </button>
@@ -436,10 +436,10 @@ export default function SubscriptionForm({ initial, onSave, onClose }: Props) {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-end gap-2 px-3 py-2 border-t border-[var(--color-border)]">
+      <div className="flex items-center justify-end gap-2 px-3 py-2 border-t border-(--color-border)">
         <button
           onClick={onClose}
-          className="px-3 py-1.5 rounded-md text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)] transition-colors"
+          className="px-3 py-1.5 rounded-md text-sm text-(--color-text-secondary) hover:bg-(--color-bg-secondary) transition-colors"
         >
           Cancel
         </button>

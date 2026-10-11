@@ -19,7 +19,7 @@ function BookmarkNode({ node, depth = 0 }: { node: NativeNode; depth?: number })
     return (
       <a
         href={node.url}
-        className="flex items-center gap-2 py-1 rounded hover:bg-white/10 text-xs truncate transition-colors"
+        className="flex items-center gap-2 py-1 rounded-sm hover:bg-white/10 text-xs truncate transition-colors"
         style={{ color: 'var(--newtab-text)', paddingLeft: `${8 + depth * 14}px`, paddingRight: 8 }}
         title={node.title || node.url}
       >
@@ -27,7 +27,7 @@ function BookmarkNode({ node, depth = 0 }: { node: NativeNode; depth?: number })
           <img
             src={favSrc}
             alt=""
-            className="w-3 h-3 rounded shrink-0"
+            className="w-3 h-3 rounded-sm shrink-0"
             onError={() => setFavTryIdx((i) => i + 1)}
           />
         )}
@@ -41,7 +41,7 @@ function BookmarkNode({ node, depth = 0 }: { node: NativeNode; depth?: number })
     <div>
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-1.5 py-1 w-full text-left rounded hover:bg-white/10 text-xs transition-colors"
+        className="flex items-center gap-1.5 py-1 w-full text-left rounded-sm hover:bg-white/10 text-xs transition-colors"
         style={{ color: 'var(--newtab-text-secondary)', paddingLeft: `${8 + depth * 14}px`, paddingRight: 8 }}
       >
         <span className="text-[10px] shrink-0">{expanded ? '▾' : '▸'}</span>

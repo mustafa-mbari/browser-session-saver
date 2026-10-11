@@ -138,7 +138,7 @@ function ThreeDotMenu({ entry, onEdit, onDelete }: {
     <div data-threedot>
       <button
         ref={btnRef}
-        className="p-1.5 rounded hover:bg-white/10 text-white/40 hover:text-white transition-all"
+        className="p-1.5 rounded-sm hover:bg-white/10 text-white/40 hover:text-white transition-all"
         onClick={toggle}
         title="More actions"
       >
@@ -147,7 +147,7 @@ function ThreeDotMenu({ entry, onEdit, onDelete }: {
       {open && createPortal(
         <div
           data-threedot
-          className="fixed z-[9999] w-48 rounded-xl border border-white/10 py-1 shadow-2xl overflow-hidden"
+          className="fixed z-9999 w-48 rounded-xl border border-white/10 py-1 shadow-2xl overflow-hidden"
           style={{
             left: pos.x - 192,
             top: pos.y,
@@ -221,7 +221,7 @@ function CategoryCell({ entry, colWidth, allCategories, onUpdate }: {
       {open && createPortal(
         <div
           data-catdrop
-          className="fixed z-[9999] rounded-xl border border-white/10 shadow-2xl overflow-hidden py-1"
+          className="fixed z-9999 rounded-xl border border-white/10 shadow-2xl overflow-hidden py-1"
           style={{ left: pos.x, top: pos.y, minWidth: pos.minW, background: 'rgba(15,15,20,0.96)', backdropFilter: 'blur(24px)' }}
         >
           {entry.category && (
@@ -253,7 +253,7 @@ function CategoryCell({ entry, colWidth, allCategories, onUpdate }: {
               onChange={(e) => setNewCat(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') addNew(); if (e.key === 'Escape') setOpen(false); }}
               placeholder="New category…"
-              className="flex-1 bg-white/5 border border-white/10 rounded-md px-2 py-1 text-[11px] text-white/80 placeholder:text-white/25 outline-none focus:border-indigo-500/60"
+              className="flex-1 bg-white/5 border border-white/10 rounded-md px-2 py-1 text-[11px] text-white/80 placeholder:text-white/25 outline-hidden focus:border-indigo-500/60"
             />
             <button data-catdrop onClick={addNew} className="p-1.5 rounded-md bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-300 transition-colors">
               <Plus size={11} />
@@ -297,7 +297,7 @@ function DescriptionCell({ entry, colWidth, onUpdate }: {
           onBlur={save}
           onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') cancel(); }}
           placeholder="Add a note…"
-          className="w-full bg-transparent text-xs text-white/80 border-b border-indigo-500/60 outline-none py-0.5 placeholder:text-white/25"
+          className="w-full bg-transparent text-xs text-white/80 border-b border-indigo-500/60 outline-hidden py-0.5 placeholder:text-white/25"
         />
       ) : (
         <p className="text-xs truncate" title={entry.description}>
@@ -329,7 +329,7 @@ function BookmarkRow({ entry, colWidths, allCategories, onEdit, onDelete, onUpda
       <td className="w-10 pl-3 py-2.5 align-middle">
         <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/5">
           {entry.favIconUrl && !imgError ? (
-            <img src={entry.favIconUrl} alt="" className="w-5 h-5 rounded object-contain" onError={() => setImgError(true)} />
+            <img src={entry.favIconUrl} alt="" className="w-5 h-5 rounded-sm object-contain" onError={() => setImgError(true)} />
           ) : (
             <Globe size={14} className="text-white/25" />
           )}
@@ -381,13 +381,13 @@ function SortableQuickItem({ folder, isSelected, onSelect, onRemove, count }: {
         <GripVertical size={10} />
       </span>
       {folder.icon?.startsWith('data:')
-        ? <img src={folder.icon} className="w-4 h-4 rounded object-cover shrink-0" alt="" />
+        ? <img src={folder.icon} className="w-4 h-4 rounded-sm object-cover shrink-0" alt="" />
         : <span className="shrink-0" style={{ color: col }}><Folder size={13} /></span>
       }
       <span className="truncate flex-1 text-sm">{folder.name}</span>
       <span className="text-[10px] text-white/30 shrink-0">{count}</span>
       <button
-        className="opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:text-red-400 transition-all shrink-0 p-0.5"
+        className="opacity-0 group-hover:opacity-50 hover:opacity-100! hover:text-red-400 transition-all shrink-0 p-0.5"
         onClick={(e) => { e.stopPropagation(); onRemove(); }} title="Remove from Quick Access"
       ><X size={11} /></button>
     </div>
@@ -471,7 +471,7 @@ function DraggableTreeItem({ node, depth, selectedId, onSelect, onOpenDialog, en
             </span>
             <span className="shrink-0" style={{ color: col }}>
               {node.folder.icon?.startsWith('data:')
-                ? <img src={node.folder.icon} className="w-4 h-4 rounded object-cover" alt="" />
+                ? <img src={node.folder.icon} className="w-4 h-4 rounded-sm object-cover" alt="" />
                 : (isSelected || expanded ? <FolderOpen size={13} /> : <Folder size={13} />)
               }
             </span>
@@ -562,7 +562,7 @@ function MyFoldersSection({ categories, boards, selectedId, onSelect, onOpenDial
         </button>
         {defaultBoardId && (
           <button
-            className="p-0.5 rounded hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
+            className="p-0.5 rounded-sm hover:bg-white/10 text-white/30 hover:text-white/60 transition-colors"
             onClick={() => onOpenDialog({ type: 'new-folder', boardId: defaultBoardId })}
             title="New folder"
           >
@@ -713,7 +713,7 @@ function FolderDialog({
           <DialogHeader><DialogTitle>Folder Color — {state.folder.name}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-6 gap-2 py-1">
             {FOLDER_COLORS.map((color) => (
-              <button key={color} className="w-9 h-9 rounded-lg transition-all hover:scale-110 focus:outline-none"
+              <button key={color} className="w-9 h-9 rounded-lg transition-all hover:scale-110 focus:outline-hidden"
                 style={{ backgroundColor: color, boxShadow: current === color ? `0 0 0 3px white, 0 0 0 4px ${color}` : undefined }}
                 onClick={() => { onColorFolder(state.folder.id, color); onClose(); }}
               />
@@ -812,7 +812,7 @@ function FolderDialog({
               <div>
                 <label className="block text-xs text-white/50 mb-1">Folder</label>
                 <select
-                  className="w-full rounded-md bg-white/10 text-white text-sm px-2 py-1.5 border border-white/15 focus:outline-none focus:border-white/40"
+                  className="w-full rounded-md bg-white/10 text-white text-sm px-2 py-1.5 border border-white/15 focus:outline-hidden focus:border-white/40"
                   value={selectedCategoryId}
                   onChange={(e) => setSelectedCategoryId(e.target.value)}
                 >
@@ -1274,7 +1274,7 @@ export default function BookmarkFolderPanel() {
       {/* Live resize width indicator */}
       {resizeIndicator && createPortal(
         <div
-          className="fixed z-[9999] bg-indigo-600 text-white text-[10px] font-mono px-2 py-1 rounded-md shadow-lg pointer-events-none"
+          className="fixed z-9999 bg-indigo-600 text-white text-[10px] font-mono px-2 py-1 rounded-md shadow-lg pointer-events-none"
           style={{ left: resizeIndicator.x, top: resizeIndicator.y }}
         >
           {resizeIndicator.w}px

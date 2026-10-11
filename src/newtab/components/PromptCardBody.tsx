@@ -203,7 +203,7 @@ function PromptRow({
         {hasVariables && (
           <button
             onClick={onFill}
-            className="p-1 rounded hover:bg-white/10 transition-colors"
+            className="p-1 rounded-sm hover:bg-white/10 transition-colors"
             title="Fill variables & copy"
             style={{ color: 'var(--newtab-text)' }}
           >
@@ -212,7 +212,7 @@ function PromptRow({
         )}
         <button
           onClick={onShare}
-          className="p-1 rounded hover:bg-white/10 transition-colors"
+          className="p-1 rounded-sm hover:bg-white/10 transition-colors"
           title="Share prompt"
           style={{ color: 'var(--newtab-text)' }}
         >
@@ -220,7 +220,7 @@ function PromptRow({
         </button>
         <button
           onClick={onCopy}
-          className="p-1 rounded hover:bg-white/10 transition-colors"
+          className="p-1 rounded-sm hover:bg-white/10 transition-colors"
           title="Copy to clipboard"
           style={{ color: 'var(--newtab-text)' }}
         >
@@ -256,7 +256,7 @@ function FillVariablesModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-xs" onClick={onClose} aria-hidden />
       <div className="relative w-full max-w-2xl glass-panel rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] border border-white/10">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 shrink-0">
@@ -296,7 +296,7 @@ function FillVariablesModal({
                   value={values[v] ?? ''}
                   onChange={(e) => setValues((prev) => ({ ...prev, [v]: e.target.value }))}
                   placeholder={`Enter ${v}…`}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-white/15 bg-white/5 placeholder:opacity-40 focus:outline-none focus:ring-2 focus:ring-amber-400/60 transition-colors"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-white/15 bg-white/5 placeholder:opacity-40 focus:outline-hidden focus:ring-2 focus:ring-amber-400/60 transition-colors"
                   style={{ color: 'var(--newtab-text)' }}
                 />
               </div>
@@ -311,7 +311,7 @@ function FillVariablesModal({
             <textarea
               readOnly
               value={preview}
-              className="flex-1 w-full px-3 py-2.5 text-xs rounded-lg border border-white/15 bg-white/5 resize-none focus:outline-none font-mono leading-relaxed opacity-80"
+              className="flex-1 w-full px-3 py-2.5 text-xs rounded-lg border border-white/15 bg-white/5 resize-none focus:outline-hidden font-mono leading-relaxed opacity-80"
               style={{ color: 'var(--newtab-text)' }}
             />
           </div>

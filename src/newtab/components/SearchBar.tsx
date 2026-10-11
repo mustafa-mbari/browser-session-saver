@@ -44,7 +44,7 @@ const SearchBar = forwardRef<HTMLInputElement, Props>(({ settings }, ref) => {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Search the web or enter a URL…"
-          className="flex-1 bg-transparent outline-none text-sm placeholder-white/40"
+          className="flex-1 bg-transparent outline-hidden text-sm placeholder-white/40"
           style={{ color: 'var(--newtab-text)' }}
           aria-label="Search"
           autoComplete="off"

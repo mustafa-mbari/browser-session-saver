@@ -173,7 +173,7 @@ export default function WallpaperPicker({ isOpen, onClose, settings, onUpdate }:
             <label className="flex items-center gap-3 cursor-pointer group rounded-xl px-2 py-1.5 -mx-2 hover:bg-white/5 transition-colors">
               <div className="relative shrink-0">
                 <div
-                  className="w-10 h-10 rounded-xl border border-white/20 group-hover:border-white/35 transition-colors shadow"
+                  className="w-10 h-10 rounded-xl border border-white/20 group-hover:border-white/35 transition-colors shadow-sm"
                   style={{ backgroundColor: settings.backgroundColor }}
                 />
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -217,7 +217,7 @@ export default function WallpaperPicker({ isOpen, onClose, settings, onUpdate }:
                   alt="Custom Image 1"
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-1.5">
+                <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent flex items-end p-1.5">
                   <span className="text-[10px] font-medium text-white">Custom Image 1</span>
                 </div>
                 {isActiveBundled && (

@@ -40,12 +40,12 @@ export default function Header() {
   };
 
   return (
-    <header className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)]">
+    <header className="flex items-center justify-between px-3 py-2 border-b border-(--color-border)">
       <div className="flex items-center gap-2">
         {canGoBack && (
           <button
             onClick={goBack}
-            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-1 rounded-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             aria-label="Go back"
           >
             <ArrowLeft size={18} />
@@ -69,7 +69,7 @@ export default function Header() {
         )}
         <button
           onClick={() => navigateTo('account')}
-          className="relative p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          className="relative p-1.5 rounded-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           aria-label="Account"
           title="Account"
         >
@@ -80,14 +80,14 @@ export default function Header() {
         </button>
         <button
           onClick={toggleTheme}
-          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          className="p-1.5 rounded-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           aria-label="Toggle theme"
         >
           {isDark ? <Sun size={16} /> : <Moon size={16} />}
         </button>
         <button
           onClick={() => navigateTo('settings')}
-          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          className="p-1.5 rounded-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           aria-label="Settings"
         >
           <Settings size={16} />

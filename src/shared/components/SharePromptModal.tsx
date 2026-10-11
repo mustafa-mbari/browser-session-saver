@@ -149,7 +149,7 @@ export default function SharePromptModal({ prompt, onClose }: Props) {
               <input
                 readOnly
                 value={state.url}
-                className="flex-1 text-xs bg-transparent outline-none min-w-0"
+                className="flex-1 text-xs bg-transparent outline-hidden min-w-0"
                 style={{ color: 'var(--color-text)' }}
                 onFocus={(e) => e.target.select()}
               />

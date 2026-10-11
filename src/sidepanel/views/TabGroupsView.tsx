@@ -221,7 +221,7 @@ function LiveGroupRow({
   ], [startEdit, handleFocusGroup, handleCloseFromBrowser, handleUngroup]);
 
   return (
-    <div className="border border-[var(--color-border)] rounded-lg overflow-hidden">
+    <div className="border border-(--color-border) rounded-lg overflow-hidden">
       <div className="h-0.5 w-full" style={{ backgroundColor: accentColor }} />
 
       <div className="px-3 py-2">
@@ -237,18 +237,18 @@ function LiveGroupRow({
                   if (e.key === 'Escape') { setEditing(false); setDraftTitle(group.title); }
                 }}
                 placeholder="Group name"
-                className="flex-1 text-sm bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded px-2 py-1 text-[var(--color-text)] outline-none focus:border-blue-500"
+                className="flex-1 text-sm bg-(--color-bg-secondary) border border-(--color-border) rounded-sm px-2 py-1 text-(--color-text) outline-hidden focus:border-blue-500"
               />
               <button
                 onClick={() => void saveEdit()}
                 disabled={saving}
-                className="p-1.5 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-colors disabled:opacity-50"
+                className="p-1.5 rounded-sm bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-colors disabled:opacity-50"
               >
                 <Check size={12} />
               </button>
               <button
                 onClick={() => { setEditing(false); setDraftTitle(group.title); }}
-                className="p-1.5 rounded hover:bg-[var(--color-bg-secondary)] transition-colors"
+                className="p-1.5 rounded-sm hover:bg-(--color-bg-secondary) transition-colors"
                 style={{ color: 'var(--color-text-secondary)' }}
               >
                 <X size={12} />
@@ -278,7 +278,7 @@ function LiveGroupRow({
               {group.collapsed && (
                 <button
                   onClick={(e) => { e.stopPropagation(); void toggleCollapse(); }}
-                  className="text-[9px] px-1 py-0.5 rounded bg-[var(--color-bg-secondary)] hover:opacity-80"
+                  className="text-[9px] px-1 py-0.5 rounded-sm bg-(--color-bg-secondary) hover:opacity-80"
                   style={{ color: 'var(--color-text-secondary)' }}
                   title="Click to expand in browser"
                 >
@@ -297,14 +297,14 @@ function LiveGroupRow({
                   <button
                     onClick={(e) => { e.stopPropagation(); void handleToggleSave(); }}
                     title={bookmarked ? 'Saved — click to unsave' : 'Save — syncs across devices'}
-                    className="p-1 rounded transition-colors"
+                    className="p-1 rounded-sm transition-colors"
                     style={{ color: bookmarked ? '#34c759' : 'var(--color-text-secondary)' }}
                   >
                     {bookmarked ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
                   </button>
                   <ContextMenu items={menuItems}>
                     <button
-                      className="p-1 rounded hover:bg-[var(--color-bg-secondary)] transition-colors"
+                      className="p-1 rounded-sm hover:bg-(--color-bg-secondary) transition-colors"
                       style={{ color: 'var(--color-text-secondary)' }}
                       aria-label="More actions"
                     >
@@ -319,17 +319,17 @@ function LiveGroupRow({
       </div>
 
       {expanded && !editing && (
-        <div className="border-t border-[var(--color-border)] max-h-44 overflow-auto">
+        <div className="border-t border-(--color-border) max-h-44 overflow-auto">
           {group.tabs.map((tab) => (
             <button
               key={tab.id}
-              className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--color-bg-secondary)] transition-colors text-left"
+              className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-(--color-bg-secondary) transition-colors text-left"
               onClick={() => tab.id && void chrome.tabs.update(tab.id, { active: true })}
             >
               {tab.favIconUrl ? (
-                <img src={tab.favIconUrl} alt="" className="w-4 h-4 rounded-sm shrink-0" />
+                <img src={tab.favIconUrl} alt="" className="w-4 h-4 rounded-xs shrink-0" />
               ) : (
-                <div className="w-4 h-4 rounded-sm bg-white/20 shrink-0" />
+                <div className="w-4 h-4 rounded-xs bg-white/20 shrink-0" />
               )}
               <span className="text-xs truncate flex-1" style={{ color: 'var(--color-text)' }}>
                 {tab.title || tab.url || 'New Tab'}
@@ -426,7 +426,7 @@ function SavedGroupRow({
 
   return (
     <div
-      className="border border-[var(--color-border)] rounded-lg overflow-hidden transition-opacity"
+      className="border border-(--color-border) rounded-lg overflow-hidden transition-opacity"
       style={{ opacity: deleting ? 0.4 : 1 }}
     >
       <div className="h-0.5 w-full" style={{ backgroundColor: accentColor }} />
@@ -444,18 +444,18 @@ function SavedGroupRow({
                 if (e.key === 'Escape') setEditing(false);
               }}
               placeholder="Group name"
-              className="flex-1 text-sm bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded px-2 py-1 text-[var(--color-text)] outline-none focus:border-blue-500"
+              className="flex-1 text-sm bg-(--color-bg-secondary) border border-(--color-border) rounded-sm px-2 py-1 text-(--color-text) outline-hidden focus:border-blue-500"
             />
             <button
               onClick={() => void saveRename()}
               disabled={saving}
-              className="p-1.5 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-colors disabled:opacity-50"
+              className="p-1.5 rounded-sm bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-colors disabled:opacity-50"
             >
               <Check size={12} />
             </button>
             <button
               onClick={() => setEditing(false)}
-              className="p-1.5 rounded hover:bg-[var(--color-bg-secondary)] transition-colors"
+              className="p-1.5 rounded-sm hover:bg-(--color-bg-secondary) transition-colors"
               style={{ color: 'var(--color-text-secondary)' }}
             >
               <X size={12} />
@@ -498,14 +498,14 @@ function SavedGroupRow({
                   <button
                     onClick={(e) => { e.stopPropagation(); void handleTogglePin(); }}
                     title={template.pinned ? 'Saved — click to unsave' : 'Save — syncs across devices'}
-                    className="p-1 rounded transition-colors"
+                    className="p-1 rounded-sm transition-colors"
                     style={{ color: template.pinned ? '#34c759' : 'var(--color-text-secondary)' }}
                   >
                     {template.pinned ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
                   </button>
                   <ContextMenu items={menuItems}>
                     <button
-                      className="p-1 rounded hover:bg-[var(--color-bg-secondary)] transition-colors"
+                      className="p-1 rounded-sm hover:bg-(--color-bg-secondary) transition-colors"
                       style={{ color: 'var(--color-text-secondary)' }}
                       aria-label="More actions"
                     >
@@ -520,16 +520,16 @@ function SavedGroupRow({
       </div>
 
       {expanded && !editing && (
-        <div className="border-t border-[var(--color-border)] max-h-40 overflow-auto">
+        <div className="border-t border-(--color-border) max-h-40 overflow-auto">
           {template.tabs.slice(0, 20).map((tab, i) => (
             <div
               key={i}
-              className="flex items-center gap-2 px-3 py-1.5 hover:bg-[var(--color-bg-secondary)] transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 hover:bg-(--color-bg-secondary) transition-colors"
             >
               {tab.favIconUrl ? (
-                <img src={tab.favIconUrl} alt="" className="w-4 h-4 rounded-sm shrink-0" />
+                <img src={tab.favIconUrl} alt="" className="w-4 h-4 rounded-xs shrink-0" />
               ) : (
-                <div className="w-4 h-4 rounded-sm bg-white/10 shrink-0" />
+                <div className="w-4 h-4 rounded-xs bg-white/10 shrink-0" />
               )}
               <span className="text-xs truncate flex-1" style={{ color: 'var(--color-text)' }}>
                 {tab.title || tab.url || 'Unknown'}
@@ -690,17 +690,17 @@ export default function TabGroupsView() {
   return (
     <div className="flex flex-col h-full">
       {/* Search + actions bar */}
-      <div className="px-3 py-2 border-b border-[var(--color-border)] flex items-center gap-2">
+      <div className="px-3 py-2 border-b border-(--color-border) flex items-center gap-2">
         <input
           type="search"
           placeholder="Search groups…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 text-xs bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md px-2 py-1.5 text-[var(--color-text)] placeholder:opacity-50 outline-none focus:border-blue-500"
+          className="flex-1 text-xs bg-(--color-bg-secondary) border border-(--color-border) rounded-md px-2 py-1.5 text-(--color-text) placeholder:opacity-50 outline-hidden focus:border-blue-500"
         />
         <button
           onClick={() => void loadLiveGroups()}
-          className="p-1.5 rounded hover:bg-[var(--color-bg-secondary)] transition-colors"
+          className="p-1.5 rounded-sm hover:bg-(--color-bg-secondary) transition-colors"
           style={{ color: 'var(--color-text-secondary)' }}
           title="Refresh live groups"
         >
@@ -709,7 +709,7 @@ export default function TabGroupsView() {
         <button
           onClick={() => void handleCreateGroup()}
           disabled={creatingGroup}
-          className="flex items-center gap-1 text-xs px-2 py-1.5 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-colors disabled:opacity-50"
+          className="flex items-center gap-1 text-xs px-2 py-1.5 rounded-sm bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-colors disabled:opacity-50"
           title="Create a new tab group"
         >
           <Plus size={12} /> New
@@ -725,7 +725,7 @@ export default function TabGroupsView() {
           <>
             {/* ── Live section ── */}
             <div className="flex flex-col">
-              <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]/60">
+              <div className="flex items-center gap-1.5 px-3 py-2 border-b border-(--color-border) bg-(--color-bg-secondary)/60">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
                 <span className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
                   Live
@@ -758,11 +758,11 @@ export default function TabGroupsView() {
               </div>
             </div>
 
-            <div className="border-t-2 border-[var(--color-border)]" />
+            <div className="border-t-2 border-(--color-border)" />
 
             {/* ── Saved section (pinned, not open) ── */}
             <div className="flex flex-col">
-              <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]/60">
+              <div className="flex items-center gap-1.5 px-3 py-2 border-b border-(--color-border) bg-(--color-bg-secondary)/60">
                 <BookmarkCheck size={11} className="text-green-400 shrink-0" />
                 <span className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
                   Saved
@@ -801,11 +801,11 @@ export default function TabGroupsView() {
               </div>
             </div>
 
-            <div className="border-t-2 border-[var(--color-border)]" />
+            <div className="border-t-2 border-(--color-border)" />
 
             {/* ── Not Open section (auto-saved, not pinned) ── */}
             <div className="flex flex-col">
-              <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]/60">
+              <div className="flex items-center gap-1.5 px-3 py-2 border-b border-(--color-border) bg-(--color-bg-secondary)/60">
                 <Layers size={11} style={{ color: 'var(--color-text-secondary)' }} className="shrink-0" />
                 <span className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
                   Not Open

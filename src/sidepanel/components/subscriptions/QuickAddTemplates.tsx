@@ -35,11 +35,11 @@ function TemplateFavicon({ url, name }: { url?: string; name: string }) {
 export default function QuickAddTemplates({ onSelect, onClose }: Props) {
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)]">
-        <h3 className="text-sm font-semibold text-[var(--color-text)]">Choose a template</h3>
+      <div className="flex items-center justify-between px-3 py-2 border-b border-(--color-border)">
+        <h3 className="text-sm font-semibold text-(--color-text)">Choose a template</h3>
         <button
           onClick={onClose}
-          className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)] px-2 py-1 rounded hover:bg-[var(--color-bg-secondary)] transition-colors"
+          className="text-xs text-(--color-text-secondary) hover:text-(--color-text) px-2 py-1 rounded-sm hover:bg-(--color-bg-secondary) transition-colors"
         >
           Back
         </button>
@@ -51,14 +51,14 @@ export default function QuickAddTemplates({ onSelect, onClose }: Props) {
             <button
               key={template.name}
               onClick={() => onSelect(template)}
-              className="flex items-center gap-2.5 p-2.5 rounded-lg bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] border border-[var(--color-border)] hover:border-violet-400 transition-all text-left"
+              className="flex items-center gap-2.5 p-2.5 rounded-lg bg-(--color-bg-secondary) hover:bg-(--color-bg-hover) border border-(--color-border) hover:border-violet-400 transition-all text-left"
             >
               <TemplateFavicon url={template.url} name={template.name} />
               <div className="flex flex-col min-w-0">
-                <span className="text-sm font-medium text-[var(--color-text)] truncate leading-tight">
+                <span className="text-sm font-medium text-(--color-text) truncate leading-tight">
                   {template.name}
                 </span>
-                <span className="text-[10px] text-[var(--color-text-secondary)] leading-tight">
+                <span className="text-[10px] text-(--color-text-secondary) leading-tight">
                   {CATEGORY_LABELS[template.category]} · {template.currency} {template.defaultPrice}
                 </span>
               </div>

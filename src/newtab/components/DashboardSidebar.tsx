@@ -126,7 +126,7 @@ function BoardItem({ board, isActive, isProtected, onSelect, onRename, onDelete 
             e.stopPropagation();
           }}
           onClick={(e) => e.stopPropagation()}
-          className="flex-1 min-w-0 bg-white/10 rounded px-1 py-0 text-sm outline-none"
+          className="flex-1 min-w-0 bg-white/10 rounded-sm px-1 py-0 text-sm outline-hidden"
           style={{ color: 'var(--newtab-text)' }}
         />
       ) : (
@@ -143,7 +143,7 @@ function BoardItem({ board, isActive, isProtected, onSelect, onRename, onDelete 
         <div onClick={(e) => e.stopPropagation()}>
           <ContextMenu items={menuItems}>
             <button
-              className="p-0.5 rounded hover:bg-white/10 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+              className="p-0.5 rounded-sm hover:bg-white/10 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
               aria-label="Board options"
             >
               <MoreHorizontal size={13} style={{ color: 'var(--newtab-text-secondary)' }} />
@@ -370,7 +370,7 @@ export default function DashboardSidebar({
               onToggle();
             }
           }}
-          className="p-1 rounded hover:bg-white/10 transition-colors mb-2"
+          className="p-1 rounded-sm hover:bg-white/10 transition-colors mb-2"
           aria-label="Expand sidebar"
         >
           <ChevronRight size={16} style={{ color: 'var(--newtab-text-secondary)' }} />
@@ -477,7 +477,7 @@ export default function DashboardSidebar({
         </span>
         <button
           onClick={() => onSidebarControlChange ? onSidebarControlChange('collapsed') : onToggle()}
-          className="p-1 rounded hover:bg-white/10 transition-colors"
+          className="p-1 rounded-sm hover:bg-white/10 transition-colors"
           aria-label="Collapse sidebar"
         >
           <ChevronLeft size={14} style={{ color: 'var(--newtab-text-secondary)' }} />

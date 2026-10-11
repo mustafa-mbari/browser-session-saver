@@ -40,10 +40,10 @@ export default function MenuGrid({ onCardClick }: MenuGridProps) {
                   onCardClick(card.key as HomeTab);
                 }
               }}
-              className="flex flex-col items-center justify-center gap-2 p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-hover)] transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+              className="flex flex-col items-center justify-center gap-2 p-5 rounded-xl border border-(--color-border) bg-(--color-bg-secondary) hover:bg-(--color-bg-hover) transition-colors duration-150 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
             >
               <Icon size={24} className="text-primary" />
-              <span className="text-xs font-semibold text-[var(--color-text)]">{card.label}</span>
+              <span className="text-xs font-semibold text-(--color-text)">{card.label}</span>
             </button>
           );
         })}

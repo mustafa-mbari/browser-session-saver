@@ -106,7 +106,7 @@ export default function HomeTabGroupsPanel({ query, onToast }: HomeTabGroupsPane
       <div className="flex justify-end px-3 pt-1 pb-0.5">
         <button
           onClick={() => void refresh()}
-          className="p-1 rounded hover:bg-[var(--color-bg-secondary)] transition-colors"
+          className="p-1 rounded-sm hover:bg-(--color-bg-secondary) transition-colors"
           style={{ color: 'var(--color-text-secondary)' }}
           title="Refresh groups"
         >
@@ -116,7 +116,7 @@ export default function HomeTabGroupsPanel({ query, onToast }: HomeTabGroupsPane
 
       {/* ── Live section ── */}
       <div>
-        <div className="flex items-center gap-1.5 px-3 py-1.5 border-y border-[var(--color-border)] bg-[var(--color-bg-secondary)]/60">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 border-y border-(--color-border) bg-(--color-bg-secondary)/60">
           <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
           <span className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>Live</span>
           <span className="text-[10px] px-1 py-0.5 rounded-full bg-green-500/20 text-green-400 font-medium">{filteredLive.length}</span>
@@ -133,11 +133,11 @@ export default function HomeTabGroupsPanel({ query, onToast }: HomeTabGroupsPane
       </div>
 
       {/* Section divider */}
-      <div className="border-t-2 border-[var(--color-border)]" />
+      <div className="border-t-2 border-(--color-border)" />
 
       {/* ── Not Open section ── */}
       <div>
-        <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]/60">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-(--color-border) bg-(--color-bg-secondary)/60">
           <Layers size={11} style={{ color: 'var(--color-text-secondary)' }} className="shrink-0" />
           <span className="text-[11px] font-semibold" style={{ color: 'var(--color-text)' }}>Not Open</span>
           <span className="text-[10px] px-1 py-0.5 rounded-full bg-white/10 font-medium" style={{ color: 'var(--color-text-secondary)' }}>

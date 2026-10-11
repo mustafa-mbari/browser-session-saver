@@ -237,7 +237,7 @@ function LiveGroupCard({
                   if (e.key === 'Escape') setEditing(false);
                 }}
                 placeholder="Group name"
-                className="flex-1 text-sm rounded-md px-2 py-1 outline-none bg-white/10 border border-white/20 focus:border-white/50"
+                className="flex-1 text-sm rounded-md px-2 py-1 outline-hidden bg-white/10 border border-white/20 focus:border-white/50"
                 style={{ color: 'var(--newtab-text)' }}
               />
               <button
@@ -347,9 +347,9 @@ function LiveGroupCard({
               onClick={() => tab.id && void chrome.tabs.update(tab.id, { active: true })}
             >
               {tab.favIconUrl ? (
-                <img src={tab.favIconUrl} alt="" className="w-4 h-4 rounded-sm shrink-0" />
+                <img src={tab.favIconUrl} alt="" className="w-4 h-4 rounded-xs shrink-0" />
               ) : (
-                <div className="w-4 h-4 rounded-sm bg-white/20 shrink-0" />
+                <div className="w-4 h-4 rounded-xs bg-white/20 shrink-0" />
               )}
               <span className="text-xs truncate flex-1" style={{ color: 'var(--newtab-text)' }}>
                 {tab.title || tab.url || 'New Tab'}
@@ -491,9 +491,9 @@ function SavedGroupCard({
               className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-white/10 transition-colors"
             >
               {tab.favIconUrl ? (
-                <img src={tab.favIconUrl} alt="" className="w-4 h-4 rounded-sm shrink-0" />
+                <img src={tab.favIconUrl} alt="" className="w-4 h-4 rounded-xs shrink-0" />
               ) : (
-                <div className="w-4 h-4 rounded-sm bg-white/20 shrink-0" />
+                <div className="w-4 h-4 rounded-xs bg-white/20 shrink-0" />
               )}
               <span className="text-xs truncate flex-1" style={{ color: 'var(--newtab-text)' }}>
                 {tab.title || tab.url || 'Unknown'}
@@ -654,7 +654,7 @@ export default function TabGroupsPanel() {
             placeholder="Search groups…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="text-sm rounded-xl px-3 py-1.5 outline-none bg-white/10 border border-white/15 focus:border-white/40 w-44"
+            className="text-sm rounded-xl px-3 py-1.5 outline-hidden bg-white/10 border border-white/15 focus:border-white/40 w-44"
             style={{ color: 'var(--newtab-text)' }}
           />
           <button

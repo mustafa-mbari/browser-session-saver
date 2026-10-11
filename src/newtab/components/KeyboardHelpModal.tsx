@@ -27,7 +27,7 @@ export default function KeyboardHelpModal({ isOpen, onClose }: Props) {
       <div className="grid grid-cols-2 gap-x-6 gap-y-2">
         {SHORTCUTS.map(({ keys, description }) => (
           <div key={keys} className="contents">
-            <kbd className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded font-mono whitespace-nowrap justify-self-start self-center">
+            <kbd className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-sm font-mono whitespace-nowrap justify-self-start self-center">
               {keys}
             </kbd>
             <span className="text-sm self-center">{description}</span>

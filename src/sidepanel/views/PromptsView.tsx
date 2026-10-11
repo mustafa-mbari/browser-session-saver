@@ -253,10 +253,10 @@ export default function PromptsView() {
   return (
     <div className="flex flex-col h-full overflow-hidden relative">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-2 py-2 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)] shrink-0">
-        <span className="text-base font-semibold text-[var(--color-text)] truncate">
+      <div className="flex items-center justify-between px-2 py-2 border-b border-(--color-border) bg-(--color-bg-secondary) shrink-0">
+        <span className="text-base font-semibold text-(--color-text) truncate">
           {sectionTitle}
-          <span className="ml-1.5 text-xs font-normal text-[var(--color-text-secondary)]">
+          <span className="ml-1.5 text-xs font-normal text-(--color-text-secondary)">
             ({visiblePrompts.length})
           </span>
         </span>
@@ -265,7 +265,7 @@ export default function PromptsView() {
             <button
               onClick={() => void handleSeedDemoData()}
               disabled={seeding}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] text-xs font-medium hover:bg-[var(--color-bg-hover)] transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-(--color-border) text-(--color-text-secondary) text-xs font-medium hover:bg-(--color-bg-hover) transition-colors disabled:opacity-50"
               title="Load sample prompts"
             >
               <Sparkles size={13} />
@@ -288,7 +288,7 @@ export default function PromptsView() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Section nav (collapsible) */}
         {sidebarOpen && (
-          <div className="w-56 shrink-0 border-r border-[var(--color-border)] overflow-hidden flex flex-col">
+          <div className="w-56 shrink-0 border-r border-(--color-border) overflow-hidden flex flex-col">
             <PromptSectionNav
               prompts={prompts}
               folders={folders}
@@ -308,16 +308,16 @@ export default function PromptsView() {
           <div className="flex items-center px-1.5 pt-1 shrink-0">
             <button
               onClick={() => { setUserToggled(true); setHintAnimate(false); setSidebarOpen((v) => !v); }}
-              className="p-1 rounded hover:bg-[var(--color-bg-hover)] transition-colors"
+              className="p-1 rounded-sm hover:bg-(--color-bg-hover) transition-colors"
               aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
               title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
             >
               {sidebarOpen
-                ? <PanelLeftClose size={14} className="text-[var(--color-text-secondary)]" />
-                : <PanelLeftOpen size={14} className={hintAnimate ? 'sidebar-hint-wave' : 'text-[var(--color-text-secondary)]'} />}
+                ? <PanelLeftClose size={14} className="text-(--color-text-secondary)" />
+                : <PanelLeftOpen size={14} className={hintAnimate ? 'sidebar-hint-wave' : 'text-(--color-text-secondary)'} />}
             </button>
             {!sidebarOpen && (
-              <span className={`text-[10px] font-medium ml-1 truncate ${hintAnimate ? 'sidebar-hint-wave' : 'text-[var(--color-text-secondary)]'}`}>
+              <span className={`text-[10px] font-medium ml-1 truncate ${hintAnimate ? 'sidebar-hint-wave' : 'text-(--color-text-secondary)'}`}>
                 {sectionTitle}
               </span>
             )}
@@ -386,7 +386,7 @@ export default function PromptsView() {
       {/* Prompt form modal overlay */}
       {formOpen && (
         <div
-          className="absolute inset-0 z-20 flex items-center justify-center p-3 bg-black/50 backdrop-blur-sm overflow-y-auto"
+          className="absolute inset-0 z-20 flex items-center justify-center p-3 bg-black/50 backdrop-blur-xs overflow-y-auto"
           onClick={(e) => { if (e.target === e.currentTarget) closeForm(); }}
         >
           <div className="w-full my-auto">
@@ -432,8 +432,8 @@ function StartPageContent({
   if (prompts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center px-4">
-        <p className="text-sm text-[var(--color-text-secondary)]">No recently used prompts</p>
-        <p className="text-xs text-[var(--color-text-secondary)] opacity-60 mt-1">
+        <p className="text-sm text-(--color-text-secondary)">No recently used prompts</p>
+        <p className="text-xs text-(--color-text-secondary) opacity-60 mt-1">
           Use a prompt to see it here
         </p>
       </div>
@@ -441,7 +441,7 @@ function StartPageContent({
   }
   return (
     <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)] opacity-50 mb-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-(--color-text-secondary) opacity-50 mb-2">
         Recently used
       </p>
       {prompts.map((p) => (

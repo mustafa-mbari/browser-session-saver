@@ -108,7 +108,7 @@ export default function NoteCardBody({
         onChange={(e) => setDraft(e.target.value)}
         onBlur={handleBlur}
         placeholder={isEmpty ? '' : 'Write your note here…'}
-        className="absolute inset-0 w-full h-full bg-transparent outline-none resize-none text-sm px-4 py-3 placeholder-white/30"
+        className="absolute inset-0 w-full h-full bg-transparent outline-hidden resize-none text-sm px-4 py-3 placeholder-white/30"
         style={{
           color: 'var(--newtab-text)',
           caretColor: 'var(--newtab-text)',
@@ -121,7 +121,7 @@ export default function NoteCardBody({
       {isEmpty && (
         <button
           onClick={handleRefresh}
-          className={`absolute top-2 z-10 p-1 rounded hover:bg-white/10 transition-colors ${isRtl ? 'left-2' : 'right-2'}`}
+          className={`absolute top-2 z-10 p-1 rounded-sm hover:bg-white/10 transition-colors ${isRtl ? 'left-2' : 'right-2'}`}
           aria-label="Show another quote"
           title="New quote"
           style={{ opacity: 0.5 }}

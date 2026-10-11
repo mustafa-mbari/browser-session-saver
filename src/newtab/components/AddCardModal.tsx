@@ -105,20 +105,20 @@ function FolderPickerRow({
   return (
     <div>
       <div
-        className="flex items-center gap-1 border-b border-[var(--color-border)]"
+        className="flex items-center gap-1 border-b border-(--color-border)"
         style={{ paddingLeft: `${depth * 16 + 4}px` }}
       >
         {/* Expand / collapse toggle — invisible placeholder when no children */}
         <button
           onClick={() => setIsExpanded((v) => !v)}
-          className="p-1 shrink-0 rounded hover:bg-[var(--color-bg-secondary)] transition-colors"
+          className="p-1 shrink-0 rounded-sm hover:bg-(--color-bg-secondary) transition-colors"
           style={{ opacity: hasChildren ? 1 : 0, pointerEvents: hasChildren ? 'auto' : 'none' }}
           tabIndex={hasChildren ? 0 : -1}
           aria-label={isExpanded ? 'Collapse' : 'Expand'}
         >
           {isExpanded
-            ? <ChevronDown size={12} className="text-[var(--color-text-secondary)]" />
-            : <ChevronRight size={12} className="text-[var(--color-text-secondary)]" />
+            ? <ChevronDown size={12} className="text-(--color-text-secondary)" />
+            : <ChevronRight size={12} className="text-(--color-text-secondary)" />
           }
         </button>
 
@@ -131,7 +131,7 @@ function FolderPickerRow({
               ? 'opacity-40 cursor-not-allowed'
               : isSelected
                 ? 'bg-blue-50 dark:bg-blue-900/20'
-                : 'hover:bg-[var(--color-bg-secondary)]'
+                : 'hover:bg-(--color-bg-secondary)'
           }`}
         >
           <span
@@ -140,9 +140,9 @@ function FolderPickerRow({
           >
             {folder.icon}
           </span>
-          <span className="text-sm text-[var(--color-text)] truncate flex-1">{folder.name}</span>
+          <span className="text-sm text-(--color-text) truncate flex-1">{folder.name}</span>
           {isLinked && (
-            <span className="text-xs text-[var(--color-text-secondary)] shrink-0">On board</span>
+            <span className="text-xs text-(--color-text-secondary) shrink-0">On board</span>
           )}
           {isSelected && !isLinked && (
             <span className="text-blue-500 text-xs shrink-0">✓</span>
@@ -260,13 +260,13 @@ export default function AddCardModal({
               className={`flex flex-col items-center gap-2 px-4 py-4 rounded-xl text-center transition-all border ${
                 selected === opt.type
                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : 'border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)]'
+                  : 'border-(--color-border) hover:bg-(--color-bg-secondary)'
               }`}
             >
               <span className="text-3xl leading-none">{opt.icon}</span>
               <div>
-                <p className="text-sm font-medium text-[var(--color-text)]">{opt.label}</p>
-                <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 leading-snug">{opt.description}</p>
+                <p className="text-sm font-medium text-(--color-text)">{opt.label}</p>
+                <p className="text-xs text-(--color-text-secondary) mt-0.5 leading-snug">{opt.description}</p>
               </div>
             </button>
           ))}
@@ -275,7 +275,7 @@ export default function AddCardModal({
 
       {step === 'bookmark-options' && (
         <div className="py-1 flex flex-col gap-3">
-          <p className="text-sm text-[var(--color-text-secondary)]">
+          <p className="text-sm text-(--color-text-secondary)">
             Choose how to add this widget:
           </p>
 
@@ -285,13 +285,13 @@ export default function AddCardModal({
             className={`flex items-start gap-3 px-4 py-3 rounded-xl text-left transition-all border ${
               subOption === 'create-new'
                 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                : 'border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)]'
+                : 'border-(--color-border) hover:bg-(--color-bg-secondary)'
             }`}
           >
             <span className="text-2xl leading-none mt-0.5">📁</span>
             <div>
-              <p className="text-sm font-medium text-[var(--color-text)]">Create New Folder</p>
-              <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+              <p className="text-sm font-medium text-(--color-text)">Create New Folder</p>
+              <p className="text-xs text-(--color-text-secondary) mt-0.5">
                 Start with a blank bookmark collection
               </p>
             </div>
@@ -308,16 +308,16 @@ export default function AddCardModal({
             disabled={availableFolders.length === 0}
             className={`flex items-start gap-3 px-4 py-3 rounded-xl text-left transition-all border ${
               availableFolders.length === 0
-                ? 'opacity-40 cursor-not-allowed border-[var(--color-border)]'
+                ? 'opacity-40 cursor-not-allowed border-(--color-border)'
                 : subOption === 'link-existing'
                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : 'border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)]'
+                  : 'border-(--color-border) hover:bg-(--color-bg-secondary)'
             }`}
           >
             <span className="text-2xl leading-none mt-0.5">📂</span>
             <div>
-              <p className="text-sm font-medium text-[var(--color-text)]">Link Existing Folder</p>
-              <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+              <p className="text-sm font-medium text-(--color-text)">Link Existing Folder</p>
+              <p className="text-xs text-(--color-text-secondary) mt-0.5">
                 {availableFolders.length === 0
                   ? 'No folders yet — create one in Folders → My Folders'
                   : 'Display an existing folder from the Folders page'}
@@ -327,9 +327,9 @@ export default function AddCardModal({
 
           {/* Collapsible folder tree — shown when Link Existing is selected */}
           {subOption === 'link-existing' && availableFolders.length > 0 && (
-            <div className="max-h-72 overflow-y-auto rounded-xl border border-[var(--color-border)]">
+            <div className="max-h-72 overflow-y-auto rounded-xl border border-(--color-border)">
               {rootFolders.length === 0 ? (
-                <div className="px-4 py-3 text-xs text-center text-[var(--color-text-secondary)]">
+                <div className="px-4 py-3 text-xs text-center text-(--color-text-secondary)">
                   All your folders are already on this board
                 </div>
               ) : (

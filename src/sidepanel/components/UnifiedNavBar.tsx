@@ -20,17 +20,17 @@ export default function UnifiedNavBar() {
   };
 
   return (
-    <nav aria-label="Main navigation" className="px-3 pt-2 pb-1 bg-[var(--color-bg)]">
-      <div role="tablist" className="flex items-center gap-1.5 p-1 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)]">
+    <nav aria-label="Main navigation" className="px-3 pt-2 pb-1 bg-(--color-bg)">
+      <div role="tablist" className="flex items-center gap-1.5 p-1 rounded-xl bg-(--color-bg-secondary) border border-(--color-border)">
         {/* Menu tab */}
         <button
           role="tab"
           aria-selected={activeNavBarTab === 'menu'}
           onClick={() => setActiveNavBarTab('menu')}
-          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary ${
             activeNavBarTab === 'menu'
-              ? 'bg-primary text-white shadow-sm'
-              : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)]'
+              ? 'bg-primary text-white shadow-xs'
+              : 'text-(--color-text-secondary) hover:text-(--color-text) hover:bg-(--color-bg-hover)'
           }`}
         >
           <LayoutGrid size={14} />
@@ -38,21 +38,21 @@ export default function UnifiedNavBar() {
         </button>
 
         {/* Separator */}
-        <div className="w-px h-4 bg-[var(--color-border)] shrink-0" />
+        <div className="w-px h-4 bg-(--color-border) shrink-0" />
 
         {/* New Tab action button */}
         <button
           role="tab"
           aria-selected={false}
           onClick={handleNewTab}
-          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-200 text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-200 text-(--color-text-secondary) hover:text-(--color-text) hover:bg-(--color-bg-hover) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
         >
           <Plus size={14} />
           <span>New Tab</span>
         </button>
 
         {/* Separator */}
-        <div className="w-px h-4 bg-[var(--color-border)] shrink-0" />
+        <div className="w-px h-4 bg-(--color-border) shrink-0" />
 
         {/* Dynamic tab */}
         <button
@@ -60,12 +60,12 @@ export default function UnifiedNavBar() {
           aria-selected={activeNavBarTab === 'dynamic'}
           onClick={() => hasDynamic && setActiveNavBarTab('dynamic')}
           disabled={!hasDynamic}
-          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary ${
             !hasDynamic
-              ? 'text-[var(--color-text-secondary)] opacity-30 cursor-default'
+              ? 'text-(--color-text-secondary) opacity-30 cursor-default'
               : activeNavBarTab === 'dynamic'
-                ? 'bg-primary text-white shadow-sm'
-                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)]'
+                ? 'bg-primary text-white shadow-xs'
+                : 'text-(--color-text-secondary) hover:text-(--color-text) hover:bg-(--color-bg-hover)'
           }`}
         >
           <DynamicIcon size={14} />

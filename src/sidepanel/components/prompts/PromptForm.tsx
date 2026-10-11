@@ -44,48 +44,48 @@ function ModelSelectDropdown({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text)] hover:border-amber-400/50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg border border-(--color-border) bg-(--color-bg-secondary) text-(--color-text) hover:border-amber-400/50 focus:outline-hidden focus:ring-2 focus:ring-amber-400 transition-colors"
       >
         <span className="truncate text-sm text-left">
           {selected.length > 0
-            ? <span className="text-[var(--color-text)]">{label}</span>
-            : <span className="text-[var(--color-text-secondary)]">No models selected</span>}
+            ? <span className="text-(--color-text)">{label}</span>
+            : <span className="text-(--color-text-secondary)">No models selected</span>}
         </span>
         <ChevronDown size={13} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute z-30 top-full mt-1 left-0 right-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] shadow-xl overflow-hidden">
+        <div className="absolute z-30 top-full mt-1 left-0 right-0 rounded-lg border border-(--color-border) bg-(--color-bg-secondary) shadow-xl overflow-hidden">
           {models.map((model) => (
             <button
               key={model}
               type="button"
               onClick={() => onToggle(model)}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-[var(--color-bg-hover)] transition-colors text-left"
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-(--color-bg-hover) transition-colors text-left"
             >
               <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
                 selected.includes(model)
                   ? 'bg-amber-500 border-amber-500'
-                  : 'border-[var(--color-border)]'
+                  : 'border-(--color-border)'
               }`}>
                 {selected.includes(model) && <Check size={9} className="text-white" strokeWidth={3} />}
               </div>
-              <span className="text-[var(--color-text)]">{model}</span>
+              <span className="text-(--color-text)">{model}</span>
             </button>
           ))}
-          <div className="border-t border-[var(--color-border)] mx-0" />
+          <div className="border-t border-(--color-border) mx-0" />
           <div className="flex gap-1.5 p-2">
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAdd(); } }}
               placeholder="Add custom model…"
-              className="flex-1 px-2 py-1 text-xs rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-1 focus:ring-amber-400"
+              className="flex-1 px-2 py-1 text-xs rounded-sm border border-(--color-border) bg-(--color-bg-secondary) text-(--color-text) placeholder:text-(--color-text-secondary) focus:outline-hidden focus:ring-1 focus:ring-amber-400"
             />
             <button
               onClick={onAdd}
               disabled={!newName.trim()}
-              className="px-2.5 py-1 text-xs rounded bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 transition-colors"
+              className="px-2.5 py-1 text-xs rounded-sm bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 transition-colors"
             >
               +
             </button>
@@ -140,42 +140,42 @@ function CategoryPickerDropdown({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text)] hover:border-amber-400/50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg border border-(--color-border) bg-(--color-bg-secondary) text-(--color-text) hover:border-amber-400/50 focus:outline-hidden focus:ring-2 focus:ring-amber-400 transition-colors"
       >
         <span className="truncate text-sm">
           {selected
-            ? <span className="text-[var(--color-text)]">{selected.icon} {selected.name}</span>
-            : <span className="text-[var(--color-text-secondary)]">No category</span>}
+            ? <span className="text-(--color-text)">{selected.icon} {selected.name}</span>
+            : <span className="text-(--color-text-secondary)">No category</span>}
         </span>
         <ChevronDown size={13} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute z-30 top-full mt-1 left-0 right-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] shadow-xl overflow-hidden">
+        <div className="absolute z-30 top-full mt-1 left-0 right-0 rounded-lg border border-(--color-border) bg-(--color-bg-secondary) shadow-xl overflow-hidden">
           <div className="max-h-52 overflow-y-auto">
             <button
               type="button"
               onClick={() => { onChange(''); setOpen(false); }}
-              className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-[var(--color-bg-hover)] transition-colors text-left"
+              className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-(--color-bg-hover) transition-colors text-left"
             >
-              <div className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 transition-colors ${value === '' ? 'bg-amber-500 border-amber-500' : 'border-[var(--color-border)]'}`} />
-              <span className="text-[var(--color-text-secondary)] italic text-xs">No category</span>
+              <div className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 transition-colors ${value === '' ? 'bg-amber-500 border-amber-500' : 'border-(--color-border)'}`} />
+              <span className="text-(--color-text-secondary) italic text-xs">No category</span>
             </button>
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
                 onClick={() => { onChange(cat.id); setOpen(false); }}
-                className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-[var(--color-bg-hover)] transition-colors text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-(--color-bg-hover) transition-colors text-left"
               >
-                <div className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 transition-colors ${value === cat.id ? 'bg-amber-500 border-amber-500' : 'border-[var(--color-border)]'}`} />
-                <span className="text-[var(--color-text)] text-xs">{cat.icon} {cat.name}</span>
+                <div className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 transition-colors ${value === cat.id ? 'bg-amber-500 border-amber-500' : 'border-(--color-border)'}`} />
+                <span className="text-(--color-text) text-xs">{cat.icon} {cat.name}</span>
               </button>
             ))}
           </div>
           {onCreateCategory && (
             <>
-              <div className="border-t border-[var(--color-border)]" />
+              <div className="border-t border-(--color-border)" />
               {creating ? (
                 <div className="flex items-center gap-1 px-2 py-1.5">
                   <input
@@ -187,12 +187,12 @@ function CategoryPickerDropdown({
                       if (e.key === 'Escape') { setCreating(false); setNewName(''); }
                     }}
                     placeholder="Category name…"
-                    className="flex-1 px-2 py-1 text-xs rounded border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-1 focus:ring-amber-400 placeholder:text-[var(--color-text-secondary)]"
+                    className="flex-1 px-2 py-1 text-xs rounded-sm border border-(--color-border) bg-(--color-bg) text-(--color-text) focus:outline-hidden focus:ring-1 focus:ring-amber-400 placeholder:text-(--color-text-secondary)"
                   />
                   <button onClick={() => void handleCreate()} disabled={!newName.trim()} className="p-1 text-amber-500 disabled:opacity-30">
                     <Check size={10} />
                   </button>
-                  <button onClick={() => { setCreating(false); setNewName(''); }} className="p-1 text-[var(--color-text-secondary)] opacity-50">
+                  <button onClick={() => { setCreating(false); setNewName(''); }} className="p-1 text-(--color-text-secondary) opacity-50">
                     <X size={10} />
                   </button>
                 </div>
@@ -200,7 +200,7 @@ function CategoryPickerDropdown({
                 <button
                   type="button"
                   onClick={() => setCreating(true)}
-                  className="w-full flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] hover:text-amber-500 transition-colors"
+                  className="w-full flex items-center gap-1.5 px-3 py-1.5 text-xs text-(--color-text-secondary) hover:bg-(--color-bg-hover) hover:text-amber-500 transition-colors"
                 >
                   <Plus size={11} /> New category
                 </button>
@@ -269,32 +269,32 @@ function FolderPickerDropdown({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text)] hover:border-amber-400/50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg border border-(--color-border) bg-(--color-bg-secondary) text-(--color-text) hover:border-amber-400/50 focus:outline-hidden focus:ring-2 focus:ring-amber-400 transition-colors"
       >
         <div className="flex items-center gap-2 min-w-0">
           <Folder size={12} className="shrink-0 opacity-50" style={selectedFolder?.color ? { color: selectedFolder.color } : {}} />
           <span className="truncate text-sm">
             {selectedFolder
               ? selectedFolder.name
-              : <span className="text-[var(--color-text-secondary)]">No folder</span>}
+              : <span className="text-(--color-text-secondary)">No folder</span>}
           </span>
         </div>
         <ChevronDown size={13} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute z-30 top-full mt-1 left-0 right-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] shadow-xl overflow-hidden">
+        <div className="absolute z-30 top-full mt-1 left-0 right-0 rounded-lg border border-(--color-border) bg-(--color-bg-secondary) shadow-xl overflow-hidden">
           <div className="max-h-52 overflow-y-auto">
             {/* No folder */}
             <button
               type="button"
               onClick={() => { onChange(''); setOpen(false); }}
-              className="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-[var(--color-bg-hover)] transition-colors text-left"
+              className="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-(--color-bg-hover) transition-colors text-left"
             >
               <div className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 transition-colors ${
-                value === '' ? 'bg-amber-500 border-amber-500' : 'border-[var(--color-border)]'
+                value === '' ? 'bg-amber-500 border-amber-500' : 'border-(--color-border)'
               }`} />
-              <span className="text-[var(--color-text-secondary)] italic text-xs">No folder</span>
+              <span className="text-(--color-text-secondary) italic text-xs">No folder</span>
             </button>
 
             {flatFolders.map(({ folder, depth }) => (
@@ -302,21 +302,21 @@ function FolderPickerDropdown({
                 key={folder.id}
                 type="button"
                 onClick={() => { onChange(folder.id); setOpen(false); }}
-                className="w-full flex items-center gap-2.5 py-1.5 text-sm hover:bg-[var(--color-bg-hover)] transition-colors text-left pr-3"
+                className="w-full flex items-center gap-2.5 py-1.5 text-sm hover:bg-(--color-bg-hover) transition-colors text-left pr-3"
                 style={{ paddingLeft: `${depth * 14 + 12}px` }}
               >
                 <div className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 transition-colors ${
-                  value === folder.id ? 'bg-amber-500 border-amber-500' : 'border-[var(--color-border)]'
+                  value === folder.id ? 'bg-amber-500 border-amber-500' : 'border-(--color-border)'
                 }`} />
                 <Folder size={12} className="shrink-0" style={{ color: folder.color ?? 'currentColor' }} />
-                <span className="text-[var(--color-text)] truncate text-xs">{folder.name}</span>
+                <span className="text-(--color-text) truncate text-xs">{folder.name}</span>
               </button>
             ))}
           </div>
 
           {onCreateFolder && (
             <>
-              <div className="border-t border-[var(--color-border)]" />
+              <div className="border-t border-(--color-border)" />
               {creatingFolder ? (
                 <div className="flex items-center gap-1 px-2 py-1.5">
                   <input
@@ -328,12 +328,12 @@ function FolderPickerDropdown({
                       if (e.key === 'Escape') { setCreatingFolder(false); setNewFolderName(''); }
                     }}
                     placeholder="Folder name…"
-                    className="flex-1 px-2 py-1 text-xs rounded border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] focus:outline-none focus:ring-1 focus:ring-amber-400 placeholder:text-[var(--color-text-secondary)]"
+                    className="flex-1 px-2 py-1 text-xs rounded-sm border border-(--color-border) bg-(--color-bg) text-(--color-text) focus:outline-hidden focus:ring-1 focus:ring-amber-400 placeholder:text-(--color-text-secondary)"
                   />
                   <button onClick={() => void handleCreate()} disabled={!newFolderName.trim()} className="p-1 text-amber-500 disabled:opacity-30">
                     <Check size={10} />
                   </button>
-                  <button onClick={() => { setCreatingFolder(false); setNewFolderName(''); }} className="p-1 text-[var(--color-text-secondary)] opacity-50">
+                  <button onClick={() => { setCreatingFolder(false); setNewFolderName(''); }} className="p-1 text-(--color-text-secondary) opacity-50">
                     <X size={10} />
                   </button>
                 </div>
@@ -341,7 +341,7 @@ function FolderPickerDropdown({
                 <button
                   type="button"
                   onClick={() => setCreatingFolder(true)}
-                  className="w-full flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] hover:text-amber-500 transition-colors"
+                  className="w-full flex items-center gap-1.5 px-3 py-1.5 text-xs text-(--color-text-secondary) hover:bg-(--color-bg-hover) hover:text-amber-500 transition-colors"
                 >
                   <Plus size={11} /> New folder
                 </button>
@@ -476,16 +476,16 @@ export default function PromptForm({
   useEffect(() => { if (content.trim()) setErrors((e) => ({ ...e, content: undefined })); }, [content]);
 
   const inputCls = (err?: string) =>
-    `w-full px-3 py-2.5 text-base rounded-lg border bg-[var(--color-bg-secondary)] text-[var(--color-text)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors ${
-      err ? 'border-red-400' : 'border-[var(--color-border)]'
+    `w-full px-3 py-2.5 text-base rounded-lg border bg-(--color-bg-secondary) text-(--color-text) placeholder:text-(--color-text-secondary) focus:outline-hidden focus:ring-2 focus:ring-amber-400 transition-colors ${
+      err ? 'border-red-400' : 'border-(--color-border)'
     }`;
 
-  const labelCls = 'block text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)] mb-2 opacity-70';
+  const labelCls = 'block text-xs font-semibold uppercase tracking-wide text-(--color-text-secondary) mb-2 opacity-70';
 
   return (
-    <div className="flex flex-col bg-[var(--color-bg)] border border-[var(--color-border)] rounded-xl shadow-2xl overflow-hidden max-h-[90vh]">
+    <div className="flex flex-col bg-(--color-bg) border border-(--color-border) rounded-xl shadow-2xl overflow-hidden max-h-[90vh]">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-[var(--color-border)] shrink-0">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-(--color-border) shrink-0">
         <div className="flex items-center gap-2">
           <Sparkles size={15} className="text-amber-500" />
           <span className="font-bold text-base">
@@ -499,7 +499,7 @@ export default function PromptForm({
         </div>
         <button
           onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
+          className="p-1.5 rounded-lg hover:bg-(--color-bg-hover) transition-colors"
           aria-label="Close"
         >
           <X size={14} />
@@ -510,7 +510,7 @@ export default function PromptForm({
       <div className="flex overflow-hidden flex-1 min-h-0">
 
         {/* LEFT SIDEBAR */}
-        <div className="w-[38%] shrink-0 border-r border-[var(--color-border)] overflow-y-auto px-4 py-4 space-y-5">
+        <div className="w-[38%] shrink-0 border-r border-(--color-border) overflow-y-auto px-4 py-4 space-y-5">
 
           {/* Folder */}
           <div>
@@ -567,7 +567,7 @@ export default function PromptForm({
                   className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors border ${
                     selectedTagIds.includes(tag.id)
                       ? 'border-transparent text-white'
-                      : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-amber-400'
+                      : 'border-(--color-border) text-(--color-text-secondary) hover:border-amber-400'
                   }`}
                   style={selectedTagIds.includes(tag.id) ? { backgroundColor: tag.color } : undefined}
                 >
@@ -582,12 +582,12 @@ export default function PromptForm({
                   onChange={(e) => setNewTagName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleAddTag(); } }}
                   placeholder="New tag…"
-                  className="flex-1 px-2 py-1 text-xs rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text)] focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  className="flex-1 px-2 py-1 text-xs rounded-sm border border-(--color-border) bg-(--color-bg-secondary) text-(--color-text) focus:outline-hidden focus:ring-1 focus:ring-amber-400"
                 />
                 <button
                   onClick={() => void handleAddTag()}
                   disabled={!newTagName.trim()}
-                  className="px-2 py-1 text-xs rounded bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 transition-colors"
+                  className="px-2 py-1 text-xs rounded-sm bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 transition-colors"
                 >
                   Add
                 </button>
@@ -617,13 +617,13 @@ export default function PromptForm({
             <div className="flex items-center justify-between mb-1.5">
               <label className={labelCls + ' mb-0'}>Prompt Text</label>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-[var(--color-text-secondary)] opacity-50 uppercase tracking-wide">
+                <span className="text-xs text-(--color-text-secondary) opacity-50 uppercase tracking-wide">
                   Markdown supported
                 </span>
                 <button
                   type="button"
                   onClick={handleInsertVariable}
-                  className="px-2 py-0.5 text-xs font-mono rounded border border-amber-400/50 text-amber-500 hover:bg-amber-500/10 transition-colors"
+                  className="px-2 py-0.5 text-xs font-mono rounded-sm border border-amber-400/50 text-amber-500 hover:bg-amber-500/10 transition-colors"
                   title="Insert variable placeholder at cursor"
                 >
                   {'{{}}'}
@@ -636,14 +636,14 @@ export default function PromptForm({
               onChange={(e) => setContent(e.target.value)}
               placeholder={'Enter the detailed instructions, system messages, and role definitions here...\n\nTip: use {{variable}} for dynamic values.'}
               rows={14}
-              className={`w-full px-3 py-2.5 text-base rounded-lg border bg-[var(--color-bg-secondary)] text-[var(--color-text)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none transition-colors font-mono ${
-                errors.content ? 'border-red-400' : 'border-[var(--color-border)]'
+              className={`w-full px-3 py-2.5 text-base rounded-lg border bg-(--color-bg-secondary) text-(--color-text) placeholder:text-(--color-text-secondary) focus:outline-hidden focus:ring-2 focus:ring-amber-400 resize-none transition-colors font-mono ${
+                errors.content ? 'border-red-400' : 'border-(--color-border)'
               }`}
             />
             {errors.content && <p className="text-sm text-red-500 mt-1">{errors.content}</p>}
             {detectedVars.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1 items-center">
-                <span className="text-xs text-[var(--color-text-secondary)] opacity-60">Variables:</span>
+                <span className="text-xs text-(--color-text-secondary) opacity-60">Variables:</span>
                 {detectedVars.map((v) => (
                   <span
                     key={v}
@@ -660,20 +660,20 @@ export default function PromptForm({
       </div>
 
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--color-border)] shrink-0">
+      <div className="flex items-center justify-between px-5 py-3 border-t border-(--color-border) shrink-0">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
             checked={isFavorite}
             onChange={(e) => setIsFavorite(e.target.checked)}
-            className="w-4 h-4 rounded accent-amber-500"
+            className="w-4 h-4 rounded-sm accent-amber-500"
           />
-          <span className="text-sm text-[var(--color-text)]">Favorite ⭐</span>
+          <span className="text-sm text-(--color-text)">Favorite ⭐</span>
         </label>
         <div className="flex items-center gap-2">
           <button
             onClick={onClose}
-            className="px-5 py-2 text-base rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] transition-colors"
+            className="px-5 py-2 text-base rounded-lg border border-(--color-border) hover:bg-(--color-bg-hover) transition-colors"
           >
             Discard
           </button>

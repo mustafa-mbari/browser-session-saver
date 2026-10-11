@@ -60,7 +60,7 @@ export default function AccountPanel() {
   const inputClass = `
     w-full px-3 py-2 text-sm rounded-lg
     bg-white/10 border border-white/20
-    placeholder:opacity-40 focus:outline-none focus:ring-1 focus:ring-white/40
+    placeholder:opacity-40 focus:outline-hidden focus:ring-1 focus:ring-white/40
   `;
 
   if (loading) {

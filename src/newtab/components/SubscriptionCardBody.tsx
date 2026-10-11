@@ -58,7 +58,7 @@ function FaviconSmall({ url, name }: { url?: string; name: string }) {
   if (!src) {
     return (
       <span
-        className="w-4 h-4 flex items-center justify-center rounded-sm bg-white/20 font-bold shrink-0"
+        className="w-4 h-4 flex items-center justify-center rounded-xs bg-white/20 font-bold shrink-0"
         style={{ fontSize: 9, color: 'var(--newtab-text)' }}
       >
         {getFaviconInitial(name, url ?? '')}
@@ -69,7 +69,7 @@ function FaviconSmall({ url, name }: { url?: string; name: string }) {
     <img
       src={src}
       alt={name}
-      className="w-4 h-4 rounded-sm shrink-0"
+      className="w-4 h-4 rounded-xs shrink-0"
       onError={() => setTryIdx((i) => i + 1)}
     />
   );
@@ -176,11 +176,11 @@ export default function SubscriptionCardBody({ colSpan }: Props) {
                     {CATEGORY_EMOJI[s.category] ?? customCats.find((c) => c.value === s.category)?.emoji ?? '📦'}
                   </span>
                   {/* Billing cycle */}
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-center shrink-0" style={{ color: 'var(--newtab-text-secondary)' }}>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-white/8 text-center shrink-0" style={{ color: 'var(--newtab-text-secondary)' }}>
                     {billingLabel[s.billingCycle] ?? s.billingCycle}
                   </span>
                   {/* Status */}
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium capitalize shrink-0 ${statusCls[s.status] ?? statusCls.active}`}>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium capitalize shrink-0 ${statusCls[s.status] ?? statusCls.active}`}>
                     {s.status}
                   </span>
                   {/* Date + days */}

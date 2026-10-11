@@ -205,10 +205,10 @@ export default function HomeView() {
         <div className="mx-3 mb-1 px-3 py-2 rounded-lg border border-blue-400/30 bg-blue-500/10 flex items-center gap-2">
           <History size={14} className="text-blue-400 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-[var(--color-text)] truncate">
+            <p className="text-xs font-medium text-(--color-text) truncate">
               Restore last session?
             </p>
-            <p className="text-[10px] text-[var(--color-text-secondary)]">
+            <p className="text-[10px] text-(--color-text-secondary)">
               {restorePromptSession.tabCount} tab{restorePromptSession.tabCount !== 1 ? 's' : ''} · {formatRelative(restorePromptSession.updatedAt)}
             </p>
           </div>
@@ -225,7 +225,7 @@ export default function HomeView() {
           </button>
           <button
             onClick={dismissRestorePrompt}
-            className="p-0.5 rounded hover:bg-blue-500/20 text-[var(--color-text-secondary)] shrink-0"
+            className="p-0.5 rounded-sm hover:bg-blue-500/20 text-(--color-text-secondary) shrink-0"
             aria-label="Dismiss"
           >
             <X size={12} />
@@ -261,18 +261,18 @@ export default function HomeView() {
 
       {/* Footer — only on sessions tab */}
       {activeHomeTab === 'session' && (
-        <div className="px-3 py-2 border-t border-[var(--color-border)] flex items-center justify-end text-xs text-[var(--color-text-secondary)]">
+        <div className="px-3 py-2 border-t border-(--color-border) flex items-center justify-end text-xs text-(--color-text-secondary)">
           <span>{sessions.length} session{sessions.length !== 1 ? 's' : ''}</span>
         </div>
       )}
 
       {/* Bulk Action Toolbar */}
       {isSelectionMode && selectedSessionIds.size > 0 && (
-        <div className="fixed bottom-24 left-2 right-2 z-50 flex items-center gap-2 px-3 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-card shadow-card">
+        <div className="fixed bottom-24 left-2 right-2 z-50 flex items-center gap-2 px-3 py-2 bg-(--color-bg) border border-(--color-border) rounded-card shadow-card">
           <span className="text-xs font-medium flex-1">{selectedSessionIds.size} selected</span>
           <Button size="sm" variant="secondary" icon={Download} onClick={handleBulkExport}>Export</Button>
           <Button size="sm" variant="danger" icon={Trash2} onClick={handleBulkDelete}>Delete</Button>
-          <button onClick={clearSelection} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Clear selection">
+          <button onClick={clearSelection} className="p-1 rounded-sm hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Clear selection">
             <X size={14} />
           </button>
         </div>

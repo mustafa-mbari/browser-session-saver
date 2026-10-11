@@ -44,7 +44,7 @@ export default function App() {
   });
 
   return (
-    <div className="h-screen flex flex-col bg-[var(--color-bg)] text-[var(--color-text)]">
+    <div className="h-screen flex flex-col bg-(--color-bg) text-(--color-text)">
       <Header />
       <UnifiedNavBar />
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
