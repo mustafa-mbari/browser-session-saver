@@ -40,15 +40,14 @@ export class NewTabDBRepository<T extends { id: string }>
   }
 
   async save(entity: T & BaseEntity): Promise<void> {
-    const stamped = entity;
-    await this.db.put(this.storeName, stamped);
+    await this.db.put(this.storeName, { ...entity, updatedAt: new Date().toISOString() });
   }
 
   async update(id: string, updates: Partial<T & BaseEntity>): Promise<(T & BaseEntity) | null> {
     const existing = await this.getByIdRaw(id);
     if (!existing) return null;
-    const merged = { ...existing, ...updates } as T & BaseEntity;
-    await this.save(merged);
+    const merged = { ...existing, ...updates, updatedAt: new Date().toISOString() } as T & BaseEntity;
+    await this.db.put(this.storeName, merged);
     return merged;
   }
 

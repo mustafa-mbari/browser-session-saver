@@ -1,13 +1,18 @@
 /**
- * newtab-soft-delete.ts — helper for soft-deleting records in newtab-db.
+ * newtab-soft-delete.ts — write helpers for records in newtab-db.
  *
  * The bookmark/todo/quick-link services reach straight into `newtabDB` rather
- * than through a repository wrapper (for historical reasons). This helper
- * gives them a single line to flip a record into a tombstone without
- * reimplementing the stamp logic at every callsite.
+ * than through a repository wrapper (for historical reasons). These helpers
+ * stamp `updatedAt` on edits and turn deletes into tombstones, which is what
+ * lets changes and deletions merge correctly across browsers sharing data.
  */
 
 import { newtabDB } from './newtab-storage';
+
+/** Write a record the user changed: stamps updatedAt = now. */
+export async function putStamped<T extends { id: string }>(storeName: string, record: T): Promise<void> {
+  await newtabDB.put(storeName, { ...record, updatedAt: new Date().toISOString() });
+}
 
 /**
  * Mark a record in `storeName` as soft-deleted: sets deletedAt = updatedAt =

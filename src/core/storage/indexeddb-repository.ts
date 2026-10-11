@@ -87,16 +87,18 @@ export class IndexedDBRepository<T extends BaseEntity>
     return this.getAll();
   }
 
+  /** Insert or replace an entity the user changed: stamps updatedAt = now. */
   async save(entity: T): Promise<void> {
-    await this.putRaw(entity);
+    await this.putRaw({ ...entity, updatedAt: new Date().toISOString() });
     this.changed();
   }
 
   async update(id: string, updates: Partial<T>): Promise<T | null> {
     const existing = await this.getByIdRaw(id);
     if (!existing) return null;
-    const merged = { ...existing, ...updates } as T;
-    await this.save(merged);
+    const merged = { ...existing, ...updates, updatedAt: new Date().toISOString() } as T;
+    await this.putRaw(merged);
+    this.changed();
     return merged;
   }
 

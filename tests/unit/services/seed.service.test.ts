@@ -57,4 +57,17 @@ describe('seedDefaultData', () => {
     expect(mainBoard.id).not.toBe(todoList.id);
     expect(bookmarksBoard.id).not.toBe(todoList.id);
   });
+
+  it('is idempotent: seeding twice (e.g. two tabs at once) creates no duplicates', async () => {
+    await Promise.all([seedDefaultData(), seedDefaultData()]);
+    expect(await newtabDB.getAll('boards')).toHaveLength(2);
+    expect(await newtabDB.getAll('bookmarkCategories')).toHaveLength(2);
+    expect(await newtabDB.getAll('quickLinks')).toHaveLength(3);
+  });
+
+  it('stamps seeded records with the old seed timestamp so real edits win', async () => {
+    await seedDefaultData();
+    const links = await newtabDB.getAll<{ updatedAt: string }>('quickLinks');
+    expect(links.every((l) => l.updatedAt === '2024-01-01T00:00:00.000Z')).toBe(true);
+  });
 });

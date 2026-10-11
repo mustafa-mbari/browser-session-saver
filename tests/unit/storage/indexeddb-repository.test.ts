@@ -96,3 +96,19 @@ describe('IndexedDBRepository onChange', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+describe('IndexedDBRepository updatedAt stamping', () => {
+  it('save() and update() stamp updatedAt; importMany() keeps the given value', async () => {
+    await repo.save(row('stamped'));
+    const saved = await repo.getById('stamped');
+    expect(saved!.updatedAt > '2026-01-01T00:00:00.000Z').toBe(true);
+
+    await repo.importMany([row('imported')]);
+    expect((await repo.getById('imported'))!.updatedAt).toBe('2026-01-01T00:00:00.000Z');
+
+    const before = saved!.updatedAt;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const updated = await repo.update('stamped', { isAutoSave: true });
+    expect(updated!.updatedAt > before).toBe(true);
+  });
+});

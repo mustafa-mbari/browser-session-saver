@@ -1,5 +1,5 @@
 import { newtabDB } from '@core/storage/newtab-storage';
-import { softDeleteNewTab, softDeleteNewTabMany } from '@core/storage/newtab-soft-delete';
+import { putStamped, softDeleteNewTab, softDeleteNewTabMany } from '@core/storage/newtab-soft-delete';
 import type { TodoItem, TodoList, BookmarkCategory } from '@core/types/newtab.types';
 import { generateId } from '@core/utils/uuid';
 import { nowISO } from '@core/utils/date';
@@ -23,7 +23,7 @@ export async function saveTodoList(
   data: Omit<TodoList, 'id' | 'createdAt'>,
 ): Promise<TodoList> {
   const list: TodoList = { ...data, id: generateId(), createdAt: nowISO() };
-  await db.put(LISTS, list);
+  await putStamped(LISTS, list);
   return list;
 }
 
@@ -33,7 +33,7 @@ export async function updateTodoList(
 ): Promise<void> {
   const existing = await db.get<TodoList>(LISTS, id);
   if (!existing) return;
-  await db.put(LISTS, { ...existing, ...updates });
+  await putStamped(LISTS, { ...existing, ...updates });
 }
 
 export async function deleteTodoList(id: string): Promise<void> {
@@ -57,7 +57,7 @@ export async function saveTodoItem(
 ): Promise<TodoItem> {
   await guardAction();
   const item: TodoItem = { ...data, id: generateId(), createdAt: nowISO() };
-  await db.put(ITEMS, item);
+  await putStamped(ITEMS, item);
   void trackAction();
   return item;
 }
@@ -69,7 +69,7 @@ export async function updateTodoItem(
   const existing = await db.get<TodoItem>(ITEMS, id);
   if (!existing) return;
   await guardAction();
-  await db.put(ITEMS, { ...existing, ...updates });
+  await putStamped(ITEMS, { ...existing, ...updates });
   void trackAction();
 }
 
@@ -89,7 +89,7 @@ export async function reorderTodoItems(
   await Promise.all(
     orderedIds.map((id, index) => {
       const item = map.get(id);
-      if (item) return db.put(ITEMS, { ...item, position: index });
+      if (item) return putStamped(ITEMS, { ...item, position: index });
       return Promise.resolve();
     }),
   );
@@ -105,7 +105,7 @@ async function removeTodoFromCardNoteContent(itemId: string): Promise<void> {
     try { items = JSON.parse(cat.noteContent); } catch { continue; }
     const filtered = items.filter((i) => i.id !== itemId);
     if (filtered.length !== items.length) {
-      await db.put<BookmarkCategory>('bookmarkCategories', {
+      await putStamped<BookmarkCategory>('bookmarkCategories', {
         ...cat,
         noteContent: JSON.stringify(filtered),
       });

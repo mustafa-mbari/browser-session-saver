@@ -1,5 +1,5 @@
 import { newtabDB } from '@core/storage/newtab-storage';
-import { softDeleteNewTab } from '@core/storage/newtab-soft-delete';
+import { putStamped, softDeleteNewTab } from '@core/storage/newtab-soft-delete';
 import type { QuickLink } from '@core/types/newtab.types';
 import { generateId } from '@core/utils/uuid';
 import { guardAction, trackAction } from '@core/services/limits/limit-guard';
@@ -21,7 +21,7 @@ export async function saveQuickLink(
 ): Promise<QuickLink> {
   await guardAction();
   const record: QuickLink = { ...link, id: generateId() };
-  await db.put(STORE, record);
+  await putStamped(STORE, record);
   void trackAction();
   return record;
 }
@@ -33,7 +33,7 @@ export async function updateQuickLink(
   await guardAction();
   const existing = await db.get<QuickLink>(STORE, id);
   if (!existing) return;
-  await db.put(STORE, { ...existing, ...updates });
+  await putStamped(STORE, { ...existing, ...updates });
   void trackAction();
 }
 
@@ -49,7 +49,7 @@ export async function reorderQuickLinks(orderedIds: string[]): Promise<void> {
   await Promise.all(
     orderedIds.map((id, index) => {
       const link = map.get(id);
-      if (link) return db.put(STORE, { ...link, position: index });
+      if (link) return putStamped(STORE, { ...link, position: index });
       return Promise.resolve();
     }),
   );

@@ -84,7 +84,9 @@ describe('SubscriptionStorage', () => {
     await SubscriptionStorage.save(sub);
     const result = await SubscriptionStorage.getAll();
     expect(result).toHaveLength(1);
-    expect(result[0]).toEqual(sub);
+    // save() stamps updatedAt so edits merge correctly across browsers
+    expect(result[0]).toEqual({ ...sub, updatedAt: expect.any(String) });
+    expect(result[0].updatedAt).not.toBe(sub.updatedAt);
   });
 
   // ── save (update) ─────────────────────────────────────────────────────────

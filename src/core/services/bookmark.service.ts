@@ -1,5 +1,5 @@
 import { newtabDB } from '@core/storage/newtab-storage';
-import { softDeleteNewTab, softDeleteNewTabMany } from '@core/storage/newtab-soft-delete';
+import { putStamped, softDeleteNewTab, softDeleteNewTabMany } from '@core/storage/newtab-soft-delete';
 import type { Board, BookmarkCategory, BookmarkEntry } from '@core/types/newtab.types';
 import { generateId } from '@core/utils/uuid';
 import { nowISO } from '@core/utils/date';
@@ -26,7 +26,7 @@ export async function saveBoard(
 ): Promise<Board> {
   const now = nowISO();
   const board: Board = { ...data, id: generateId(), createdAt: now, updatedAt: now };
-  await db.put(BOARDS, board);
+  await putStamped(BOARDS, board);
   return board;
 }
 
@@ -36,7 +36,7 @@ export async function updateBoard(
 ): Promise<void> {
   const existing = await db.get<Board>(BOARDS, id);
   if (!existing) return;
-  await db.put(BOARDS, { ...existing, ...updates, updatedAt: nowISO() });
+  await putStamped(BOARDS, { ...existing, ...updates, updatedAt: nowISO() });
 }
 
 export async function deleteBoard(id: string): Promise<void> {
@@ -48,8 +48,7 @@ export async function deleteBoard(id: string): Promise<void> {
     await softDeleteNewTab(CATEGORIES, cat.id);
   }
   await softDeleteNewTabMany(ENTRIES, deletedEntryIds);
-  // Boards themselves are not synced — hard delete is fine.
-  await db.delete(BOARDS, id);
+  await softDeleteNewTab(BOARDS, id);
 }
 
 // ─── Categories ───────────────────────────────────────────────────────────────
@@ -70,11 +69,11 @@ export async function saveCategory(
 ): Promise<BookmarkCategory> {
   await guardAction();
   const cat: BookmarkCategory = { colSpan: 1, rowSpan: 1, ...data, id: generateId(), createdAt: nowISO() };
-  await db.put(CATEGORIES, cat);
+  await putStamped(CATEGORIES, cat);
 
   const board = await db.get<Board>(BOARDS, data.boardId);
   if (board) {
-    await db.put(BOARDS, {
+    await putStamped(BOARDS, {
       ...board,
       categoryIds: [...board.categoryIds, cat.id],
       updatedAt: nowISO(),
@@ -93,7 +92,7 @@ export async function updateCategory(
   if ('name' in updates && updates.name) {
     await assertNoDuplicateName(updates.name, existing.boardId, existing.parentCategoryId, id);
   }
-  await db.put(CATEGORIES, { ...existing, ...updates });
+  await putStamped(CATEGORIES, { ...existing, ...updates });
 }
 
 export async function deleteCategory(id: string): Promise<void> {
@@ -103,7 +102,7 @@ export async function deleteCategory(id: string): Promise<void> {
   if (cat) {
     const board = await db.get<Board>(BOARDS, cat.boardId);
     if (board) {
-      await db.put(BOARDS, {
+      await putStamped(BOARDS, {
         ...board,
         categoryIds: board.categoryIds.filter((cid) => cid !== id),
         updatedAt: nowISO(),
@@ -133,11 +132,11 @@ export async function saveEntry(
 ): Promise<BookmarkEntry> {
   await guardAction();
   const entry: BookmarkEntry = { ...data, id: generateId(), addedAt: nowISO() };
-  await db.put(ENTRIES, entry);
+  await putStamped(ENTRIES, entry);
 
   const cat = await db.get<BookmarkCategory>(CATEGORIES, data.categoryId);
   if (cat) {
-    await db.put(CATEGORIES, { ...cat, bookmarkIds: [...cat.bookmarkIds, entry.id] });
+    await putStamped(CATEGORIES, { ...cat, bookmarkIds: [...cat.bookmarkIds, entry.id] });
   }
   void trackAction();
   return entry;
@@ -150,7 +149,7 @@ export async function updateEntry(
   const existing = await db.get<BookmarkEntry>(ENTRIES, id);
   if (!existing) return;
   await guardAction();
-  await db.put(ENTRIES, { ...existing, ...updates });
+  await putStamped(ENTRIES, { ...existing, ...updates });
   void trackAction();
 }
 
@@ -160,7 +159,7 @@ export async function deleteEntry(id: string): Promise<void> {
   if (entry) {
     const cat = await db.get<BookmarkCategory>(CATEGORIES, entry.categoryId);
     if (cat) {
-      await db.put(CATEGORIES, {
+      await putStamped(CATEGORIES, {
         ...cat,
         bookmarkIds: cat.bookmarkIds.filter((bid) => bid !== id),
       });
@@ -211,7 +210,7 @@ export async function createTopLevelFolder(
     cardType: 'bookmark',
     createdAt: nowISO(),
   };
-  await db.put(CATEGORIES, cat);
+  await putStamped(CATEGORIES, cat);
   void trackAction();
   return cat;
 }
@@ -226,7 +225,7 @@ export async function removeWidgetFromBoard(categoryId: string): Promise<void> {
   if (!cat) return;
   const board = await db.get<Board>(BOARDS, cat.boardId);
   if (board) {
-    await db.put(BOARDS, {
+    await putStamped(BOARDS, {
       ...board,
       categoryIds: board.categoryIds.filter((cid) => cid !== categoryId),
       updatedAt: nowISO(),
@@ -247,7 +246,7 @@ export async function addExistingFolderAsWidget(
   const board = await db.get<Board>(BOARDS, targetBoardId);
   if (!board) return;
   if (!board.categoryIds.includes(categoryId)) {
-    await db.put(BOARDS, {
+    await putStamped(BOARDS, {
       ...board,
       categoryIds: [...board.categoryIds, categoryId],
       updatedAt: nowISO(),
@@ -256,7 +255,7 @@ export async function addExistingFolderAsWidget(
   // Re-assign the folder's boardId to the target board if it differs
   const cat = await db.get<BookmarkCategory>(CATEGORIES, categoryId);
   if (cat && cat.boardId !== targetBoardId) {
-    await db.put(CATEGORIES, { ...cat, boardId: targetBoardId });
+    await putStamped(CATEGORIES, { ...cat, boardId: targetBoardId });
   }
 }
 
@@ -366,7 +365,7 @@ export async function createSubFolder(
     cardType: 'bookmark',
     createdAt: nowISO(),
   };
-  await db.put(CATEGORIES, cat);
+  await putStamped(CATEGORIES, cat);
   void trackAction();
   return cat;
 }
@@ -388,7 +387,7 @@ async function deleteFolderRecursiveHelper(id: string): Promise<void> {
   if (cat && !cat.parentCategoryId) {
     const board = await db.get<Board>(BOARDS, cat.boardId);
     if (board) {
-      await db.put(BOARDS, {
+      await putStamped(BOARDS, {
         ...board,
         categoryIds: board.categoryIds.filter((cid) => cid !== id),
         updatedAt: nowISO(),
@@ -430,7 +429,7 @@ function flattenBookmarkTree(
       collapsed: false,
       createdAt: nowISO(),
     };
-    promises.push(db.put(CATEGORIES, cat));
+    promises.push(putStamped(CATEGORIES, cat));
 
     for (const child of children) {
       if (child.url) {
@@ -444,7 +443,7 @@ function flattenBookmarkTree(
           isNative: true,
           nativeId: child.id,
         };
-        promises.push(db.put(ENTRIES, entry));
+        promises.push(putStamped(ENTRIES, entry));
       } else {
         flattenBookmarkTree(child, boardId, promises);
       }

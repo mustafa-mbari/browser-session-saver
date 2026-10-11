@@ -46,7 +46,7 @@ export class ChromeLocalArrayRepository<T extends BaseEntity>
 
   async save(entity: T): Promise<void> {
     return withStorageLock(this.storageKey, async () => {
-      const stamped = entity;
+      const stamped = { ...entity, updatedAt: new Date().toISOString() };
       const all = await this.adapter.getAll();
       const idx = all.findIndex((item) => item.id === stamped.id);
       if (idx >= 0) {
@@ -63,7 +63,7 @@ export class ChromeLocalArrayRepository<T extends BaseEntity>
       const all = await this.adapter.getAll();
       const idx = all.findIndex((item) => item.id === id);
       if (idx < 0) return null;
-      const merged = { ...all[idx], ...updates } as T;
+      const merged = { ...all[idx], ...updates, updatedAt: new Date().toISOString() } as T;
       all[idx] = merged;
       await this.adapter.setAll(all);
       return merged;

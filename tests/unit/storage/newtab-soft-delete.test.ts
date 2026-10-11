@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { newtabDB } from '@core/storage/newtab-storage';
-import { purgeNewTabTombstones, softDeleteNewTab } from '@core/storage/newtab-soft-delete';
+import { purgeNewTabTombstones, putStamped, softDeleteNewTab } from '@core/storage/newtab-soft-delete';
 
 beforeEach(() => {
   (globalThis as Record<string, unknown>).indexedDB = new IDBFactory();
@@ -25,5 +25,13 @@ describe('purgeNewTabTombstones', () => {
     expect(await newtabDB.get('todoItems', 'todo-old')).toBeNull();
     expect(await newtabDB.get('quickLinks', 'ql-live')).not.toBeNull();
     expect(await newtabDB.get('bookmarkEntries', 'entry-recent')).not.toBeNull();
+  });
+});
+
+describe('putStamped', () => {
+  it('stamps updatedAt on the written record', async () => {
+    await putStamped('quickLinks', { id: 'ql', title: 'A', updatedAt: '2020-01-01T00:00:00.000Z' });
+    const stored = await newtabDB.get<{ updatedAt: string }>('quickLinks', 'ql');
+    expect(stored!.updatedAt > '2020-01-01T00:00:00.000Z').toBe(true);
   });
 });
