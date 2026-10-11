@@ -85,5 +85,18 @@ export const PER_BROWSER_NEWTAB_FIELDS: readonly (keyof NewTabSettings)[] = [
   'activeBoardId',
   'sidebarCollapsed',
   'zenMode',
+  // The whole background: uploaded wallpapers exist only in the browser that
+  // stored them, so a shared "image" background would be blank elsewhere.
+  'backgroundType',
+  'backgroundColor',
+  'backgroundGradientStops',
+  'backgroundGradientAngle',
   'backgroundImageId',
+  'backgroundBundledPath',
+  'backgroundBlur',
+  'backgroundDimming',
+  'backgroundSaturation',
+  'backgroundBrightness',
+  'backgroundVignette',
+  'dailyRotation',
 ];

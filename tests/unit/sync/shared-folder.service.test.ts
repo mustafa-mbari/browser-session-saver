@@ -142,22 +142,34 @@ describe('shared folder sync', () => {
   });
 
   it('on first join adopts shared settings but keeps per-browser start-tab fields', async () => {
-    store.newtab_settings = { activeBoardId: 'my-board', clockFormat: '12h' };
+    store.newtab_settings = {
+      activeBoardId: 'my-board',
+      clockFormat: '12h',
+      backgroundType: 'gradient',
+      backgroundBlur: 0,
+    };
     const now = new Date().toISOString();
     dir.put('bh-edge-edge0000.json', peerFile({
       settings: { values: { theme: 'dark', saveInterval: 30 }, fieldUpdatedAt: { theme: now, saveInterval: now } },
       newtabSettings: {
-        values: { clockFormat: '24h', activeBoardId: 'edge-board' },
-        fieldUpdatedAt: { clockFormat: now, activeBoardId: now },
+        // Edge's uploaded wallpaper exists only in Edge.
+        values: { clockFormat: '24h', activeBoardId: 'edge-board', backgroundType: 'image', backgroundBlur: 8 },
+        fieldUpdatedAt: { clockFormat: now, activeBoardId: now, backgroundType: now, backgroundBlur: now },
       },
     }));
 
     await service.syncNow();
 
     expect(store.settings).toMatchObject({ theme: 'dark', saveInterval: 30 });
-    expect(store.newtab_settings).toMatchObject({ clockFormat: '24h', activeBoardId: 'my-board' });
+    expect(store.newtab_settings).toMatchObject({
+      clockFormat: '24h',
+      activeBoardId: 'my-board',
+      backgroundType: 'gradient',
+      backgroundBlur: 0,
+    });
     const own = dir.json(OWN_FILE) as { data: { newtabSettings: { values: Record<string, unknown> } } };
     expect(own.data.newtabSettings.values).not.toHaveProperty('activeBoardId');
+    expect(own.data.newtabSettings.values).not.toHaveProperty('backgroundType');
   });
 
   it('a setting customised here before joining wins over the shared default', async () => {
