@@ -8,7 +8,7 @@
  */
 import { getBrowserInstance } from '@core/services/browser-instance.service';
 import { createAutoBackup, executeImport, previewImport } from '@core/services/full-import.service';
-import { notifyDataChanged, type DataModule } from '@core/events/data-change-bus';
+import { notifySyncApplied, type DataModule } from '@core/events/data-change-bus';
 import { TOMBSTONE_RETENTION_MS } from '@core/constants/timings';
 import {
   ALL_MODULES_SELECTED,
@@ -175,7 +175,7 @@ export async function restorePreShareBackup(): Promise<boolean> {
   await stopSharing();
   const preview = previewImport(backup.json);
   const result = await executeImport(backup.json, preview, { ...ALL_MODULES_SELECTED }, 'replace');
-  notifyDataChanged('sessions', 'prompts', 'subscriptions', 'tabGroups', 'dashboard', 'settings');
+  notifySyncApplied('sessions', 'prompts', 'subscriptions', 'tabGroups', 'dashboard', 'settings');
   return result.success;
 }
 
@@ -402,7 +402,7 @@ async function runSync(interactive: boolean): Promise<SyncOutcome> {
       syncedModules: modulesKey,
       peers,
     });
-    if (changedModules.size > 0) notifyDataChanged(...changedModules);
+    if (changedModules.size > 0) notifySyncApplied(...changedModules);
     return { status: 'ok', applied };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

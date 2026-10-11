@@ -6,6 +6,7 @@ import SubscriptionList from '../components/subscriptions/SubscriptionList';
 import SubscriptionForm from '../components/subscriptions/SubscriptionForm';
 import SubscriptionCalendar from '../components/subscriptions/SubscriptionCalendar';
 import SubscriptionAnalytics from '../components/subscriptions/SubscriptionAnalytics';
+import { useStorageChanged } from '@shared/hooks/useStorageChanged';
 
 type SubView = 'list' | 'calendar' | 'analytics';
 
@@ -25,6 +26,7 @@ export default function SubscriptionsView() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+  useStorageChanged(['subscriptions'], loadData);
 
 
   const handleSave = useCallback(async (sub: Subscription) => {

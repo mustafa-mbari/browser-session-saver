@@ -18,6 +18,8 @@ import AutoSaveSettingsSection from '@shared/components/settings/AutoSaveSetting
 import type { Session, TabGroup } from '@core/types/session.types';
 import type { SessionDiffResponse } from '@core/types/messages.types';
 import { GROUP_COLORS } from '@core/constants/tab-group-colors';
+import { otherBrowserLabel } from '@core/services/browser-instance.service';
+import { useBrowserInstance } from '@shared/hooks/useBrowserInstance';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
 
@@ -85,6 +87,8 @@ const AutoSaveCard = memo(function AutoSaveCard({
   onRestore: (id: string) => Promise<void>;
 }) {
   const [restoring, setRestoring] = useState(false);
+  const instance = useBrowserInstance();
+  const fromBrowser = otherBrowserLabel(session, instance?.id);
 
   const triggerLabel =
     session.autoSaveTrigger.charAt(0).toUpperCase() +
@@ -106,6 +110,7 @@ const AutoSaveCard = memo(function AutoSaveCard({
         </p>
         <p className="text-xs mt-0.5" style={{ color: 'var(--newtab-text-secondary)' }}>
           {formatRelative(session.createdAt)} · {session.tabCount} tab{session.tabCount !== 1 ? 's' : ''}
+          {fromBrowser && ` · from ${fromBrowser}`}
         </p>
       </div>
       <span

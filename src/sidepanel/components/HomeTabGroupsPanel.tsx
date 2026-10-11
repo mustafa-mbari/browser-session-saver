@@ -8,6 +8,7 @@ import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storag
 import HomeLiveGroupRow, { type TGLiveGroup } from './HomeLiveGroupRow';
 import HomeSavedGroupRow from './HomeSavedGroupRow';
 import { isNonEmpty } from '@core/utils/arrays';
+import { useStorageChanged } from '@shared/hooks/useStorageChanged';
 
 interface HomeTabGroupsPanelProps {
   sessions: Session[];
@@ -58,6 +59,11 @@ export default function HomeTabGroupsPanel({ query, onToast }: HomeTabGroupsPane
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useStorageChanged(['tab_group_templates'], () => {
+    void TabGroupTemplateStorage.getAll().then((all) =>
+      setTemplates(all.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))),
+    );
+  });
 
   const liveKeys = new Set(liveGroups.map((g) => `${g.title}-${g.color}`));
   const offlineTemplates = templates.filter((t) => !liveKeys.has(t.key));

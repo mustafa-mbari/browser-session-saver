@@ -4,6 +4,7 @@ import type { TextSizeMode, NewTabSettings, SearchEngine } from '@core/types/new
 import { useAppSettings } from '@shared/hooks/useAppSettings';
 import { useOnboardingFlag } from '@shared/components/OnboardingModal';
 import AutoSaveSettingsSection from '@shared/components/settings/AutoSaveSettingsSection';
+import SharedFolderSection from '@shared/components/settings/SharedFolderSection';
 import {
   GlassDivider as Divider,
   GlassSectionTitle as SectionTitle,
@@ -232,6 +233,19 @@ export default function SettingsPanel({ settings, onUpdate, onClose, onClearData
                 <section>
                   <SectionTitle>{title}</SectionTitle>
                   <div className="flex flex-col gap-0.5">{rows}</div>
+                </section>
+                <Divider />
+              </Fragment>
+            )}
+          />
+
+          <SharedFolderSection
+            variant="newtab"
+            renderGroup={(title, rows) => (
+              <Fragment>
+                <section>
+                  <SectionTitle>{title}</SectionTitle>
+                  <div className="flex flex-col gap-3">{rows}</div>
                 </section>
                 <Divider />
               </Fragment>

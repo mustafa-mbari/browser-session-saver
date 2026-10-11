@@ -5,31 +5,12 @@ import { useMessaging } from './useMessaging';
 import { useDataChanged } from './useDataChanged';
 import * as SessionService from '@core/services/session.service';
 
-export function useSession() {
+/**
+ * Session actions without loading the session list — for rows and cards, which
+ * would otherwise each load (and reload) every session.
+ */
+export function useSessionActions() {
   const { sendMessage } = useMessaging();
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const refreshSessions = useCallback(
-    async (filter?: SessionFilter, sort?: SessionSort, limit?: number, offset?: number) => {
-      setLoading(true);
-      setError(null);
-      const response = await sendMessage<GetSessionsResponse>({
-        action: 'GET_SESSIONS',
-        payload: { filter, sort, limit, offset },
-      });
-      if (response.success && response.data) {
-        setSessions(response.data.sessions);
-        setTotalCount(response.data.totalCount);
-      } else {
-        setError(response.error ?? 'Failed to load sessions');
-      }
-      setLoading(false);
-    },
-    [sendMessage],
-  );
 
   const saveSession = useCallback(
     async (options?: { name?: string; closeAfter?: boolean }) => {
@@ -85,14 +66,45 @@ export function useSession() {
     [sendMessage],
   );
 
+  return { saveSession, restoreSession, deleteSession, updateSession, updateSessionTabs };
+}
+
+/** The session list (kept current) plus the session actions. */
+export function useSession() {
+  const { sendMessage } = useMessaging();
+  const actions = useSessionActions();
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refreshSessions = useCallback(
+    async (filter?: SessionFilter, sort?: SessionSort, limit?: number, offset?: number) => {
+      setLoading(true);
+      setError(null);
+      const response = await sendMessage<GetSessionsResponse>({
+        action: 'GET_SESSIONS',
+        payload: { filter, sort, limit, offset },
+      });
+      if (response.success && response.data) {
+        setSessions(response.data.sessions);
+        setTotalCount(response.data.totalCount);
+      } else {
+        setError(response.error ?? 'Failed to load sessions');
+      }
+      setLoading(false);
+    },
+    [sendMessage],
+  );
+
   // Initial load
   useEffect(() => {
     refreshSessions();
   }, [refreshSessions]);
 
-  // Refresh when sessions change anywhere: this page, another page, or the service
-  // worker (saves, deletes, auto-saves). Read directly from IndexedDB to avoid the SW
-  // round-trip, which can fail if the SW is asleep.
+  // Refresh when sessions change anywhere: this page, another page, the service
+  // worker (saves, deletes, auto-saves) or a shared-folder sync. Read directly from
+  // IndexedDB to avoid the SW round-trip, which can fail if the SW is asleep.
   useDataChanged(['sessions'], () => {
     void SessionService.getAllSessions().then((updated) => {
       setSessions(updated);
@@ -105,11 +117,7 @@ export function useSession() {
     totalCount,
     loading,
     error,
-    saveSession,
-    restoreSession,
-    deleteSession,
-    updateSession,
-    updateSessionTabs,
+    ...actions,
     refreshSessions,
   };
 }

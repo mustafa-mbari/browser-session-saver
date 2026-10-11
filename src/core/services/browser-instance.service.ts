@@ -63,3 +63,13 @@ export function detectBrowserName(nav: BrowserNavigator = globalThis.navigator a
   if (/Chrome\//.test(ua)) return 'Chrome';
   return 'Browser';
 }
+
+/** The browser an auto-save came from, when it is not this one; null otherwise. */
+export function otherBrowserLabel(
+  session: { isAutoSave: boolean; sourceInstanceId?: string; sourceLabel?: string },
+  localInstanceId: string | undefined,
+): string | null {
+  if (!session.isAutoSave || !session.sourceInstanceId || !localInstanceId) return null;
+  if (session.sourceInstanceId === localInstanceId) return null;
+  return session.sourceLabel || 'another browser';
+}

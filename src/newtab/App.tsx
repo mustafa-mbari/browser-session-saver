@@ -22,6 +22,9 @@ import OnboardingModal, { useOnboardingFlag } from '@shared/components/Onboardin
 import LimitReachedModal from '@shared/components/LimitReachedModal';
 import type { LimitStatus } from '@core/types/limits.types';
 import { ActionLimitError } from '@core/services/limits/limit-guard';
+import SharedFolderBanner from '@shared/components/SharedFolderBanner';
+import { useSharedFolderSync } from '@shared/hooks/useSharedFolderSync';
+import { useDataChanged } from '@shared/hooks/useDataChanged';
 
 // Heavy overlays — loaded only when opened
 const SettingsPanel = lazy(() => import('@newtab/components/SettingsPanel'));
@@ -33,7 +36,11 @@ export default function App() {
   useTheme();
   const { needsOnboarding, markComplete } = useOnboardingFlag();
 
-  const [dataVersion] = useState(0);
+  const [dataVersion, setDataVersion] = useState(0);
+  useSharedFolderSync();
+  // Reload start-tab data changed elsewhere: another tab or a shared-folder sync.
+  // This page's own edits are already on screen (and may include unsaved layout changes).
+  useDataChanged(['dashboard'], () => setDataVersion((v) => v + 1), { ignoreOwnEdits: true });
   const [limitStatus, setLimitStatus] = useState<LimitStatus | null>(null);
 
   // Show modal when any guarded action is blocked (via message response or direct throw)
@@ -156,7 +163,10 @@ export default function App() {
           }
 
           const activeBoard = boards.find((b) => b.id === activeBoardId) ?? boards[0];
-          let cats = await BookmarkService.getCategories(activeBoard.id);
+          // On a reload, keep every board's folders (the Folders view lists them all).
+          let cats = dataVersion > 0
+            ? await BookmarkService.getAllCategories()
+            : await BookmarkService.getCategories(activeBoard.id);
 
           // One-time migration: upgrade pre-9-column cards (rowSpan unset)
           // Old scale was 1-3; new scale is 1-9, so multiply colSpan × 3
@@ -258,6 +268,7 @@ export default function App() {
           />
         </Suspense>
       )}
+      <SharedFolderBanner variant="newtab" />
       <SubscriptionReminder />
       <SessionRestoreReminder />
       <OnboardingModal

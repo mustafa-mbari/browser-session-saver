@@ -4,10 +4,12 @@ import type { Session } from '@core/types/session.types';
 import type { ToastData } from '@shared/components/Toast';
 import { formatRelative } from '@core/utils/date';
 import { useSidePanelStore } from '../stores/sidepanel.store';
-import { useSession } from '@shared/hooks/useSession';
+import { useSessionActions } from '@shared/hooks/useSession';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import ContextMenu from '@shared/components/ContextMenu';
 import TabGroupPreview from './TabGroupPreview';
+import { otherBrowserLabel } from '@core/services/browser-instance.service';
+import { useBrowserInstance } from '@shared/hooks/useBrowserInstance';
 
 interface SessionCardProps {
   session: Session;
@@ -16,7 +18,9 @@ interface SessionCardProps {
 
 export default memo(function SessionCard({ session, onToast }: SessionCardProps) {
   const { navigateTo, isSelectionMode, selectedSessionIds, toggleSelection } = useSidePanelStore();
-  const { restoreSession, deleteSession, updateSession, updateSessionTabs } = useSession();
+  const { restoreSession, deleteSession, updateSession, updateSessionTabs } = useSessionActions();
+  const instance = useBrowserInstance();
+  const fromBrowser = otherBrowserLabel(session, instance?.id);
   const { sendMessage } = useMessaging();
   const [restoring, setRestoring] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -206,6 +210,11 @@ export default memo(function SessionCard({ session, onToast }: SessionCardProps)
             {session.isAutoSave && (
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
                 Auto
+              </span>
+            )}
+            {fromBrowser && (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-(--color-bg-secondary) text-(--color-text-secondary)">
+                {fromBrowser}
               </span>
             )}
             {session.tags.length > 0 && session.tags.slice(0, 2).map((tag) => (

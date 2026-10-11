@@ -297,6 +297,7 @@ import type {
 import { PromptStorage } from '@core/storage/prompt-storage';
 import { PromptService } from '@core/services/prompt.service';
 import { generateId } from '@core/utils/uuid';
+import { useStorageChanged } from '@shared/hooks/useStorageChanged';
 
 // ── CSS helpers ────────────────────────────────────────────────────────────
 const T  = { color: 'var(--newtab-text)' } as React.CSSProperties;
@@ -1351,6 +1352,9 @@ export default function PromptsPanel() {
     ]);
     setPrompts(p); setCategories(c); setTags(t); setFolders(f);
   }, []);
+
+  // Prompts changed in another page or arrived from another browser
+  useStorageChanged(['prompts', 'prompt_categories', 'prompt_tags', 'prompt_folders'], () => { void reloadAll(); });
 
   useEffect(() => {
     async function init() {

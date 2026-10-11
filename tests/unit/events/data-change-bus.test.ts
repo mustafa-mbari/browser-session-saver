@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { notifyDataChanged, onDataChanged } from '@core/events/data-change-bus';
+import { notifyDataChanged, notifySyncApplied, onDataChanged } from '@core/events/data-change-bus';
 
 const unsubscribers: (() => void)[] = [];
 afterEach(() => unsubscribers.splice(0).forEach((off) => off()));
@@ -28,7 +28,7 @@ describe('data-change-bus', () => {
 
     notifyDataChanged('dashboard');
 
-    await vi.waitFor(() => expect(received).toHaveBeenCalledWith({ modules: ['dashboard'] }));
+    await vi.waitFor(() => expect(received).toHaveBeenCalledWith({ modules: ['dashboard'], fromSync: false }));
     otherPage.close();
   });
 
@@ -52,5 +52,23 @@ describe('data-change-bus', () => {
     await new Promise((resolve) => setTimeout(resolve, 80));
 
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('tells listeners whether a change was local and whether a sync wrote it', async () => {
+    const listener = listen();
+    const otherPage = new BroadcastChannel('browser-hub-data');
+
+    notifyDataChanged('prompts');
+    notifySyncApplied('dashboard');
+    otherPage.postMessage({ modules: ['sessions'], fromSync: false });
+
+    await vi.waitFor(() => expect(listener).toHaveBeenCalledTimes(3));
+    const calls = listener.mock.calls.map(([modules, info]) => [[...modules].join(), info]);
+    expect(calls).toEqual(expect.arrayContaining([
+      ['prompts', { local: true, fromSync: false }],
+      ['dashboard', { local: true, fromSync: true }],
+      ['sessions', { local: false, fromSync: false }],
+    ]));
+    otherPage.close();
   });
 });

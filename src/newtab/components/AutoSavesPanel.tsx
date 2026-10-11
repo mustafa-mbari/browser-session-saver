@@ -6,6 +6,8 @@ import { formatRelative } from '@core/utils/date';
 import Badge from '@shared/components/Badge';
 import LoadingSpinner from '@shared/components/LoadingSpinner';
 import type { Session } from '@core/types/session.types';
+import { otherBrowserLabel } from '@core/services/browser-instance.service';
+import { useBrowserInstance } from '@shared/hooks/useBrowserInstance';
 
 interface AutoSaveRowProps {
   session: Session;
@@ -15,6 +17,8 @@ interface AutoSaveRowProps {
 }
 
 function AutoSaveRow({ session, triggerLabel, onRestore, onDelete }: AutoSaveRowProps) {
+  const instance = useBrowserInstance();
+  const fromBrowser = otherBrowserLabel(session, instance?.id);
   return (
     <div className="glass-panel rounded-xl px-4 py-3 flex items-center gap-3 group">
       <RefreshCw size={14} className="shrink-0 opacity-40" style={{ color: 'var(--newtab-text)' }} />
@@ -24,6 +28,7 @@ function AutoSaveRow({ session, triggerLabel, onRestore, onDelete }: AutoSaveRow
         </p>
         <p className="text-xs mt-0.5" style={{ color: 'var(--newtab-text-secondary)' }}>
           {formatRelative(session.createdAt)} · {session.tabCount} tabs
+          {fromBrowser && ` · from ${fromBrowser}`}
         </p>
       </div>
       <Badge variant="primary">{triggerLabel}</Badge>

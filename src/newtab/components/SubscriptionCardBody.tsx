@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Plus, ArrowRight } from 'lucide-react';
 import type { BookmarkCategory, SpanValue } from '@core/types/newtab.types';
 import type { Subscription, CustomCategory } from '@core/types/subscription.types';
@@ -8,6 +8,7 @@ import { SubscriptionService } from '@core/services/subscription.service';
 import { resolveFavIcon, getFaviconFallbackUrl, getFaviconInitial, getChromeInternalFaviconUrl } from '@core/utils/favicon';
 import { useNewTabStore } from '@newtab/stores/newtab.store';
 import { safeOpenUrl } from '@core/utils/safe-open';
+import { useStorageChanged } from '@shared/hooks/useStorageChanged';
 
 interface Props {
   category: BookmarkCategory;
@@ -81,7 +82,7 @@ export default function SubscriptionCardBody({ colSpan }: Props) {
   const [loading, setLoading] = useState(true);
   const setActiveView = useNewTabStore((s) => s.setActiveView);
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     void Promise.all([
       SubscriptionStorage.getAll(),
       SubscriptionStorage.getCustomCategories(),
@@ -91,6 +92,9 @@ export default function SubscriptionCardBody({ colSpan }: Props) {
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+  useStorageChanged(['subscriptions', 'subscription_categories'], loadData);
 
   // colSpan is received as a prop — already clamped by the parent
   const currency = subscriptions.find((s) => s.status === 'active')?.currency

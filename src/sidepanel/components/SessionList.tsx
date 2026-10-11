@@ -6,7 +6,7 @@ import type { ToastData } from '@shared/components/Toast';
 import EmptyState from '@shared/components/EmptyState';
 import LoadingSpinner from '@shared/components/LoadingSpinner';
 import Button from '@shared/components/Button';
-import { useSession } from '@shared/hooks/useSession';
+import { useSessionActions } from '@shared/hooks/useSession';
 import SessionCard from './SessionCard';
 
 interface SessionListProps {
@@ -16,7 +16,7 @@ interface SessionListProps {
 }
 
 export default function SessionList({ sessions, loading, onToast }: SessionListProps) {
-  const { saveSession } = useSession();
+  const { saveSession } = useSessionActions();
   const parentRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({

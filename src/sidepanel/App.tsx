@@ -7,11 +7,14 @@ import UnifiedNavBar from './components/UnifiedNavBar';
 import NavigationStack from './components/NavigationStack';
 import OnboardingModal, { useOnboardingFlag } from '@shared/components/OnboardingModal';
 import LimitReachedModal from '@shared/components/LimitReachedModal';
+import SharedFolderBanner from '@shared/components/SharedFolderBanner';
+import { useSharedFolderSync } from '@shared/hooks/useSharedFolderSync';
 import type { LimitStatus } from '@core/types/limits.types';
 import { ActionLimitError } from '@core/services/limits/limit-guard';
 
 export default function App() {
   useTheme();
+  useSharedFolderSync();
   const { navigateTo, focusSearch, openPageFromMenu } = useSidePanelStore();
   const { needsOnboarding, markComplete } = useOnboardingFlag();
   const [limitStatus, setLimitStatus] = useState<LimitStatus | null>(null);
@@ -47,6 +50,7 @@ export default function App() {
     <div className="h-screen flex flex-col bg-(--color-bg) text-(--color-text)">
       <Header />
       <UnifiedNavBar />
+      <SharedFolderBanner variant="sidepanel" />
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <NavigationStack />
       </div>

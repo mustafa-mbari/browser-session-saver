@@ -21,6 +21,7 @@ import type { TabGroupTemplate } from '@core/types/tab-group.types';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
 import { GROUP_COLORS, COLOR_OPTIONS } from '@core/constants/tab-group-colors';
 import { isNonEmpty } from '@core/utils/arrays';
+import { useStorageChanged } from '@shared/hooks/useStorageChanged';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -529,6 +530,7 @@ export default function TabGroupsPanel() {
     setSavedTemplates(all);
     setSavedLoading(false);
   }, []);
+  useStorageChanged(['tab_group_templates'], () => { void reloadSaved(); });
 
   const loadLiveGroups = useCallback(async () => {
     setLiveLoading(true);

@@ -3,6 +3,7 @@ import { AlertTriangle, Monitor, ALargeSmall } from 'lucide-react';
 import type { TextSizeMode, NewTabSettings, SearchEngine } from '@core/types/newtab.types';
 import { useAppSettings } from '@shared/hooks/useAppSettings';
 import AutoSaveSettingsSection from '@shared/components/settings/AutoSaveSettingsSection';
+import SharedFolderSection from '@shared/components/settings/SharedFolderSection';
 import {
   GlassCard as Card,
   GlassDivider as Divider,
@@ -207,6 +208,16 @@ export default function SettingsView({ settings, boards, onUpdate, onClearData }
             <Card>
               <SectionTitle>{title}</SectionTitle>
               <div className="flex flex-col gap-0.5">{rows}</div>
+            </Card>
+          )}
+        />
+
+        <SharedFolderSection
+          variant="newtab"
+          renderGroup={(title, rows) => (
+            <Card>
+              <SectionTitle>{title}</SectionTitle>
+              <div className="flex flex-col gap-3">{rows}</div>
             </Card>
           )}
         />

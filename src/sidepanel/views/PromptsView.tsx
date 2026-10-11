@@ -18,6 +18,7 @@ import PromptCard from '../components/prompts/PromptCard';
 import PromptVariablesModal from '../components/prompts/PromptVariablesModal';
 import PromptSectionNav from '../components/prompts/PromptSectionNav';
 import SharePromptModal from '@shared/components/SharePromptModal';
+import { useStorageChanged } from '@shared/hooks/useStorageChanged';
 
 export default function PromptsView() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
@@ -48,6 +49,9 @@ export default function PromptsView() {
       setIsLoading(false);
     });
   }, []);
+
+  // Prompts changed in another page or arrived from another browser
+  useStorageChanged(['prompts', 'prompt_categories', 'prompt_tags', 'prompt_folders'], loadData);
 
   useEffect(() => { loadData(); }, [loadData]);
 

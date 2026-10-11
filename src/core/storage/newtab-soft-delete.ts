@@ -8,10 +8,12 @@
  */
 
 import { newtabDB } from './newtab-storage';
+import { notifyDataChanged } from '@core/events/data-change-bus';
 
 /** Write a record the user changed: stamps updatedAt = now. */
 export async function putStamped<T extends { id: string }>(storeName: string, record: T): Promise<void> {
   await newtabDB.put(storeName, { ...record, updatedAt: new Date().toISOString() });
+  notifyDataChanged('dashboard');
 }
 
 /**
@@ -36,6 +38,7 @@ export async function softDeleteNewTab(
     dirty: true,
   };
   await newtabDB.put(storeName, updated);
+  notifyDataChanged('dashboard');
   return true;
 }
 

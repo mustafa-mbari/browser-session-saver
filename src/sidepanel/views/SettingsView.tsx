@@ -5,6 +5,7 @@ import { getNewTabSettings, updateNewTabSettings } from '@core/services/newtab-s
 import { useAppSettings } from '@shared/hooks/useAppSettings';
 import { useOnboardingFlag } from '@shared/components/OnboardingModal';
 import AutoSaveSettingsSection from '@shared/components/settings/AutoSaveSettingsSection';
+import SharedFolderSection from '@shared/components/settings/SharedFolderSection';
 import { PanelSection, PanelToggle, PanelSelect } from '@shared/components/settings/panel-controls';
 import { useSidePanelStore } from '../stores/sidepanel.store';
 
@@ -26,6 +27,7 @@ export default function SettingsView() {
   return (
     <div className="flex-1 overflow-auto">
       <AutoSaveSettingsSection variant="sidepanel" />
+      <SharedFolderSection variant="sidepanel" />
 
       {/* Appearance */}
       <PanelSection title="Appearance">

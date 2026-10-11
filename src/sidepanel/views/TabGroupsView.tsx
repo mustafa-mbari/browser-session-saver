@@ -24,6 +24,7 @@ import LoadingSpinner from '@shared/components/LoadingSpinner';
 import ContextMenu from '@shared/components/ContextMenu';
 import { GROUP_COLORS as GROUP_COLOR_MAP, COLOR_OPTIONS } from '@core/constants/tab-group-colors';
 import { isNonEmpty } from '@core/utils/arrays';
+import { useStorageChanged } from '@shared/hooks/useStorageChanged';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -564,6 +565,7 @@ export default function TabGroupsView() {
     setSavedTemplates(all);
     setSavedLoading(false);
   }, []);
+  useStorageChanged(['tab_group_templates'], () => { void reloadSaved(); });
 
   const loadLiveGroups = useCallback(async () => {
     setLiveLoading(true);

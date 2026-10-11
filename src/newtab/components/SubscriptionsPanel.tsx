@@ -7,6 +7,7 @@ import { SubscriptionService } from '@core/services/subscription.service';
 import { resolveFavIcon, getFaviconInitial } from '@core/utils/favicon';
 import { safeOpenUrl } from '@core/utils/safe-open';
 import { useRef } from 'react';
+import { useStorageChanged } from '@shared/hooks/useStorageChanged';
 
 // ── CSS variable helpers ────────────────────────────────────────────────────
 
@@ -1161,12 +1162,15 @@ export default function SubscriptionsPanel() {
   const [editSub, setEditSub] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     void Promise.all([
       SubscriptionStorage.getAll(),
       SubscriptionStorage.getCustomCategories(),
     ]).then(([s, cats]) => { setSubs(s); setCustomCats(cats); setLoading(false); });
   }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+  useStorageChanged(['subscriptions', 'subscription_categories'], loadData);
 
   const handleSave = useCallback(async (sub: Subscription) => {
     await SubscriptionStorage.save(sub);

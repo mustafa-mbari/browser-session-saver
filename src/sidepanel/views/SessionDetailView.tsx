@@ -5,7 +5,7 @@ import type { ExportFormat, RestoreMode } from '@core/types/messages.types';
 import { formatTimestamp } from '@core/utils/date';
 import { generateId } from '@core/utils/uuid';
 import { useSidePanelStore } from '../stores/sidepanel.store';
-import { useSession } from '@shared/hooks/useSession';
+import { useSessionActions } from '@shared/hooks/useSession';
 import { useMessaging } from '@shared/hooks/useMessaging';
 import Button from '@shared/components/Button';
 import Badge from '@shared/components/Badge';
@@ -73,7 +73,7 @@ const restoreInitialState: RestoreState = {
 
 export default function SessionDetailView() {
   const { selectedSessionId, goBack } = useSidePanelStore();
-  const { restoreSession, deleteSession, updateSession } = useSession();
+  const { restoreSession, deleteSession, updateSession } = useSessionActions();
   const { sendMessage } = useMessaging();
 
   const [session, setSession] = useState<Session | null>(null);
