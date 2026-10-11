@@ -18,6 +18,11 @@ const { store, settingsStore } = vi.hoisted(() => ({
   settingsStore: {} as Record<string, unknown>,
 }));
 
+const { instance } = vi.hoisted(() => ({ instance: { id: 'local-browser', label: 'Chrome' } }));
+vi.mock('@core/services/browser-instance.service', () => ({
+  getBrowserInstance: vi.fn(async () => instance),
+}));
+
 vi.mock('@core/storage/storage-factory', () => {
   const mockRepo = {
     getById: vi.fn((id: string) => Promise.resolve(store[id] ?? null)),
@@ -92,6 +97,18 @@ function makeTab(url: string): Tab {
     active: false,
     scrollPosition: { x: 0, y: 0 },
   };
+}
+
+/** An auto-save written by a version without per-browser auto-saves (no sourceInstanceId). */
+function storeLegacyAutoSave() {
+  const session = {
+    id: 'legacy-auto', name: '[Auto — Timer] old', createdAt: '2025-12-01T00:00:00.000Z',
+    updatedAt: '2025-12-01T00:00:00.000Z', tabs: [makeTab('https://a.com')], tabGroups: [],
+    windowId: 1, tags: [], isPinned: true, isStarred: false, isLocked: true, isAutoSave: true,
+    autoSaveTrigger: 'timer' as const, notes: '', tabCount: 1, version: '1.0.0',
+  };
+  store[session.id] = session;
+  return session;
 }
 
 // ---------------------------------------------------------------------------
@@ -377,6 +394,31 @@ describe('session.service', () => {
       // Nothing changed — existing object returned unchanged
       expect(second.id).toBe(first.id);
       expect(second.updatedAt).toBe(first.updatedAt);
+    });
+
+    it('stamps this browser on its auto-save and never updates another browser entry', async () => {
+      store['edge-auto'] = {
+        id: 'edge-auto', name: '[Auto — Timer] Edge', createdAt: '2026-01-02T00:00:00.000Z',
+        updatedAt: '2026-01-02T00:00:00.000Z', tabs: [makeTab('https://edge.com')], tabGroups: [],
+        windowId: 1, tags: [], isPinned: true, isStarred: false, isLocked: true, isAutoSave: true,
+        autoSaveTrigger: 'timer', notes: '', tabCount: 1, version: '1.1.0',
+        sourceInstanceId: 'edge-browser', sourceLabel: 'Edge',
+      };
+
+      const mine = await upsertAutoSaveSession([makeTab('https://chrome.com')], NO_GROUPS, {}, false);
+
+      expect(mine.id).not.toBe('edge-auto');
+      expect(mine.sourceInstanceId).toBe('local-browser');
+      expect(mine.sourceLabel).toBe('Chrome');
+      expect((store['edge-auto'] as { tabs: Tab[] }).tabs[0].url).toBe('https://edge.com');
+    });
+
+    it('adopts an auto-save from before per-browser auto-saves existed', async () => {
+      const legacy = storeLegacyAutoSave();
+      const updated = await upsertAutoSaveSession([makeTab('https://b.com')], NO_GROUPS, {}, false);
+
+      expect(updated.id).toBe(legacy.id);
+      expect(updated.sourceInstanceId).toBe('local-browser');
     });
   });
 });

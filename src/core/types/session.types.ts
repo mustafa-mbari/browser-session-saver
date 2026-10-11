@@ -60,6 +60,10 @@ export interface Session {
   notes: string;
   tabCount: number;
   version: string;
+  /** Auto-saves only: the browser (BrowserInstance.id) that keeps this entry up to date. */
+  sourceInstanceId?: string;
+  /** Auto-saves only: that browser's label, e.g. "Edge". */
+  sourceLabel?: string;
   deletedAt?: string | null;
   dirty?: boolean;
   lastSyncedAt?: string | null;

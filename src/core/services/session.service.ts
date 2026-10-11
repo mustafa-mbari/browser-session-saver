@@ -4,6 +4,7 @@ import { CURRENT_SCHEMA_VERSION } from '@core/types/storage.types';
 import { generateId } from '@core/utils/uuid';
 import { nowISO, formatTimestamp } from '@core/utils/date';
 import { getSessionRepository, getSettingsStorage } from '@core/storage/storage-factory';
+import { getBrowserInstance } from '@core/services/browser-instance.service';
 import { STORAGE_KEYS } from '@core/types/storage.types';
 import type { StorageMetadata } from '@core/types/storage.types';
 
@@ -14,6 +15,8 @@ export interface SaveSessionOptions {
   autoSaveTrigger?: AutoSaveTrigger;
   isPinned?: boolean;
   isLocked?: boolean;
+  sourceInstanceId?: string;
+  sourceLabel?: string;
 }
 
 function generateSessionName(isAutoSave: boolean, trigger?: AutoSaveTrigger): string {
@@ -53,6 +56,9 @@ export async function saveSession(
     notes: '',
     tabCount: tabs.length,
     version: CURRENT_SCHEMA_VERSION,
+    ...(options.sourceInstanceId
+      ? { sourceInstanceId: options.sourceInstanceId, sourceLabel: options.sourceLabel }
+      : {}),
   };
 
   await repo.save(session);
@@ -72,10 +78,12 @@ export async function saveSession(
 }
 
 /**
- * Upsert the single persistent auto-save entry.
+ * Upsert this browser's persistent auto-save entry.
  *
- * There is exactly ONE auto-save entry in the store (regardless of trigger type).
- * It is always pinned and locked so it cannot be deleted accidentally.
+ * Each browser keeps exactly ONE auto-save entry (regardless of trigger type),
+ * identified by `sourceInstanceId`; browsers sharing data each see the others'
+ * entries but never update them. It is always pinned and locked so it cannot be
+ * deleted accidentally.
  *
  * @param mergeWithExisting  When true (default = autoSaveOnTabClose is OFF):
  *   keep all existing tabs and only ADD new URLs from `tabs`.
@@ -92,11 +100,16 @@ export async function upsertAutoSaveSession(
   const repo = getSessionRepository();
   const trigger = options.autoSaveTrigger ?? 'timer';
   const now = nowISO();
+  const instance = await getBrowserInstance();
 
-  // Always find THE single auto-save entry (newest first, any trigger type)
+  // Find this browser's auto-save (newest first, any trigger type). An entry from
+  // before per-browser auto-saves (no source) is adopted.
   const autoSaves = await repo.getByIndex('isAutoSave', true);
   autoSaves.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  const existing = autoSaves[0] ?? null;
+  const existing =
+    autoSaves.find((s) => s.sourceInstanceId === instance.id) ??
+    autoSaves.find((s) => !s.sourceInstanceId) ??
+    null;
 
   if (existing) {
     let finalTabs = tabs;
@@ -134,6 +147,8 @@ export async function upsertAutoSaveSession(
       isLocked: true,
       autoSaveTrigger: trigger,
       windowId: options.windowId ?? existing.windowId,
+      sourceInstanceId: instance.id,
+      sourceLabel: instance.label,
     };
     await repo.save(updated);
 
@@ -149,13 +164,15 @@ export async function upsertAutoSaveSession(
     return updated;
   }
 
-  // No existing entry — create the first auto-save (pinned + locked)
+  // No existing entry — create this browser's first auto-save (pinned + locked)
   return saveSession(tabs, tabGroups, {
     ...options,
     isAutoSave: true,
     autoSaveTrigger: trigger,
     isPinned: true,
     isLocked: true,
+    sourceInstanceId: instance.id,
+    sourceLabel: instance.label,
   });
 }
 
