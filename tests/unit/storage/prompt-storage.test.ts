@@ -42,14 +42,17 @@ function makeFolder(id: string, overrides: Partial<PromptFolder> = {}): PromptFo
 function setupStorage(initial: Record<string, unknown> = {}) {
   const store: Record<string, unknown> = { ...initial };
   (chrome.storage.local.get as ReturnType<typeof vi.fn>).mockImplementation(
-    (key: string, cb: (r: Record<string, unknown>) => void) => {
-      cb({ [key]: store[key] });
+    (key: string, cb?: (r: Record<string, unknown>) => void) => {
+      const result = { [key]: store[key] };
+      if (cb) { cb(result); return undefined; }
+      return Promise.resolve(result);
     },
   );
   (chrome.storage.local.set as ReturnType<typeof vi.fn>).mockImplementation(
     (items: Record<string, unknown>, cb?: () => void) => {
       Object.assign(store, items);
-      cb?.();
+      if (cb) { cb(); return undefined; }
+      return Promise.resolve();
     },
   );
   return store;
@@ -337,6 +340,61 @@ describe('PromptStorage — source migration', () => {
       await Promise.all([lockHolder, setTagDone]);
 
       expect(order).toEqual(['lock_acquired', 'lock_released', 'setTags_done']);
+    });
+  });
+
+  // ── Seeding ──────────────────────────────────────────────────────────────
+
+  describe('seeding', () => {
+    it('seedDemoData does not overwrite an edited demo prompt or revive a deleted one', async () => {
+      const store = setupStorage({
+        prompts: [
+          makePrompt('demo-p-1', { title: 'My edited title', isFavorite: false }),
+          makePrompt('demo-p-2', { deletedAt: '2026-01-01T00:00:00.000Z' }),
+        ],
+      });
+
+      await PromptStorage.seedDemoData();
+
+      const prompts = store.prompts as Prompt[];
+      expect(prompts.find((p) => p.id === 'demo-p-1')?.title).toBe('My edited title');
+      expect(prompts.find((p) => p.id === 'demo-p-2')?.deletedAt).toBe('2026-01-01T00:00:00.000Z');
+      // Missing demo prompts are added with the old seed timestamp
+      expect(prompts.find((p) => p.id === 'demo-p-3')?.updatedAt).toBe('2024-01-01T00:00:00.000Z');
+    });
+
+    it('seedDemoData runs only once', async () => {
+      const store = setupStorage();
+      await PromptStorage.seedDemoData();
+      store.prompts = [];
+
+      await PromptStorage.seedDemoData();
+
+      expect(store.prompts).toEqual([]);
+      expect(store.prompt_demo_seeded).toBe(true);
+    });
+
+    it('seedAppFolders does not bring back a deleted folder', async () => {
+      const store = setupStorage({
+        prompt_folders: [makeFolder('mf-work', { deletedAt: '2026-01-01T00:00:00.000Z' })],
+      });
+
+      await PromptStorage.seedAppFolders();
+
+      const folders = store.prompt_folders as PromptFolder[];
+      expect(folders.filter((f) => f.id === 'mf-work')).toHaveLength(1);
+      expect(folders.find((f) => f.id === 'mf-work')?.deletedAt).toBe('2026-01-01T00:00:00.000Z');
+      expect(folders.find((f) => f.id === 'mf-personal')?.updatedAt).toBe('2024-01-01T00:00:00.000Z');
+    });
+
+    it('deleting an app prompt is a soft delete', async () => {
+      const store = setupStorage({ prompts: [makePrompt('a', { source: 'app' })] });
+
+      await PromptStorage.delete('a');
+
+      const [deleted] = store.prompts as Prompt[];
+      expect(deleted.deletedAt).toBeTruthy();
+      expect(await PromptStorage.getAll()).toEqual([]);
     });
   });
 });

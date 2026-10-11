@@ -3,11 +3,15 @@ import { ChromeLocalKeyAdapter } from './chrome-local-key-adapter';
 import { ChromeLocalArrayRepository } from './chrome-local-array-repository';
 import { guardAction, trackAction } from '@core/services/limits/limit-guard';
 import { withStorageLock } from './storage-mutex';
+import { SEED_TIMESTAMP } from '@core/constants/seed';
 
 const promptsRepo = new ChromeLocalArrayRepository<Prompt>('prompts');
 const foldersRepo = new ChromeLocalArrayRepository<PromptFolder>('prompt_folders');
 const categoriesAdapter = new ChromeLocalKeyAdapter<PromptCategory>('prompt_categories');
 const tagsAdapter = new ChromeLocalKeyAdapter<PromptTag>('prompt_tags');
+
+/** Set once the demo prompts have been seeded, so deleting them is permanent. */
+const DEMO_SEEDED_KEY = 'prompt_demo_seeded';
 
 /** Expose repositories for direct access (e.g. sync layer). */
 export function getPromptRepository() { return promptsRepo; }
@@ -42,23 +46,14 @@ export const PromptStorage = {
 
   async delete(id: string): Promise<void> {
     await guardAction();
-    const existing = await promptsRepo.getById(id);
-    if (existing && existing.source === 'app') {
-      await promptsRepo.delete(id);
-    } else if (existing) {
-      await promptsRepo.markDeleted(id);
-    }
+    await promptsRepo.markDeleted(id);
     void trackAction();
   },
 
   async deleteAll(): Promise<void> {
     const all = await promptsRepo.getAll();
     for (const p of all) {
-      if (p.source === 'app') {
-        await promptsRepo.delete(p.id);
-      } else {
-        await promptsRepo.markDeleted(p.id);
-      }
+      await promptsRepo.markDeleted(p.id);
     }
   },
 
@@ -113,10 +108,7 @@ export const PromptStorage = {
         await promptsRepo.update(p.id, { folderId: undefined });
       }
     }
-    // App-source folders have no remote counterpart — hard-delete locally.
-    if (folder && folder.source === 'app') {
-      await foldersRepo.delete(id);
-    } else if (folder) {
+    if (folder) {
       await foldersRepo.markDeleted(id);
     }
     void trackAction();
@@ -209,7 +201,7 @@ export const PromptStorage = {
   async seedAppFolders(): Promise<void> {
     const now = new Date().toISOString();
     const f = (id: string, name: string, parentId: string | undefined, pos: number, color?: string): PromptFolder => ({
-      id, name, parentId, position: pos, createdAt: now,
+      id, name, parentId, position: pos, createdAt: now, updatedAt: SEED_TIMESTAMP,
       source: id.startsWith('af-') ? 'app' : 'local',
       ...(color ? { color } : {}),
     });
@@ -492,8 +484,9 @@ export const PromptStorage = {
       f('mf-personal', 'Personal', undefined, 1),
     ];
 
-    // Only insert folders that don't already exist
-    const existing = await foldersRepo.getAll();
+    // Only insert folders that don't already exist — deleted ones included, so a
+    // folder the user deleted is not brought back.
+    const existing = await foldersRepo.getAllWithOptions({ includeDeleted: true });
     const existingIds = new Set(existing.map((folder) => folder.id));
     const toAdd = folders.filter((folder) => !existingIds.has(folder.id));
     if (toAdd.length > 0) {
@@ -504,6 +497,9 @@ export const PromptStorage = {
   // ── Demo / Seed ─────────────────────────────────────────────────────────
 
   async seedDemoData(): Promise<void> {
+    const seeded = await chrome.storage.local.get(DEMO_SEEDED_KEY);
+    if (seeded[DEMO_SEEDED_KEY]) return;
+
     const now = new Date().toISOString();
     const d = (offsetDays: number) => {
       const t = new Date(); t.setDate(t.getDate() - offsetDays); return t.toISOString();
@@ -626,17 +622,23 @@ export const PromptStorage = {
       },
     ];
 
-    // Merge with existing data (skip IDs that already exist)
-    const [existingCats, existingTags] = await Promise.all([
+    // Merge with existing data: skip IDs that already exist (deleted ones included),
+    // so edits and deletions of demo prompts are never undone.
+    const [existingPrompts, existingCats, existingTags] = await Promise.all([
+      promptsRepo.getAllWithOptions({ includeDeleted: true }),
       categoriesAdapter.getAll(),
       tagsAdapter.getAll(),
     ]);
 
+    const existingPromptIds = new Set(existingPrompts.map((p) => p.id));
     const existingCatIds = new Set(existingCats.map((c) => c.id));
     const existingTagIds = new Set(existingTags.map((t) => t.id));
+    const newPrompts = prompts
+      .filter((p) => !existingPromptIds.has(p.id))
+      .map((p) => ({ ...p, updatedAt: SEED_TIMESTAMP }));
 
     await Promise.all([
-      promptsRepo.importMany(prompts),
+      promptsRepo.importMany(newPrompts),
       categoriesAdapter.setAll([
         ...existingCats,
         ...cats.filter((c) => !existingCatIds.has(c.id)),
@@ -646,5 +648,6 @@ export const PromptStorage = {
         ...tags.filter((t) => !existingTagIds.has(t.id)),
       ]),
     ]);
+    await chrome.storage.local.set({ [DEMO_SEEDED_KEY]: true });
   },
 };
