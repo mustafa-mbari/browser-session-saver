@@ -55,11 +55,12 @@ Services (business logic)
   └── NewTabDB singleton (newtabDB)   (bookmarks, todos, quick links, wallpapers)
 ```
 
-All data is stored **locally only** — `chrome.storage.local` and IndexedDB. No cloud sync.
+All data is stored **locally only** — `chrome.storage.local` and IndexedDB. No cloud sync. Optionally, the browsers on one computer share one data set through a folder the user picks (see Shared Folder Feature Notes).
 
 - **`IRepository<T>`** (`src/core/storage/repository.ts`) — unified CRUD interface for persistable entities; extended by `IIndexedRepository<T>` (secondary index queries) and `IBulkRepository<T>` (importMany/replaceAll)
 - **`IndexedDBRepository<T>`** (`src/core/storage/indexeddb-repository.ts`) — implements `IIndexedRepository` + `IBulkRepository`; used for sessions via `getSessionRepository()` in `storage-factory.ts`
 - **Bookmark/todo/quicklinks services** import `newtabDB` singleton directly — no `db` parameter on public functions
+- **Merge invariants** (the shared-folder merge depends on them): every repository's `save()`/`update()` stamps `updatedAt`; start-tab services write through `putStamped()` and delete through `softDeleteNewTab()` (`src/core/storage/newtab-soft-delete.ts`), which also announce the change on the data-change bus; deletes of shared records are soft (`deletedAt` tombstones, purged after 90 days by the maintenance job)
 
 ## Key Conventions
 
@@ -69,7 +70,7 @@ All data is stored **locally only** — `chrome.storage.local` and IndexedDB. No
 - **Messaging**: Typed discriminated union `Message` type between service worker and UI via `chrome.runtime.sendMessage`; 19 action types defined in `messages.types.ts`
 - **Styling**: Tailwind CSS v4 via `@tailwindcss/vite` (no `tailwind.config.ts` / PostCSS): design tokens in `@theme` in `src/shared/styles/globals.css`, dark mode via `@custom-variant dark` (`dark` class on `<html>`), animations from `tw-animate-css`. Glassmorphism helpers (`glass`, `glass-panel`, `glass-dark`, `glass-hover`, `vignette`, `newtab-page-card`) are `@utility` rules there. A base block keeps Tailwind v3 defaults (gray-200 borders, gray-400 placeholders, pointer cursor on buttons); v4 makes form controls transparent, so inputs need an explicit background
 - **Components**: All shared components support dark mode and include ARIA attributes
-- **Tests**: Vitest 5 with jsdom, Chrome API (and an in-memory `BroadcastChannel`) mocked in `tests/setup.ts`; 797 tests across 75 files in `tests/unit/`
+- **Tests**: Vitest 5 with jsdom, Chrome API (and an in-memory `BroadcastChannel`) mocked in `tests/setup.ts`; 845 tests across 79 files in `tests/unit/`
 - **Lint**: ESLint 10 flat config (`defineConfig`) with typescript-eslint and react-hooks 7 (React Compiler rules); `set-state-in-effect` is a warning, everything else must pass
 - **i18n**: `_locales/en/messages.json` (~282 keys), `_locales/ar/messages.json`, `_locales/de/messages.json`; `t()` wrapper at `src/shared/utils/i18n.ts`
 - **Virtual scrolling**: `@tanstack/react-virtual` v3 used in `SessionsPanel` (3-column `lanes` grid) and `AutoSavesPanel` (flat list with headers); threshold ≤30 items uses plain DOM, >30 uses virtualizer
@@ -113,10 +114,12 @@ All data is stored **locally only** — `chrome.storage.local` and IndexedDB. No
 - `src/core/storage/prompt-storage.ts` — chrome.storage.local adapter; keys: `prompts`, `prompt_categories`, `prompt_tags`, `prompt_folders`; includes `source` field migration
 - `src/core/services/prompt.service.ts` — `extractVariables`, `applyVariables`, `filterPrompts`, `filterBySection`, `buildFolderTree`, `sortPrompts`, `getRecentPrompts`, `getPinnedPrompts`
 - `src/background/event-listeners.ts` — Central message dispatcher; session mutation handlers (SAVE/UPDATE/DELETE) call `guardAction()` before and `trackAction()` after each operation; returns `{ success: false, limitStatus }` when `ActionLimitError` is thrown
-- `src/background/auto-save-engine.ts` — Auto-save trigger management; calls `upsertAutoSaveSession`, which keeps one rolling pinned + locked auto-save entry (updated in place). Loads settings itself and follows `settings` changes via `chrome.storage.onChanged`. "Save on browser close" works by keeping an all-windows snapshot in `chrome.storage.local` (`last_browser_snapshot`) and saving it on `runtime.onStartup` — the SW gets no reliable event on browser exit, and `chrome.storage.session` is cleared on restart
+- `src/background/auto-save-engine.ts` — Auto-save trigger management; calls `upsertAutoSaveSession`, which keeps one rolling pinned + locked auto-save entry per browser (found by `sourceInstanceId`, labelled with `sourceLabel`; updated in place). Loads settings itself and follows `settings` changes via `chrome.storage.onChanged`. "Save on browser close" works by keeping an all-windows snapshot in `chrome.storage.local` (`last_browser_snapshot`) and saving it on `runtime.onStartup` — the SW gets no reliable event on browser exit, and `chrome.storage.session` is cleared on restart
 - `src/background/alarms.ts` — `ensureAlarm(name, period)` creates an alarm only if it is missing or its period changed (`chrome.alarms.create` restarts the countdown, and the SW re-runs startup code on every wake); `onAlarm(name, cb)` routes named alarms through one listener
 - `src/background/maintenance.ts` — daily `browser-hub-maintenance` alarm: soft-deletes sessions older than `autoDeleteAfterDays` (skips pinned/locked/starred) and purges tombstones older than 90 days (`TOMBSTONE_RETENTION_MS`) via `src/core/services/maintenance.service.ts`
-- `src/core/events/data-change-bus.ts` — `notifyDataChanged(...modules)` / `onDataChanged()` over a `BroadcastChannel` (`browser-hub-data`) reaching every extension page and the SW; `useDataChanged(modules, cb)` hook in `src/shared/hooks/`. The session repository announces every write (`onChange` option of `IndexedDBRepository`), so `useSession` refreshes on session changes from any context
+- `src/core/events/data-change-bus.ts` — `notifyDataChanged(...modules)` (user edits), `notifySyncApplied(...modules)` (data a shared-folder sync wrote) and `onDataChanged(listener)` over a `BroadcastChannel` (`browser-hub-data`) reaching every extension page and the SW; bursts are coalesced (50 ms) and listeners get `{ local, fromSync }`. Hook: `useDataChanged(modules, cb, { ignoreOwnEdits })` in `src/shared/hooks/` (`ignoreOwnEdits` for views that already show their own edits). The session repository announces every write (`onChange` option of `IndexedDBRepository`), so `useSession` refreshes on session changes from any context; `useSessionActions()` gives the session actions without loading the list (for rows and cards)
+- `src/core/services/browser-instance.service.ts` — this browser's identity (`browser_instance` key: stable `id` + renamable `label` detected from `navigator.userAgentData.brands`); `otherBrowserLabel()` drives the "from Edge" labels on auto-saves made by other browsers
+- `src/core/constants/seed.ts` — `SEED_TIMESTAMP`; seeded start-tab records use fixed `seed-*` ids (`SEED_IDS` in `seed.service.ts`) and seeded prompts are created once (`prompt_demo_seeded`), so seeds never duplicate or overwrite synced data
 - `src/sidepanel/views/HomeView.tsx` — Slim orchestrator (~250 LOC) for sessions, current tabs, and tab groups tabs
 - `src/sidepanel/components/CurrentTabsPanel.tsx` — Current browser tabs panel (extracted from HomeView)
 - `src/sidepanel/components/HomeTabGroupsPanel.tsx` — Tab groups panel with live/saved sections (extracted from HomeView)
@@ -140,6 +143,7 @@ All data is stored **locally only** — `chrome.storage.local` and IndexedDB. No
 - `src/newtab/components/AutoSavesPanel.tsx` — Auto-saves sidebar with virtualised flat list (>30 entries)
 - `src/newtab/contexts/BookmarkBoardContext.tsx` — React context for `BookmarkBoardActions`; eliminates prop-drilling in start-tab board components
 - `src/shared/components/ErrorBoundary.tsx` — Class component error boundary wrapping all major UI sections
+- `src/shared/components/settings/SharedFolderSection.tsx` — "Share across browsers" settings (both surfaces); `src/shared/components/SharedFolderBanner.tsx` — one-click Reconnect banner when the folder needs permission again
 - `src/shared/components/settings/AutoSaveSettingsSection.tsx` — the single auto-save + session settings UI used by all settings screens (side panel `variant="sidepanel"`, start tab `variant="newtab"` with a `renderGroup` container); control primitives in `glass-controls.tsx` / `panel-controls.tsx`; state via `src/shared/hooks/useAppSettings.ts` (GET/UPDATE_SETTINGS + follows storage changes)
 - `src/core/services/newtab-settings.service.ts` — Read/write NewTabSettings via `getSettingsStorage()`
 
@@ -225,21 +229,39 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 - Auto-save: live groups are mirrored into templates when a tab-groups panel loads, via `TabGroupTemplateStorage.syncLiveGroups()` — not a user action, so it is NOT guarded/tracked; keeps `pinned`/`savedAt`, never revives a template the user deleted. `upsert()` (guarded) is for explicit user saves only
 - `ChromeGroupColor` type from `src/core/types/session.types.ts` (9 colors: grey, blue, red, yellow, green, pink, purple, cyan, orange)
 
+## Shared Folder Feature Notes
+
+One data set for every browser on this computer. The user picks the same folder in each browser (File System Access API: no manifest permission, extension pages only — not the SW). Works in Chrome, Edge, Opera and Vivaldi; Brave needs `brave://flags/#file-system-access-api` (the UI checks `isFolderAccessSupported()`).
+
+- **Files**: each browser writes only its own file, `bh-<label>-<id8>.json` (`SharedFile`: `format`, `schema`, `instance`, `writtenAt`, `data`), and reads the others'. One writer per file means no cross-browser locking, and the folder may live in OneDrive/Dropbox (which also shares between computers). The own file is rewritten only when its content fingerprint changes, and daily so other browsers see it is alive
+- **Code** (`src/core/sync/shared-folder/`): `types.ts` (file format, `RECORD_KEYS` / `LIST_KEYS` / `SETTINGS_KEYS`, `PER_BROWSER_NEWTAB_FIELDS`), `merge.ts` (pure merge functions), `folder.ts` (directory handle and pre-share backup in the separate IndexedDB `browser-hub-sync`; file listing, parsing, atomic writes), `local-data.ts` (reads/writes the local stores per module — this is the allow-list of what is shared), `state.ts` (`shared_folder_state` for the UI, `shared_folder_meta` for merge bookkeeping), `shared-folder.service.ts` (`connectFolder`, `reconnectFolder`, `stopSharing`, `syncNow`, `setSharedModules`, `removePeer`, `restorePreShareBackup`)
+- **Merge**: records by `id` (`key` for tab-group templates); newest `updatedAt` (fallback `createdAt`/`savedAt`/`addedAt`) wins; on a tie a tombstone wins, then a stable JSON comparison. Id-less lists (prompt categories/tags, subscription categories) are last-write-wins as a whole list (union on first join). `settings` and `newtab_settings` merge field by field, each field stamped when it last changed here (on first join, fields still at their default count as never changed)
+- **Deletes** travel as tombstones kept 90 days (`TOMBSTONE_RETENTION_MS`). Files of browsers that have not written for 90 days are ignored and shown as inactive, so purged deletes cannot come back; `findRemovedWhileAway()` drops records a returning browser still holds that the others purged
+- **Never shared**: Supabase auth tokens, `action_usage`, `cached_plan`, `cached_guest_limits`, `guest_id`, wallpaper blobs, caches and snapshots (`local-data.ts` reads an allow-list, never all of `chrome.storage.local`). Per browser even when settings are shared: `PER_BROWSER_NEWTAB_FIELDS` — `enabled`, `activeBoardId`, `sidebarCollapsed`, `zenMode` and the whole background (uploaded wallpapers exist only in one browser). Auto-saves: one entry per browser, labelled with the browser elsewhere
+- **Sync writes are not user actions**: no `guardAction()`/`trackAction()` and no re-stamping of `updatedAt`; they are announced with `notifySyncApplied()` so pages reload without sending the data back out
+- **When**: `useSharedFolderSync()` (mounted in the side panel and start-tab `App.tsx`) syncs on open, when the page becomes visible, every 60 s while visible, and 3 s after a local edit. `syncNow()` holds the Web Lock `browser-hub-shared-folder-sync` (`ifAvailable`), so one page syncs at a time. Changes made only by the SW (auto-saves) go out with the next page sync
+- **Permission**: background syncs never prompt. When Chrome wants permission again (e.g. after a restart) the status becomes `needs-permission` and `SharedFolderBanner` offers a one-click Reconnect. Chrome refuses some top-level folders (e.g. Documents itself), so the UI suggests a subfolder
+- **First join**: saves a backup of the local data (restorable from the settings section), claims old auto-saves without a source for this browser (`adoptLegacyAutoSaves`), and drops the untouched default dashboard when the folder already holds another browser's boards
+- **Stop sharing** keeps local data and deletes this browser's file if the folder is still accessible
+- **Tests**: `tests/unit/sync/merge.test.ts` and `tests/unit/sync/shared-folder.service.test.ts`, using the in-memory directory handle in `tests/unit/sync/fakes.ts`
+
 ## Testing
 
 - Chrome APIs are mocked globally in `tests/setup.ts`
-- Unit tests in `tests/unit/` organized by module (utils, services, storage, contexts, config, components, hooks, stores, background)
-  - `tests/unit/utils/` — uuid, date, validators, debounce, favicon, safe-open
-  - `tests/unit/services/` — search, export, import, session-count, session.service, subscription.service, prompt.service, bookmark.service, todo.service, quicklinks.service, seed.service, newtab-export.service, weather.service, tab-group.service, migration.service, newtab-settings.service, auth.service, guest.service
-  - `tests/unit/services/limits/` — action-tracker, limit-guard
-  - `tests/unit/storage/` — chrome-local-key-adapter, chrome-local-array-repository, newtab-storage, prompt-storage, subscription-storage, tab-group-template-storage, indexeddb, chrome-storage, storage-factory
+- Unit tests in `tests/unit/` organized by module (utils, services, storage, contexts, config, components, hooks, stores, background, events, sync)
+  - `tests/unit/utils/` — uuid, date, validators, debounce, favicon, safe-open, i18n
+  - `tests/unit/services/` — search, export, import, full-import, session-count, session.service, subscription.service, prompt.service, bookmark.service, todo.service, quicklinks.service, seed.service, newtab-export.service, weather.service, wallpaper.service, tab-group.service, migration.service, maintenance.service, newtab-settings.service, auth.service, guest.service, browser-instance.service
+  - `tests/unit/services/limits/` — action-tracker, limit-guard, limit-guard-atomic, limits.service
+  - `tests/unit/storage/` — chrome-local-key-adapter, chrome-local-array-repository, indexeddb-repository, newtab-storage, newtab-soft-delete, prompt-storage, subscription-storage, tab-group-template-storage, indexeddb, chrome-storage, storage-factory, storage-mutex
   - `tests/unit/contexts/` — bookmark-board-context
-  - `tests/unit/components/` — ErrorBoundary, Modal, Button, Badge, Toast, ContextMenu, EmptyState
+  - `tests/unit/components/` — ErrorBoundary, Modal, Button, Badge, Toast, ContextMenu, EmptyState, TodoCardBody, AutoSaveSettingsSection, SharedFolderSection (+ SharedFolderBanner)
   - `tests/unit/hooks/` — useSession, useAutoSave, useBookmarkDnd, useBookmarkFolderData, useClock, useKeyboard, useKeyboardShortcuts, useMessaging, useNewTabSettings, useSearch, useTheme, useWallpaper
   - `tests/unit/stores/` — sidepanel.store, newtab-ui.store, newtab-data.store
   - `tests/unit/background/` — auto-save-engine, event-listeners, alarms, tab-group-restore
   - `tests/unit/config/` — widget-config
-- 797 tests across 75 test files
+  - `tests/unit/events/` — data-change-bus
+  - `tests/unit/sync/` — merge, shared-folder.service (fake directory handle in `fakes.ts`)
+- 845 tests across 79 test files
 - Run `npm test` before committing
 - Services that call `guardAction`/`trackAction` must mock `@core/services/limits/limit-guard` in their tests (see Action Limits Feature Notes above)
 
@@ -247,6 +269,9 @@ The `p-[5%]` on the session-view wrapper gives uniform breathing room (~5% on ea
 
 - Do not add `popup` to `action.default_popup` in manifest — Side Panel opens via `openPanelOnActionClick`
 - Do not use `chrome.storage.sync` — all data is local only
+- Do not write anything to the shared folder outside the `local-data.ts` allow-list — never auth tokens or usage/limit counters
+- Do not hard-delete records of shared modules or write start-tab records with a raw `newtabDB.put()` — use tombstones and `putStamped()`, or deletes and edits will not reach the other browsers
+- Do not call `guardAction()`/`trackAction()` from sync or other non-user writes — they would use up the user's action quota
 - Do not import from `@background/` in UI code — communicate via messages only
 - Do not modify the `browser-hub` IndexedDB — start-tab data uses the separate `newtab-db` (NewTabDB class)
 - Do not merge NewTabSettings into the existing Settings type — it lives under its own storage key

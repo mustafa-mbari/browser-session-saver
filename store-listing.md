@@ -40,7 +40,7 @@ Browser Hub is an all-in-one Chrome side panel that keeps your browser organised
 Capture every open window, tab, and tab group in a single click. Each saved session is named, timestamped, and stored entirely on your device — nothing is uploaded to a server. Restore any session in full, or pick individual tabs to reopen.
 
 ### Auto-Save Engine
-Never lose your work again. Browser Hub watches for shutdown signals, system sleep, extended idle time, and low battery events, then silently creates an auto-save snapshot before Chrome closes. Each trigger type maintains its own pinned entry that is updated in place — your auto-save list stays clean.
+Never lose your work again. Browser Hub saves your open tabs on a timer, when the computer sleeps or locks and when you close a window, and keeps what was open when the browser closed so you can restore it after a restart. Each browser keeps one pinned auto-save entry that is updated in place — your auto-save list stays clean.
 
 ### Tab Groups
 Save Chrome tab groups as named templates. Restore your complete tab-group context — colours, names, and URLs — with a single click. Works alongside live groups so you can save a session and its groups together.
@@ -54,9 +54,12 @@ Store AI prompt templates with `{{variable}}` placeholders. Organise prompts int
 ### Subscription Tracker
 Track recurring bills directly on your new-tab page. Colour-coded urgency alerts surface renewals before they happen. Supports multiple currencies and custom billing cycles.
 
+### Share Across Browsers
+Use the same sessions, prompts, bookmarks, to-dos, subscriptions and settings in Chrome, Edge, Opera or Vivaldi on one computer. Choose the same folder in each browser and Browser Hub keeps them in step — each browser writes its own file there and merges the others'. The files stay on your computer; nothing is uploaded. Put the folder in OneDrive or Dropbox to share between computers too.
+
 ---
 
-**Privacy first.** All session data, bookmarks, notes, to-dos, and subscriptions are stored exclusively in your browser using chrome.storage.local and IndexedDB. Nothing leaves your device unless you sign in or enable optional features (weather widget, prompt sharing).
+**Privacy first.** All session data, bookmarks, notes, to-dos, and subscriptions are stored exclusively in your browser using chrome.storage.local and IndexedDB. Nothing leaves your device unless you sign in or enable optional features (weather widget, prompt sharing). "Share across browsers" only writes to a folder you choose on your own computer.
 
 **Works without an account.** Every feature is available as a guest. Creating a free account unlocks higher daily/monthly action limits and cross-device sign-in.
 

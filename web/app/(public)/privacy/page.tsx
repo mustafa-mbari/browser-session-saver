@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: 'How Browser Hub collects, uses, and protects your data.',
 }
 
-const EFFECTIVE_DATE = 'May 17, 2026'
+const EFFECTIVE_DATE = 'October 11, 2026'
 const CONTACT_EMAIL = 'mbari.info@gmail.com'
 
 export default function PrivacyPage() {
@@ -131,6 +131,20 @@ export default function PrivacyPage() {
             <p>
               This data is cleared when you uninstall the extension or clear browser storage for the
               extension.
+            </p>
+          </Section>
+
+          <Section title="Sharing Between Browsers (Optional)">
+            <p>
+              If you turn on &ldquo;Share across browsers&rdquo;, the extension writes a copy of your
+              sessions, prompts, bookmarks, notes, to-dos, subscriptions, tab group templates and
+              settings to a folder you choose on your computer, and reads the copies written by your
+              other browsers. Nothing is sent to our servers. The files leave your computer only if you
+              choose a folder that another program synchronises (for example OneDrive or Dropbox).
+              Sign-in tokens and usage counters are never written to the folder. When you turn sharing
+              off, the extension deletes this browser&rsquo;s file from the folder if it can still
+              access it. Uninstalling the extension does not delete the folder or its files; you can
+              delete them yourself at any time.
             </p>
           </Section>
 
