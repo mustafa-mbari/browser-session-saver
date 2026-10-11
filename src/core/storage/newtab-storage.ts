@@ -122,6 +122,32 @@ export class NewTabDB {
     });
   }
 
+  /** Write several records in one transaction (as given — no stamping). */
+  async putMany<T extends { id: string }>(store: string, records: T[]): Promise<void> {
+    if (records.length === 0) return;
+    const db = await this.openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, 'readwrite');
+      const objectStore = tx.objectStore(store);
+      for (const record of records) objectStore.put(record);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  /** Delete several records in one transaction. */
+  async deleteMany(store: string, ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const db = await this.openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, 'readwrite');
+      const objectStore = tx.objectStore(store);
+      for (const id of ids) objectStore.delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
   async getAllByIndex<T>(store: string, indexName: string, value: string): Promise<T[]> {
     const db = await this.openDB();
     return new Promise((resolve, reject) => {

@@ -23,6 +23,31 @@ export class TabGroupTemplateStorage {
     return all.filter((t) => !t.deletedAt);
   }
 
+  /** All templates, deleted ones (tombstones) included. */
+  static getAllRaw(): Promise<TabGroupTemplate[]> {
+    return adapter.getAll();
+  }
+
+  /**
+   * Write templates received from another browser as given (keyed by `key`).
+   * Not a user action: no action-limit cost and no re-stamping.
+   */
+  static applyRemote(templates: TabGroupTemplate[]): Promise<void> {
+    return withStorageLock('tab_group_templates', async () => {
+      const byKey = new Map((await adapter.getAll()).map((t) => [t.key, t]));
+      for (const template of templates) byKey.set(template.key, template);
+      await adapter.setAll([...byKey.values()]);
+    });
+  }
+
+  /** Remove templates by key (no tombstone). */
+  static removeMany(keys: string[]): Promise<void> {
+    return withStorageLock('tab_group_templates', async () => {
+      const remove = new Set(keys);
+      await adapter.setAll((await adapter.getAll()).filter((t) => !remove.has(t.key)));
+    });
+  }
+
   /**
    * Insert or update a template by key.
    * Preserves the original `savedAt` timestamp on update.
