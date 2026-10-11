@@ -5,6 +5,7 @@ import ContextMenu from '@shared/components/ContextMenu';
 import type { ChromeGroupColor } from '@core/types/session.types';
 import { GROUP_COLORS } from '@core/constants/tab-group-colors';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
+import { isNonEmpty } from '@core/utils/arrays';
 
 export interface TGLiveGroup {
   id: number;
@@ -86,7 +87,7 @@ export default function HomeLiveGroupRow({ group, onRefresh, onToast }: HomeLive
 
   const handleUngroup = useCallback(async () => {
     const tabIds = group.tabs.map((t) => t.id!).filter(Boolean);
-    if (tabIds.length > 0) {
+    if (isNonEmpty(tabIds)) {
       await chrome.tabs.ungroup(tabIds);
       await onRefresh();
     }

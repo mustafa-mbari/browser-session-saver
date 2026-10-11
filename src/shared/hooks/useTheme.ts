@@ -11,7 +11,7 @@ export function useTheme() {
   // Load persisted theme directly from storage (no service-worker hop that can fail)
   useEffect(() => {
     chrome.storage.local.get('settings', (result) => {
-      const saved = result?.settings?.theme as ThemePreference | undefined;
+      const saved = (result?.settings as Partial<Settings> | undefined)?.theme;
       if (saved) setThemeState(saved);
     });
   }, []);
@@ -19,7 +19,7 @@ export function useTheme() {
   // React to theme changes from any extension page (sidepanel ↔ dashboard sync)
   useEffect(() => {
     const handler = (changes: Record<string, chrome.storage.StorageChange>) => {
-      const newTheme = changes['settings']?.newValue?.theme as ThemePreference | undefined;
+      const newTheme = (changes['settings']?.newValue as Partial<Settings> | undefined)?.theme;
       if (newTheme) setThemeState(newTheme);
     };
     chrome.storage.local.onChanged.addListener(handler);

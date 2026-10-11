@@ -23,6 +23,7 @@ import EmptyState from '@shared/components/EmptyState';
 import LoadingSpinner from '@shared/components/LoadingSpinner';
 import ContextMenu from '@shared/components/ContextMenu';
 import { GROUP_COLORS as GROUP_COLOR_MAP, COLOR_OPTIONS } from '@core/constants/tab-group-colors';
+import { isNonEmpty } from '@core/utils/arrays';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -46,7 +47,7 @@ async function restoreInCurrentWindow(template: TabGroupTemplate): Promise<void>
     const created = await chrome.tabs.create({ url: tab.url, windowId, active: false });
     if (created.id) tabIds.push(created.id);
   }
-  if (tabIds.length > 0) {
+  if (isNonEmpty(tabIds)) {
     const newGroupId = await chrome.tabs.group({ tabIds, createProperties: { windowId } });
     await chrome.tabGroups.update(newGroupId, {
       title: template.title,
@@ -135,7 +136,7 @@ function LiveGroupRow({
 
   const handleUngroup = useCallback(async () => {
     const tabIds = group.tabs.map((t) => t.id!).filter(Boolean);
-    if (tabIds.length > 0) {
+    if (isNonEmpty(tabIds)) {
       await chrome.tabs.ungroup(tabIds);
       onRefresh();
     }

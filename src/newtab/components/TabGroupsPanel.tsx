@@ -20,6 +20,7 @@ import type { ChromeGroupColor } from '@core/types/session.types';
 import type { TabGroupTemplate } from '@core/types/tab-group.types';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
 import { GROUP_COLORS, COLOR_OPTIONS } from '@core/constants/tab-group-colors';
+import { isNonEmpty } from '@core/utils/arrays';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -43,7 +44,7 @@ async function restoreInCurrentWindow(template: TabGroupTemplate): Promise<void>
     const created = await chrome.tabs.create({ url: tab.url, windowId, active: false });
     if (created.id) tabIds.push(created.id);
   }
-  if (tabIds.length > 0) {
+  if (isNonEmpty(tabIds)) {
     const newGroupId = await chrome.tabs.group({ tabIds, createProperties: { windowId } });
     await chrome.tabGroups.update(newGroupId, {
       title: template.title,
@@ -131,7 +132,7 @@ function LiveGroupCard({
 
   const handleUngroup = async () => {
     const tabIds = group.tabs.map((t) => t.id!).filter(Boolean);
-    if (tabIds.length > 0) {
+    if (isNonEmpty(tabIds)) {
       await chrome.tabs.ungroup(tabIds);
       onRefresh();
     }

@@ -7,6 +7,7 @@ import type { TabGroupTemplate } from '@core/types/tab-group.types';
 import { TabGroupTemplateStorage } from '@core/storage/tab-group-template-storage';
 import HomeLiveGroupRow, { type TGLiveGroup } from './HomeLiveGroupRow';
 import HomeSavedGroupRow from './HomeSavedGroupRow';
+import { isNonEmpty } from '@core/utils/arrays';
 
 interface HomeTabGroupsPanelProps {
   sessions: Session[];
@@ -72,7 +73,7 @@ export default function HomeTabGroupsPanel({ query, onToast }: HomeTabGroupsPane
       const created = await chrome.tabs.create({ url: tab.url, windowId, active: false });
       if (created.id) tabIds.push(created.id);
     }
-    if (tabIds.length > 0) {
+    if (isNonEmpty(tabIds)) {
       const gid = await chrome.tabs.group({ tabIds, createProperties: { windowId } });
       await chrome.tabGroups.update(gid, { title: template.title, color: template.color });
       await chrome.tabs.update(tabIds[0], { active: true });

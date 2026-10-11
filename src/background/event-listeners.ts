@@ -15,6 +15,7 @@ import { MAX_IMPORT_SIZE_BYTES } from '@core/constants/limits';
 import { getLimitStatus, getCachedPlanTier } from '@core/services/limits/action-tracker';
 import { guardAction, trackAction, ActionLimitError } from '@core/services/limits/limit-guard';
 import { assertImportExportAccess } from '@core/access/import-export-access';
+import { isNonEmpty } from '@core/utils/arrays';
 
 export function registerEventListeners(): void {
   chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
@@ -163,13 +164,13 @@ async function handleRestoreSession(payload: {
 
   if (payload.mode === 'new_window') {
     const firstTab = sortedTabs[0];
-    let win: chrome.windows.Window;
+    let win: chrome.windows.Window | undefined;
     try {
       win = await chrome.windows.create({ url: firstTab?.url ? (isValidUrl(firstTab.url) ? firstTab.url : undefined) : undefined, focused: true });
     } catch {
       return { success: false, error: 'Failed to create window' };
     }
-    if (!win.id) return { success: false, error: 'Failed to create window' };
+    if (!win?.id) return { success: false, error: 'Failed to create window' };
     windowId = win.id;
     // Capture the first tab's ID for group tracking
     const firstId = win.tabs?.[0]?.id;
@@ -215,7 +216,7 @@ async function handleRestoreSession(payload: {
 
   for (const group of sortedGroups) {
     const tabIds = groupTabIds.get(group.id) ?? [];
-    if (tabIds.length === 0) continue;
+    if (!isNonEmpty(tabIds)) continue;
     const newGroupId = await chrome.tabs.group({ tabIds, createProperties: { windowId } });
     await chrome.tabGroups.update(newGroupId, {
       title: group.title,
@@ -478,13 +479,13 @@ async function handleRestoreSelectedTabs(payload: {
 
   if (payload.mode === 'new_window') {
     const firstUrl = isValidUrl(tabsToOpen[0].url) ? tabsToOpen[0].url : undefined;
-    let win: chrome.windows.Window;
+    let win: chrome.windows.Window | undefined;
     try {
       win = await chrome.windows.create({ url: firstUrl, focused: true });
     } catch {
       return { success: false, error: 'Failed to create window' };
     }
-    if (!win.id) return { success: false, error: 'Failed to create window' };
+    if (!win?.id) return { success: false, error: 'Failed to create window' };
     const windowId = win.id;
     for (let i = 1; i < tabsToOpen.length; i++) {
       if (!isValidUrl(tabsToOpen[i].url)) { failedUrls.push(tabsToOpen[i].url); continue; }
