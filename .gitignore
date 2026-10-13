@@ -21,3 +21,6 @@ admin/node_modules/
 *.zip
 err.txt
 out.txt
+
+# Supabase CLI working files
+supabase/.temp/
